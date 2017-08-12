@@ -4,6 +4,7 @@ CON
     _xinfreq = 5_000_000
    
 CON
+'' LSM9DS1 Register mappings to their symbolic names
   ACT_THS = $04
   ACT_DUR = $05
   INT_GEN_CFG_XL = $06
@@ -137,9 +138,9 @@ VAR
   long stack[100]
   
 OBJ
-
-    spi:    "SPI_Asm" '1 COG
-'    spi:    "SPI_Spin" '0 COGs
+'' Either SPI_Asm or SPIN_Spin may be used.
+    spi:    "SPI_Asm" 'Faster, but consumes 1 COG
+'    spi:    "SPI_Spin" 'Slower, but uses 0 COGs
     ser:    "com.serial.terminal" '1 COG
     time:   "time" '0 COG
     math:   "math.float" '1 COG
@@ -172,7 +173,8 @@ PUB main | i, s
   repeat until ser.CharIn
   
   __autoCalc:=TRUE
-  s:=M_RAW
+  
+  s:=M_RAW 'Which sensor to test, and what kind of output
   imu_clearGyroInterrupt
   imu_clearAccelInterrupt
   imu_clearMagInterrupt
@@ -184,7 +186,7 @@ PUB main | i, s
   'imu_calibrateMag
   'imu_setMagCalibration (0,0,0) 'To reset cal values stored on device
   'imu_setMagCalibration (11400, -6400, 16000)
-'  imu_setMagCalibration (500, 0, 0)
+  imu_setMagCalibration (500, 0, 0)
   imu_setAccelCalibration (-210, 0, -320)
   imu_setGyroCalibration (-38, -20, -45)
   
@@ -249,6 +251,7 @@ PUB main | i, s
       led
 
 PUB printRawM
+'' Print raw magnetometer values
   repeat
     ser.Dec (__mx)
     repeat 5
@@ -263,19 +266,20 @@ PUB printRawM
     time.MSleep (delay)
 
 PUB printCalcM
+'' Print calculated magnetometer values, in Gauss
   repeat
-'    ser.str (fs.floattostring(__mx))
-    ser.Str (fs.floattostring(uTesla(__mx)))
+    ser.str (fs.floattostring(__mx))
+'    ser.Str (fs.floattostring(uTesla(__mx)))
     ser.Str (string("uT"))
     repeat 5
       ser.Char (32)
-'    ser.str (fs.floattostring(__my))
-    ser.Str (fs.floattostring(uTesla(__my)))
+    ser.str (fs.floattostring(__my))
+'    ser.Str (fs.floattostring(uTesla(__my)))
     ser.Str (string("uT"))
     repeat 5
       ser.Char (32)
-'    ser.str (fs.floattostring(__mz))
-    ser.Str (fs.floattostring(uTesla(__mz)))
+    ser.str (fs.floattostring(__mz))
+'    ser.Str (fs.floattostring(uTesla(__mz)))
     ser.Str (string("uT"))
     repeat 5
       ser.Char (32)
@@ -283,6 +287,7 @@ PUB printCalcM
     time.MSleep (delay)
 
 PUB printRawXL
+'' Print raw accelerometer values
   repeat
     ser.Dec (__ax)
     repeat 5
@@ -297,6 +302,7 @@ PUB printRawXL
     time.MSleep (delay)
 
 PUB printCalcXL
+'' Print calculated accelerometer values, in G's
   repeat
     ser.str (fs.floattostring(__ax))
     repeat 5
@@ -311,7 +317,9 @@ PUB printCalcXL
     time.MSleep (delay)
 
 PUB thresh_XL
-  
+'' React to an accelerometer interrupt
+'' previously set in the IMU
+
   dira[LEDRED]~~
   dira[LEDGREEN]~~
   
@@ -328,6 +336,7 @@ PUB thresh_XL
     time.MSleep (delay)
 
 PUB printRawG
+'' Print raw Gyroscope values
   repeat
     ser.Dec (__gx)
     repeat 5
@@ -342,6 +351,7 @@ PUB printRawG
     time.MSleep (delay)
 
 PUB printCalcG
+'' Print calculated Gyroscope values, in Degrees Per Second
   repeat
     ser.str (fs.floattostring(__gx))
     repeat 5
@@ -356,7 +366,9 @@ PUB printCalcG
     time.MSleep (delay)
 
 PUB thresh_G
-  
+'' React to a gyroscope interrupt
+'' previously set in the IMU
+
   dira[LEDRED]~~
   dira[LEDGREEN]~~
   
@@ -371,8 +383,8 @@ PUB thresh_G
       outa[LEDGREEN]~
       outa[LEDRED]~~
 
-PUB imu_init(pinSCL, pinSDIO, pinAG, pinM) | xgTest, mTest, whoAmICombined 'PARTIAL
-
+PUB imu_init(pinSCL, pinSDIO, pinAG, pinM) | xgTest, mTest, whoAmICombined 'WORKS
+'' Initialize the IMU
   high(pinAG)
   high(pinM)
   low(pinSCL) ' Pin output state to low
@@ -409,7 +421,8 @@ PUB imu_init(pinSCL, pinSDIO, pinAG, pinM) | xgTest, mTest, whoAmICombined 'PART
   return whoAmICombined
 
 PUB imu_setMagCalibration(mxBias, myBias, mzBias) | k, msb, lsb 'WORKS
-
+'' Manually set magnetometer calibration offset values
+'' (non-volatile)
   __mBiasRaw[X_AXIS] := mxBias
   __mBiasRaw[Y_AXIS] := myBias
   __mBiasRaw[Z_AXIS] := mzBias
@@ -421,19 +434,20 @@ PUB imu_setMagCalibration(mxBias, myBias, mzBias) | k, msb, lsb 'WORKS
     imu_SPIwriteByte(CS_M_PIN, OFFSET_X_REG_H_M + (2 * k), msb)
 
 PUB imu_setAccelCalibration(axBias, ayBias, azBias) 'WORKS
-
+'' Manually set accelerometer calibration offset values
   __aBiasRaw[X_AXIS] := axBias
   __aBiasRaw[Y_AXIS] := ayBias
   __aBiasRaw[Z_AXIS] := azBias
 
 PUB imu_setGyroCalibration(gxBias, gyBias, gzBias) 'WORKS
-
+'' Manually set gyroscope calibration offset values
   __gBiasRaw[X_AXIS] := gxBias
   __gBiasRaw[Y_AXIS] := gyBias
   __gBiasRaw[Z_AXIS] := gzBias
 
-PUB imu_calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], msb, lsb
-
+PUB imu_calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], msb, lsb 'PARTIAL
+'' Calibrate magnetometer offsets using
+'' average of min & max values together
   repeat i from 0 to 128
     repeat while not imu_magAvailable ''Wait until new data available
       outa[LEDRED]~~
@@ -462,13 +476,13 @@ PUB imu_calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], ms
 
 
 PUB imu_magAvailable | status 'WORKS
-
+'' Function to check if magnetometer data is available
   imu_SPIreadBytes(CS_M_PIN, STATUS_REG_M, @status, 1)
   return ((status & (1 << 3)) >> 3)
 
 
 PUB imu_setMagScale(mScl) | temp 'WORKS
-
+'' Set the full-scale range of the magnetometer
   if (mScl <> 4) and (mScl <> 8) and (mScl <> 12) and (mScl <> 16)
     mScl := 4
   ' We need to preserve the other bytes in CTRL_REG6_XM. So, first read it:, temp
@@ -494,7 +508,7 @@ PUB imu_setMagScale(mScl) | temp 'WORKS
   imu_SPIwriteByte(CS_M_PIN, CTRL_REG2_M, temp)
 
 PUB imu_readMag(mx, my, mz) | temp[2], tempX, tempY, tempZ 'WORKS
-'' We'll read six bytes from the mag into temp  , tempX, tempY, tempZ
+'' We'll read six bytes from the mag into temp
   imu_SPIreadBytes(CS_M_PIN, OUT_X_L_M, @temp, 6) ' Read 6 bytes, beginning at OUT_X_L_M
   tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into mx
   tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into my
@@ -504,7 +518,7 @@ PUB imu_readMag(mx, my, mz) | temp[2], tempX, tempY, tempZ 'WORKS
   long[mz] := ~~tempZ
 
 PUB imu_readMagCalculated(mx, my, mz) | tempX, tempY, tempZ 'WORKS
-  ' Return the mag raw reading times our pre-calculated Gs / (ADC tick):, tempX, tempY, tempZ
+'' Return the mag raw reading times our pre-calculated Gs / (ADC tick):
   imu_readMag(@tempX, @tempY, @tempZ)
   long[mx] := math.DivF (math.FloatF(tempX), __mRes)'(tempX) / __mRes
   long[my] := math.DivF (math.FloatF(tempY), __mRes)'(tempY) / __mRes
@@ -515,16 +529,22 @@ PUB imu_readMagCalculated(mx, my, mz) | tempX, tempY, tempZ 'WORKS
     long[mz] -= __mBiasRaw[Z_AXIS]
 
 PUB imu_clearMagInterrupt | tempRegValue
+'' Clears out any interrupts set up on the Magnetometer and
+'' resets all Magnetometer interrupt registers to their default values
   imu_SPIwriteByte(CS_M_PIN, INT_THS_L_M, $00)
   imu_SPIwriteByte(CS_M_PIN, INT_THS_H_M, $00)
   imu_SPIwriteByte(CS_M_PIN, INT_SRC_M, $00)
   imu_SPIwriteByte(CS_M_PIN, INT_CFG_M, $00)
 
-PUB imu_accelAvailable | status
+PUB imu_accelAvailable | status 'WORKS
+'' Polls the Accelerometer status register to check if new data is available.
   imu_SPIreadBytes(CS_AG_PIN, STATUS_REG_1, @status, 1)
   return (status & (1 << 0))
   
 PUB imu_setAccelScale(aScl) | tempRegValue 'WORKS
+'' Sets the full-scale range of the Accelerometer.
+'' This function can be called to set the scale of the Accelerometer to 2, 4, 8, or 16 g's.
+
   if (aScl <> 2) and (aScl <> 4) and (aScl <> 8) and (aScl <> 16)
     aScl := 2
   __aRes := math.DivF (32768.0, math.FloatF (aScl))
@@ -544,6 +564,8 @@ PUB imu_setAccelScale(aScl) | tempRegValue 'WORKS
   imu_SPIwriteByte(CS_AG_PIN, CTRL_REG6_XL, tempRegValue)
 
 PUB imu_readAccel(ax, ay, az) | temp[2], tempX, tempY, tempZ 'WORKS
+''Reads the Accelerometer output registers
+
 '' We'll read six bytes from the accelerometer into temp  , tempX, tempY, tempZ
   imu_SPIreadBytes(CS_AG_PIN, OUT_X_L_XL, @temp, 6) ' Read 6 bytes, beginning at OUT_X_L_XL
   tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into ax
@@ -558,13 +580,14 @@ PUB imu_readAccel(ax, ay, az) | temp[2], tempX, tempY, tempZ 'WORKS
     long[az] -= __aBiasRaw[Z_AXIS]
 
 PUB imu_readAccelCalculated(ax, ay, az) | tempX, tempY, tempZ 'WORKS
-'' Return the accel raw reading times our pre-calculated g's / (ADC tick):, tempX, tempY, tempZ
+'' Reads the Accelerometer output registers and scales the outputs to g's (1 g = 9.8 m/s/s)
   imu_readAccel(@tempX, @tempY, @tempZ)
   long[ax] := math.DivF (math.FloatF(tempX), __aRes)'(tempX) / __aRes
   long[ay] := math.DivF (math.FloatF(tempY), __aRes)'(tempY) / __aRes
   long[az] := math.DivF (math.FloatF(tempZ), __aRes)'(tempZ) / __aRes
 
 PUB imu_setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue, accelThs, accelThsH, tempThs 'WORKS
+''Configures the Accelerometer interrupt output to the INT_A/G pin.
   overUnder &= $01
   andOr &= $01
   tempRegValue := 0
@@ -609,6 +632,8 @@ PUB imu_setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempReg
   imu_SPIwriteByte(CS_AG_PIN, INT1_CTRL, tempRegValue)
 
 PUB imu_clearAccelInterrupt | tempRegValue 'WORKS
+'' Clears out any interrupts set up on the Accelerometer and
+'' resets all Accelerometer interrupt registers to their default values.
   imu_SPIwriteByte(CS_AG_PIN, INT_GEN_THS_X_XL, $00)
   imu_SPIwriteByte(CS_AG_PIN, INT_GEN_THS_Y_XL, $00)
   imu_SPIwriteByte(CS_AG_PIN, INT_GEN_THS_Z_XL, $00)
@@ -619,11 +644,12 @@ PUB imu_clearAccelInterrupt | tempRegValue 'WORKS
   imu_SPIwriteByte(CS_AG_PIN, INT1_CTRL, tempRegValue)
 
 PUB imu_gyroAvailable | status
+''Polls the Gyroscope status register to check if new data is available
   imu_SPIreadBytes(CS_AG_PIN, STATUS_REG_1, @status, 1)
   return ((status & (1 << 1)) >> 1)
 
 PUB imu_setGyroScale(gScl) | ctrl1RegValue 'WORKS
-
+'' Sets the full-scale range of the Gyroscope.
   if ((gScl <> 245) and (gScl <> 500) and (gScl <> 2000))
     gScl := 245
   __settings_gyro_scale := gScl
@@ -641,7 +667,9 @@ PUB imu_setGyroScale(gScl) | ctrl1RegValue 'WORKS
   imu_SPIwriteByte(CS_AG_PIN, CTRL_REG1_G, ctrl1RegValue)
 
 PUB imu_readGyro(gx, gy, gz) | temp[2], tempX, tempY, tempZ 'WORKS
-'' We'll read six bytes from the gyro into temp, tempX, tempY, tempZ
+'' Reads the Gyroscope output registers.
+
+'' We'll read six bytes from the gyro into temp
   imu_SPIreadBytes(CS_AG_PIN, OUT_X_L_G, @temp, 6) ' Read 6 bytes, beginning at OUT_X_L_G
   tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into gx
   tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into gy
@@ -655,6 +683,8 @@ PUB imu_readGyro(gx, gy, gz) | temp[2], tempX, tempY, tempZ 'WORKS
     long[gz] -= __gBiasRaw[Z_AXIS]
 
 PUB imu_readGyroCalculated(gx, gy, gz) | tempX, tempY, tempZ 'WORKS
+'' Reads the Gyroscope output registers and scales the outputs to degrees of rotation per second (DPS).
+
 '' Return the gyro raw reading times our pre-calculated DPS / (ADC tick):, tempX, tempY, tempZ
   imu_readGyro(@tempX, @tempY, @tempZ)
   long[gx] := math.DivF (math.floatf(tempX), __gRes)
@@ -662,6 +692,7 @@ PUB imu_readGyroCalculated(gx, gy, gz) | tempX, tempY, tempZ 'WORKS
   long[gz] := math.DivF (math.floatf(tempZ), __gRes)
 
 PUB imu_setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue, gyroThs, gyroThsH, gyroThsL 'WORKS
+'' Configures the Gyroscope interrupt output to the INT_A/G pin.
   overUnder &= $01
   tempRegValue := 0
   imu_SPIreadBytes(CS_AG_PIN, CTRL_REG4, @tempRegValue, 1) ' Make sure interrupt is NOT latched
@@ -716,6 +747,7 @@ PUB imu_setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegV
   imu_SPIwriteByte(CS_AG_PIN, INT1_CTRL, tempRegValue)
 
 PUB imu_clearGyroInterrupt | tempRegValue 'WORKS
+'' Clears out any interrupts set up on the Gyroscope and resets all Gyroscope interrupt registers to their default values.
   imu_SPIwriteByte(CS_AG_PIN, INT_GEN_THS_XH_G, $00)
   imu_SPIwriteByte(CS_AG_PIN, INT_GEN_THS_XL_G, $00)
   imu_SPIwriteByte(CS_AG_PIN, INT_GEN_THS_YH_G, $00)
@@ -730,13 +762,14 @@ PUB imu_clearGyroInterrupt | tempRegValue 'WORKS
 
 
 PUB imu_SPIwriteByte(csPin, subAddress, data) 'WORKS
-
+'' SPI: Write _data_ to device _subAddress_ on I/O pin _csPin_
   low(csPin)
   spi.shiftout(SDIO_PIN, SCL_PIN, spi#MSBFIRST, 8, subAddress & $3F)
   spi.shiftout(SDIO_PIN, SCL_PIN, spi#MSBFIRST, 8, data)
   high(csPin)
 
 PUB imu_SPIreadBytes(csPin, subAddress, dest, count) | rAddress, i 'WORKS
+'' SPI: Read _count_ bytes from device _subAddress_ on I/O pin _csPin_ into pointer _dest_
   ' To indicate a read, set bit 0 (msb) of first byte to 1, rAddress
   rAddress := $80 | (subAddress & $3F)
   ' Mag SPI port is different. If we're reading multiple bytes, 
@@ -751,7 +784,7 @@ PUB imu_SPIreadBytes(csPin, subAddress, dest, count) | rAddress, i 'WORKS
 
 
 PUB led
-  
+'' Blink Red LED at 2Hz, forever
   dira[LEDRED]~~
   repeat
     !outa[LEDRED]
@@ -762,12 +795,11 @@ PUB uTesla(Gauss): uTeslas
   return math.MulF (Gauss, 100.0)
 
 PRI high(pin)
-
+'' Abbreviated way to bring an output pin high
     dira[pin]~~
     outa[pin]~~
     
 PRI low(pin)
-
+'' Abbreviated way to bring an output pin low
     dira[pin]~~
     outa[pin]~
-   
