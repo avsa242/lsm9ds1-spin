@@ -1,3 +1,10 @@
+{{ This code is a test bed for the methods converted from the
+    Simple Library for Parallax's LSM9DS1 IMU module. Once methods
+    have been tested and appear to work like the C equivalents,
+    they can be copied into the lsm9ds1-test_procedure.spin top-level
+    object.
+}}
+
 CON
 
     _clkmode = xtal1 + pll16x
@@ -172,7 +179,7 @@ PUB main | i, s
   ser.NewLine
   repeat until ser.CharIn
   
-  __autoCalc:=TRUE
+  __autoCalc := TRUE
   
   s:=M_RAW 'Which sensor to test, and what kind of output
   imu_clearGyroInterrupt
@@ -446,8 +453,7 @@ PUB imu_setGyroCalibration(gxBias, gyBias, gzBias) 'WORKS
   __gBiasRaw[Z_AXIS] := gzBias
 
 PUB imu_calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], msb, lsb 'PARTIAL
-'' Calibrate magnetometer offsets using
-'' average of min & max values together
+'' Calibrates the Magnetometer on the LSM9DS1 IMU module.
   repeat i from 0 to 128
     repeat while not imu_magAvailable ''Wait until new data available
       outa[LEDRED]~~
@@ -476,7 +482,7 @@ PUB imu_calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], ms
 
 
 PUB imu_magAvailable | status 'WORKS
-'' Function to check if magnetometer data is available
+'' Polls the Magnetometer status register to check if new data is available.
   imu_SPIreadBytes(CS_M_PIN, STATUS_REG_M, @status, 1)
   return ((status & (1 << 3)) >> 3)
 
@@ -508,6 +514,8 @@ PUB imu_setMagScale(mScl) | temp 'WORKS
   imu_SPIwriteByte(CS_M_PIN, CTRL_REG2_M, temp)
 
 PUB imu_readMag(mx, my, mz) | temp[2], tempX, tempY, tempZ 'WORKS
+'' Reads the Magnetometer output registers.
+
 '' We'll read six bytes from the mag into temp
   imu_SPIreadBytes(CS_M_PIN, OUT_X_L_M, @temp, 6) ' Read 6 bytes, beginning at OUT_X_L_M
   tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into mx
@@ -518,7 +526,7 @@ PUB imu_readMag(mx, my, mz) | temp[2], tempX, tempY, tempZ 'WORKS
   long[mz] := ~~tempZ
 
 PUB imu_readMagCalculated(mx, my, mz) | tempX, tempY, tempZ 'WORKS
-'' Return the mag raw reading times our pre-calculated Gs / (ADC tick):
+'' Reads the Magnetometer output registers and scales the outputs to Gauss'.
   imu_readMag(@tempX, @tempY, @tempZ)
   long[mx] := math.DivF (math.FloatF(tempX), __mRes)'(tempX) / __mRes
   long[my] := math.DivF (math.FloatF(tempY), __mRes)'(tempY) / __mRes
@@ -528,7 +536,7 @@ PUB imu_readMagCalculated(mx, my, mz) | tempX, tempY, tempZ 'WORKS
     long[my] -= __mBiasRaw[Y_AXIS]
     long[mz] -= __mBiasRaw[Z_AXIS]
 
-PUB imu_clearMagInterrupt | tempRegValue
+PUB imu_clearMagInterrupt | tempRegValue 'UNTESTED
 '' Clears out any interrupts set up on the Magnetometer and
 '' resets all Magnetometer interrupt registers to their default values
   imu_SPIwriteByte(CS_M_PIN, INT_THS_L_M, $00)
@@ -541,7 +549,8 @@ PUB imu_accelAvailable | status 'WORKS
   imu_SPIreadBytes(CS_AG_PIN, STATUS_REG_1, @status, 1)
   return (status & (1 << 0))
 
-PUB imu_calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3], gBiasRawTemp[3], tempF, tempS
+PUB imu_calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3], gBiasRawTemp[3], tempF, tempS 'UNTESTED
+'' Calibrates the Accelerometer and Gyroscope on the LSM9DS1 IMU module.
   samples := 0
   'aBiasRawTemp[3] := { 0, 0, 0 }
   'gBiasRawTemp[3] := { 0, 0, 0 }
@@ -681,8 +690,8 @@ PUB imu_clearAccelInterrupt | tempRegValue 'WORKS
   tempRegValue &= $BF
   imu_SPIwriteByte(CS_AG_PIN, INT1_CTRL, tempRegValue)
 
-PUB imu_gyroAvailable | status
-''Polls the Gyroscope status register to check if new data is available
+PUB imu_gyroAvailable | status 'WORKS
+'' Polls the Gyroscope status register to check if new data is available
   imu_SPIreadBytes(CS_AG_PIN, STATUS_REG_1, @status, 1)
   return ((status & (1 << 1)) >> 1)
 
@@ -744,7 +753,7 @@ PUB imu_setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegV
   gyroThs := 0'word
   gyroThsH := 0'byte
   gyroThsL := 0'byte
-  gyroThs := math.truncfint(math.mulf(__gRes, math.FloatF (threshold)))'word
+  gyroThs := math.truncfint(math.mulf(__gRes, math.FloatF (threshold)))
 
   if gyroThs > 16383'(gyroThs > 16383)
     gyroThs := 16383
@@ -800,14 +809,14 @@ PUB imu_clearGyroInterrupt | tempRegValue 'WORKS
 
 
 PUB imu_SPIwriteByte(csPin, subAddress, data) 'WORKS
-'' SPI: Write _data_ to device _subAddress_ on I/O pin _csPin_
+'' SPI: Write byte _data_ to SPI device at _subAddress_ on Propeller I/O pin _csPin_
   low(csPin)
   spi.shiftout(SDIO_PIN, SCL_PIN, spi#MSBFIRST, 8, subAddress & $3F)
   spi.shiftout(SDIO_PIN, SCL_PIN, spi#MSBFIRST, 8, data)
   high(csPin)
 
 PUB imu_SPIreadBytes(csPin, subAddress, dest, count) | rAddress, i 'WORKS
-'' SPI: Read _count_ bytes from device _subAddress_ on I/O pin _csPin_ into pointer _dest_
+'' SPI: Read _count_ bytes from SPI device at _subAddress_ on Propeller I/O pin _csPin_ into pointer _dest_
   ' To indicate a read, set bit 0 (msb) of first byte to 1, rAddress
   rAddress := $80 | (subAddress & $3F)
   ' Mag SPI port is different. If we're reading multiple bytes, 
@@ -821,17 +830,6 @@ PUB imu_SPIreadBytes(csPin, subAddress, dest, count) | rAddress, i 'WORKS
   high(csPin)
 
 
-PUB led
-'' Blink Red LED at 2Hz, forever
-  dira[LEDRED]~~
-  repeat
-    !outa[LEDRED]
-    waitcnt(cnt+clkfreq/2)
-
-PUB uTesla(Gauss): uTeslas
-''Given magnetic field in Gauss, returns the equivalent micro-Teslas (uT)
-  return math.MulF (Gauss, 100.0)
-
 PRI high(pin)
 '' Abbreviated way to bring an output pin high
     dira[pin]~~
@@ -841,3 +839,15 @@ PRI low(pin)
 '' Abbreviated way to bring an output pin low
     dira[pin]~~
     outa[pin]~
+
+{{ Some methods used as debugging aids, etc }}
+PRI led
+'' Blink Red LED at 2Hz, forever
+  dira[LEDRED]~~
+  repeat
+    !outa[LEDRED]
+    waitcnt(cnt+clkfreq/2)
+
+PRI uTesla(Gauss): uTeslas
+''Given magnetic field in Gauss, returns the equivalent micro-Teslas (uT)
+  return math.MulF (Gauss, 100.0)
