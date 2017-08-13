@@ -125,10 +125,10 @@ VAR
 
   long __autoCalc
 
-  long __settings_gyro_scale, __gRes, __gBiasRaw[3]
+  long __settings_gyro_scale, __gRes, __gBias, __gBiasRaw[3]
   long __gx, __gy, __gz
 
-  long __settings_accel_scale, __aRes, __aBiasRaw[3]
+  long __settings_accel_scale, __aRes, __aBias, __aBiasRaw[3]
   long __ax, __ay, __az
   
   long __settings_mag_scale , __mRes, __mBiasRaw[3]
@@ -540,7 +540,45 @@ PUB imu_accelAvailable | status 'WORKS
 '' Polls the Accelerometer status register to check if new data is available.
   imu_SPIreadBytes(CS_AG_PIN, STATUS_REG_1, @status, 1)
   return (status & (1 << 0))
-  
+
+PUB imu_calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3], gBiasRawTemp[3], tempF, tempS
+  samples := 0
+  'aBiasRawTemp[3] := { 0, 0, 0 }
+  'gBiasRawTemp[3] := { 0, 0, 0 }
+  ' Turn on FIFO and set threshold to 32 samples
+  imu_SPIreadBytes(CS_AG_PIN, CTRL_REG9, @tempF, 1)
+  tempF |= (1 << 1)
+  imu_SPIwriteByte(CS_AG_PIN, CTRL_REG9, tempF)
+  imu_SPIwriteByte(CS_AG_PIN, FIFO_CTRL, (((FIFO_THS & $7) << 5) | $1F))
+  repeat while samples < $1F
+    imu_SPIreadBytes(CS_AG_PIN, FIFO_SRC, @tempS, 1) ' Read number of stored samples
+    samples := tempS & $3F
+'  ii := 0
+  repeat ii from 0 to samples-1 'while (ii < byte[@samples])
+    ' Read the gyro data stored in the FIFO
+    imu_readGyro(@gx, @gy, @gz)
+    gBiasRawTemp[0] += gx
+    gBiasRawTemp[1] += gy
+    gBiasRawTemp[2] += gz
+    imu_readAccel(@ax, @ay, @az)
+    aBiasRawTemp[0] += ax
+    aBiasRawTemp[1] += ay
+    aBiasRawTemp[2] += az - (__aRes) ' Assumes sensor facing up!
+'    ii++
+'  ii := 0
+  repeat ii from 0 to 2'while (ii < 3)
+    __gBiasRaw[ii] := gBiasRawTemp[ii] / samples
+    __gBias[ii] := (__gBiasRaw[ii]) / __gRes
+    __aBiasRaw[ii] := aBiasRawTemp[ii] / samples
+    __aBias[ii] := (__aBiasRaw[ii]) / __aRes
+'    ii++
+  __autoCalc := 1
+  'Disable FIFO
+  imu_SPIreadBytes(CS_AG_PIN, CTRL_REG9, @tempF, 1)
+  tempF &= !(1 << 1)
+  imu_SPIwriteByte(CS_AG_PIN, CTRL_REG9, tempF)
+  imu_SPIwriteByte(CS_AG_PIN, FIFO_CTRL, ((FIFO_OFF & $7) << 5))
+
 PUB imu_setAccelScale(aScl) | tempRegValue 'WORKS
 '' Sets the full-scale range of the Accelerometer.
 '' This function can be called to set the scale of the Accelerometer to 2, 4, 8, or 16 g's.
