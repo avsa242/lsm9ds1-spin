@@ -132,13 +132,13 @@ VAR
 
   long __autoCalc
 
-  long __settings_gyro_scale, __gRes, __gBias, __gBiasRaw[3]
+  long __settings_gyro_scale, __gRes, __gBias[3], __gBiasRaw[3]
   long __gx, __gy, __gz
 
-  long __settings_accel_scale, __aRes, __aBias, __aBiasRaw[3]
+  long __settings_accel_scale, __aRes, __aBias[3], __aBiasRaw[3]
   long __ax, __ay, __az
   
-  long __settings_mag_scale , __mRes, __mBias, __mBiasRaw[3]
+  long __settings_mag_scale , __mRes, __mBias[3], __mBiasRaw[3]
   long __mx, __my, __mz
 
   long delay
@@ -181,24 +181,24 @@ PUB main | i, testmode
   
   __autoCalc := TRUE
   
-  testmode := XL_CAL 'Which sensor to test, and what kind of output
+  testmode := M_CAL 'Which sensor to test, and what kind of output
   imu_clearGyroInterrupt
   imu_clearAccelInterrupt
   imu_clearMagInterrupt
 
-  imu_setAccelScale(2) '2, 4, 8, 16
+  imu_setAccelScale(8) '2, 4, 8, 16
   imu_setGyroScale(500) '245, 500, 2000
-  imu_setMagScale(12) '4, 8, 12, 16
+  imu_setMagScale(4) '4, 8, 12, 16
   
-  'imu_calibrateMag
-  imu_calibrateAG
-
-  '
-  'imu_setMagCalibration (0,0,0) 'To reset cal values stored on device
+  imu_setMagCalibration (0,0,0) 'To reset cal values stored on device
   'imu_setMagCalibration (11400, -6400, 16000)
 '  imu_setMagCalibration (500, 0, 0)
 '  imu_setAccelCalibration (-210, 0, -320)
 '  imu_setGyroCalibration (-38, -20, -45)
+
+  imu_calibrateMag
+  imu_calibrateAG
+
   
   
   case testmode
@@ -282,17 +282,17 @@ PUB printCalcM
   repeat
     ser.str (fs.floattostring(__mx))
 '    ser.Str (fs.floattostring(uTesla(__mx)))
-    ser.Str (string("uT"))
+'    ser.Str (string("uT"))
     repeat 5
       ser.Char (32)
     ser.str (fs.floattostring(__my))
 '    ser.Str (fs.floattostring(uTesla(__my)))
-    ser.Str (string("uT"))
+'    ser.Str (string("uT"))
     repeat 5
       ser.Char (32)
     ser.str (fs.floattostring(__mz))
 '    ser.Str (fs.floattostring(uTesla(__mz)))
-    ser.Str (string("uT"))
+'    ser.Str (string("uT"))
     repeat 5
       ser.Char (32)
     ser.NewLine
@@ -483,7 +483,7 @@ PUB imu_calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], ms
     lsb := __mBiasRaw[k] & $00FF
     imu_SPIwriteByte(CS_M_PIN, OFFSET_X_REG_L_M + (2 * k), lsb)
     imu_SPIwriteByte(CS_M_PIN, OFFSET_X_REG_H_M + (2 * k), msb)
-  led
+  waitforkey
 
 
 PUB imu_magAvailable | status 'WORKS
@@ -554,7 +554,7 @@ PUB imu_accelAvailable | status 'WORKS
   imu_SPIreadBytes(CS_AG_PIN, STATUS_REG_1, @status, 1)
   return (status & (1 << 0))
 
-PUB imu_calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3], gBiasRawTemp[3], tempF, tempS 'UNTESTED
+PUB imu_calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3], gBiasRawTemp[3], tempF, tempS 'PARTIAL
 '' Calibrates the Accelerometer and Gyroscope on the LSM9DS1 IMU module.
   samples := 0
   ' Turn on FIFO and set threshold to 32 samples
@@ -564,13 +564,13 @@ PUB imu_calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp
   imu_SPIwriteByte(CS_AG_PIN, FIFO_CTRL, (((FIFO_THS & $7) << 5) | $1F))
   repeat while samples < $1F
     imu_SPIreadBytes(CS_AG_PIN, FIFO_SRC, @tempS, 1) ' Read number of stored samples
-    ser.Str (string("tempS: "))
-    ser.dec (tempS.byte[0])
-    ser.NewLine
+'    ser.Str (string("tempS: "))
+'    ser.dec (tempS.byte[0])
+'    ser.NewLine
     samples := tempS.byte[0] & $3F
-  ser.Str (string("samples: "))
-  ser.Dec (samples)
-  ser.NewLine
+'  ser.Str (string("samples: "))
+'  ser.Dec (samples)
+'  ser.NewLine
   repeat ii from 0 to samples-1 'while (ii < byte[@samples])
     ' Read the gyro data stored in the FIFO
     imu_readGyro(@gx, @gy, @gz)
@@ -581,29 +581,31 @@ PUB imu_calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp
     aBiasRawTemp[0] += ax
     aBiasRawTemp[1] += ay
     aBiasRawTemp[2] += az - math.TruncFInt(__aRes) ' Assumes sensor facing up!
-  ser.Str (string("aBiasRawTemp[0]="))
-  ser.dec (aBiasRawTemp[0])
-  ser.NewLine
-  ser.Str (string("aBiasRawTemp[1]="))
-  ser.dec (aBiasRawTemp[1])
-  ser.NewLine
-  ser.Str (string("aBiasRawTemp[2]="))
+'  ser.Str (string("aBiasRawTemp[0]="))
+'  ser.dec (aBiasRawTemp[0])
+'  ser.NewLine
+'  ser.Str (string("aBiasRawTemp[1]="))
+'  ser.dec (aBiasRawTemp[1])
+'  ser.NewLine
+'  ser.Str (string("aBiasRawTemp[2]="))
 '  ser.str (fs.FloatToString(aBiasRawTemp[2]))
-  ser.Dec (aBiasRawTemp[2])
-  
+'  ser.Dec (aBiasRawTemp[2])
+'  ser.NewLine
+'  ser.Str (string("ii:",13))
   repeat ii from 0 to 2'while (ii < 3)
+'    ser.Dec (ii)
+'    ser.NewLine
     __gBiasRaw[ii] := gBiasRawTemp[ii] / samples
     __gBias[ii] := (__gBiasRaw[ii]) / __gRes
-'    __aBiasRaw[ii] := math.DivF (math.FloatF(aBiasRawTemp[ii]), math.FloatF (samples))')samples)')aBiasRawTemp[ii] / samples
     __aBiasRaw[ii] := aBiasRawTemp[ii] / samples
-    __aBias[ii] := math.DivF (__aBiasRaw[ii], __aRes)')(__aBiasRaw[ii]) / __aRes
+    __aBias[ii] := __aBiasRaw[ii] / math.TruncFInt (__aRes)
   __autoCalc := 1
   'Disable FIFO
   imu_SPIreadBytes(CS_AG_PIN, CTRL_REG9, @tempF, 1)
   tempF &= !(1 << 1)
   imu_SPIwriteByte(CS_AG_PIN, CTRL_REG9, tempF)
   imu_SPIwriteByte(CS_AG_PIN, FIFO_CTRL, ((FIFO_OFF & $7) << 5))
-  waitforkey  
+'  waitforkey  
 
 PUB imu_setAccelScale(aScl) | tempRegValue 'WORKS
 '' Sets the full-scale range of the Accelerometer.
