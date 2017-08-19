@@ -181,7 +181,7 @@ PUB main | i, choice, testmode
   
   __autoCalc := TRUE
   
-  testmode := M_CAL 'Which sensor to test, and what kind of output
+  testmode := M_RAW'Which sensor to test, and what kind of output
   imu_clearGyroInterrupt
   imu_clearAccelInterrupt
   imu_clearMagInterrupt
@@ -189,40 +189,8 @@ PUB main | i, choice, testmode
   imu_setAccelScale(8) '2, 4, 8, 16
   imu_setGyroScale(500) '245, 500, 2000
   imu_setMagScale(8) '4, 8, 12, 16
-  
-  imu_setMagCalibration (0, 0, 0) 'To reset cal values stored on device
-'  imu_setMagCalibration (11400, -6400, 16000)
-'  imu_setMagCalibration (500, 0, 0)
-'  imu_setAccelCalibration (-210, 0, -320)
-'  imu_setGyroCalibration (-38, -20, -45)
-
-  repeat
-    choice := prompt(string("Calibrate magnetometer? "))
-    case choice
-      "y", "Y":
-
-      OTHER:
-        quit
-
-    ser.Str (string("Calibrating magnetometer...", ser#NL))
-    imu_calibrateMag
-    repeat i from 0 to 2
-      ser.Dec (__mBiasRaw[i])
-      ser.Chars (32, 5)
-    ser.NewLine
-    choice := prompt(string("Calibrate again? "))
-  
-    case choice
-      "y", "Y":
-        imu_setMagCalibration (0, 0, 0)
-        ser.NewLine
-      OTHER:
-        quit
-
 
   imu_calibrateAG
-
-  
   
   case testmode
     XL_RAW:
@@ -262,7 +230,28 @@ PUB main | i, choice, testmode
         outa[LEDYELLOW]~~
         imu_readGyroCalculated(@__gx, @__gy, @__gz)
     M_RAW:
-'      imu_calibrateMag
+      choice := prompt(string("Calibrate magnetometer? "))
+      repeat
+        case choice
+          "y", "Y":
+            ser.NewLine
+          OTHER:
+            quit
+        ser.Str (string("Calibrating magnetometer...", ser#NL))
+        imu_calibrateMag
+        repeat i from 0 to 2
+          ser.Dec (__mBiasRaw[i])
+          ser.Chars (32, 5)
+        ser.NewLine
+        choice := prompt(string("Calibrate again? "))
+  
+        case choice
+          "y", "Y":
+            imu_setMagCalibration (0, 0, 0)
+            ser.NewLine
+          OTHER:
+            quit
+
       i:=cognew(printRawM, @stack)
       repeat
         repeat while not imu_magAvailable
@@ -272,7 +261,28 @@ PUB main | i, choice, testmode
         outa[LEDBLUE]~~
         imu_readMag(@__mx, @__my, @__mz)
     M_CAL:
-'      imu_calibrateMag
+      repeat
+        choice := prompt(string("Calibrate magnetometer? "))
+        case choice
+          "y", "Y":
+          OTHER:
+            quit
+        ser.Str (string("Calibrating magnetometer...", ser#NL))
+        imu_setMagCalibration (0, 0, 0) 'To reset cal values stored on device
+        imu_calibrateMag
+        repeat i from 0 to 2
+          ser.Dec (__mBiasRaw[i])
+          ser.Chars (32, 5)
+        ser.NewLine
+        choice := prompt(string("Calibrate again? "))
+  
+        case choice
+          "y", "Y":
+            imu_setMagCalibration (0, 0, 0)
+            ser.NewLine
+          OTHER:
+            quit
+
       i:=cognew(printCalcM, @stack)
       repeat
         repeat while not imu_magAvailable
@@ -784,14 +794,14 @@ PUB imu_setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegV
     tempRegValue |= $80
   else
     tempRegValue &= $7F
-  gyroThs := 0'word
-  gyroThsH := 0'byte
-  gyroThsL := 0'byte
+  gyroThs := 0
+  gyroThsH := 0
+  gyroThsL := 0
   gyroThs := math.truncfint(math.mulf(__gRes, math.FloatF (threshold)))
 
-  if gyroThs > 16383'(gyroThs > 16383)
+  if gyroThs > 16383
     gyroThs := 16383
-  if gyroThs < -16384'(gyroThs < -16384)
+  if gyroThs < -16384
     gyroThs := -16384
   gyroThsL := (gyroThs & $FF)
   gyroThsH := (gyroThs >> 8) & $7F
@@ -883,13 +893,14 @@ PRI led
     waitcnt(cnt+clkfreq/2)
 
 PRI waitforkey
-  
+'' Simply waits for a keypress on the terminal
   ser.NewLine
   ser.Str (string("Press any key to continue...",13))
   repeat until ser.CharIn
 
-PRI prompt(message) : response
-  
+PRI prompt(message): response
+'' Prints _message_ to the terminal and returns the resulting input (single character)
+'' from the terminal in _response_
   ser.NewLine
   ser.Str (message)
   
