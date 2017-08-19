@@ -191,7 +191,7 @@ PUB main | i, choice, testmode
   imu_setMagScale(8) '4, 8, 12, 16
   
   imu_setMagCalibration (0, 0, 0) 'To reset cal values stored on device
-  'imu_setMagCalibration (11400, -6400, 16000)
+'  imu_setMagCalibration (11400, -6400, 16000)
 '  imu_setMagCalibration (500, 0, 0)
 '  imu_setAccelCalibration (-210, 0, -320)
 '  imu_setGyroCalibration (-38, -20, -45)
@@ -480,7 +480,7 @@ PUB imu_setGyroCalibration(gxBias, gyBias, gzBias) 'WORKS
   __gBiasRaw[Y_AXIS] := gyBias
   __gBiasRaw[Z_AXIS] := gzBias
 
-PUB imu_calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], msb, lsb 'PARTIAL
+PUB imu_calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], msb, lsb 'WORKS
 '' Calibrates the Magnetometer on the LSM9DS1 IMU module.
   repeat i from 0 to 128
     repeat while not imu_magAvailable ''Wait until new data available
