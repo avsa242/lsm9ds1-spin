@@ -159,7 +159,7 @@ PUB main | i, choice, testmode
   fs.SetPrecision (3)
   spi.start (10{For SPI_Asm: 1-129 works, for SPI_Spin: 7-129 works}, 0{Must be 0})
   ser.Start (115_200)
-  delay := 30 '30ms delay for terminal logging
+  delay := 50 'Delay in ms for terminal logging
 
   dira[SCL_PIN] := 0
   dira[SDIO_PIN] := 0
@@ -181,16 +181,17 @@ PUB main | i, choice, testmode
   
   __autoCalc := TRUE
   
-  testmode := M_RAW'Which sensor to test, and what kind of output
+  testmode := GY_CAL'Which sensor to test, and what kind of output
+
   imu_clearGyroInterrupt
   imu_clearAccelInterrupt
   imu_clearMagInterrupt
 
-  imu_setAccelScale(8) '2, 4, 8, 16
-  imu_setGyroScale(500) '245, 500, 2000
-  imu_setMagScale(8) '4, 8, 12, 16
+  imu_setAccelScale(8) '2, 4, _8_, 16
+  imu_setGyroScale(500) '245, _500_, 2000
+  imu_setMagScale(12) '4, 8, _12), 16
 
-  imu_calibrateAG
+''  imu_calibrateAG
   
   case testmode
     XL_RAW:
@@ -244,7 +245,6 @@ PUB main | i, choice, testmode
           ser.Chars (32, 5)
         ser.NewLine
         choice := prompt(string("Calibrate again? "))
-  
         case choice
           "y", "Y":
             imu_setMagCalibration (0, 0, 0)
@@ -261,21 +261,20 @@ PUB main | i, choice, testmode
         outa[LEDBLUE]~~
         imu_readMag(@__mx, @__my, @__mz)
     M_CAL:
+      choice := prompt(string("Calibrate magnetometer? "))
       repeat
-        choice := prompt(string("Calibrate magnetometer? "))
         case choice
           "y", "Y":
+            ser.NewLine
           OTHER:
             quit
         ser.Str (string("Calibrating magnetometer...", ser#NL))
-        imu_setMagCalibration (0, 0, 0) 'To reset cal values stored on device
         imu_calibrateMag
         repeat i from 0 to 2
           ser.Dec (__mBiasRaw[i])
           ser.Chars (32, 5)
         ser.NewLine
         choice := prompt(string("Calibrate again? "))
-  
         case choice
           "y", "Y":
             imu_setMagCalibration (0, 0, 0)
@@ -579,7 +578,7 @@ PUB imu_accelAvailable | status 'WORKS
   imu_SPIreadBytes(CS_AG_PIN, STATUS_REG_1, @status, 1)
   return (status & (1 << 0))
 
-PUB imu_calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3], gBiasRawTemp[3], tempF, tempS 'PARTIAL
+PUB imu_calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3], gBiasRawTemp[3], tempF, tempS 'WORKS
 '' Calibrates the Accelerometer and Gyroscope on the LSM9DS1 IMU module.
   samples := 0
   ' Turn on FIFO and set threshold to 32 samples
