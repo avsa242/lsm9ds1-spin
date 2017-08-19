@@ -153,10 +153,10 @@ OBJ
     math:   "math.float" '1 COG
     fs:     "string.float" '0 COG
     
-PUB main | i, testmode
+PUB main | i, choice, testmode
   
   math.Start
-  fs.SetPrecision (2)
+  fs.SetPrecision (3)
   spi.start (10{For SPI_Asm: 1-129 works, for SPI_Spin: 7-129 works}, 0{Must be 0})
   ser.Start (115_200)
   delay := 30 '30ms delay for terminal logging
@@ -188,15 +188,38 @@ PUB main | i, testmode
 
   imu_setAccelScale(8) '2, 4, 8, 16
   imu_setGyroScale(500) '245, 500, 2000
-  imu_setMagScale(4) '4, 8, 12, 16
+  imu_setMagScale(8) '4, 8, 12, 16
   
-  imu_setMagCalibration (0,0,0) 'To reset cal values stored on device
+  imu_setMagCalibration (0, 0, 0) 'To reset cal values stored on device
   'imu_setMagCalibration (11400, -6400, 16000)
 '  imu_setMagCalibration (500, 0, 0)
 '  imu_setAccelCalibration (-210, 0, -320)
 '  imu_setGyroCalibration (-38, -20, -45)
 
-  imu_calibrateMag
+  repeat
+    choice := prompt(string("Calibrate magnetometer? "))
+    case choice
+      "y", "Y":
+
+      OTHER:
+        quit
+
+    ser.Str (string("Calibrating magnetometer...", ser#NL))
+    imu_calibrateMag
+    repeat i from 0 to 2
+      ser.Dec (__mBiasRaw[i])
+      ser.Chars (32, 5)
+    ser.NewLine
+    choice := prompt(string("Calibrate again? "))
+  
+    case choice
+      "y", "Y":
+        imu_setMagCalibration (0, 0, 0)
+        ser.NewLine
+      OTHER:
+        quit
+
+
   imu_calibrateAG
 
   
@@ -461,10 +484,6 @@ PUB imu_calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], ms
 '' Calibrates the Magnetometer on the LSM9DS1 IMU module.
   repeat i from 0 to 128
     repeat while not imu_magAvailable ''Wait until new data available
-      outa[LEDRED]~~
-      outa[LEDGREEN]~
-    outa[LEDRED]~
-    outa[LEDGREEN]~~
     imu_readMag(@mx, @my, @mz)
     magTemp[0] := mx
     magTemp[1] := my
@@ -476,15 +495,11 @@ PUB imu_calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], ms
         magMin[j] := magTemp[j]
   repeat j from 0 to 2
     __mBiasRaw[j] := (magMax[j] + magMin[j])/2
-    ser.Dec (__mBiasRaw[j])
-    ser.Chars (32, 5)
   repeat k from 0 to 2
     msb := (__mBiasRaw[k] & $FF00) >> 8
     lsb := __mBiasRaw[k] & $00FF
     imu_SPIwriteByte(CS_M_PIN, OFFSET_X_REG_L_M + (2 * k), lsb)
     imu_SPIwriteByte(CS_M_PIN, OFFSET_X_REG_H_M + (2 * k), msb)
-  waitforkey
-
 
 PUB imu_magAvailable | status 'WORKS
 '' Polls the Magnetometer status register to check if new data is available.
@@ -872,6 +887,13 @@ PRI waitforkey
   ser.NewLine
   ser.Str (string("Press any key to continue...",13))
   repeat until ser.CharIn
+
+PRI prompt(message) : response
+  
+  ser.NewLine
+  ser.Str (message)
+  
+  repeat until response := ser.CharIn
 
 
 PRI uTesla(Gauss): uTeslas
