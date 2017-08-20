@@ -127,6 +127,7 @@ CON
   GY_CAL = 3
   M_RAW = 4
   M_CAL = 5
+  M_THRESH = 6
   
 VAR
 
@@ -181,7 +182,7 @@ PUB main | i, choice, testmode
   
   __autoCalc := TRUE
   
-  testmode := GY_CAL'Which sensor to test, and what kind of output
+  testmode := M_THRESH'Which sensor to test, and what kind of output
 
   imu_clearGyroInterrupt
   imu_clearAccelInterrupt
@@ -189,9 +190,9 @@ PUB main | i, choice, testmode
 
   imu_setAccelScale(8) '2, 4, _8_, 16
   imu_setGyroScale(500) '245, _500_, 2000
-  imu_setMagScale(12) '4, 8, _12), 16
+  imu_setMagScale(12) '4, 8, _12_, 16
 
-''  imu_calibrateAG
+  imu_setMagInterrupt(Z_AXIS, 6.59, 1)
   
   case testmode
     XL_RAW:
@@ -290,6 +291,16 @@ PUB main | i, choice, testmode
         outa[LEDRED]~
         outa[LEDBLUE]~~
         imu_readMagCalculated(@__mx, @__my, @__mz)
+    M_THRESH:
+      i:=cognew(thresh_M, @stack)
+      repeat
+        repeat while not imu_magAvailable
+{          outa[LEDRED]~~
+          outa[LEDBLUE]~
+        outa[LEDRED]~
+        outa[LEDBLUE]~~}
+        imu_readMagCalculated(@__mx, @__my, @__mz)
+
     OTHER:
       ser.Str (string("Error: Invalid test mode specified.",13))
       led
@@ -328,6 +339,29 @@ PUB printCalcM
     repeat 5
       ser.Char (32)
     ser.NewLine
+    time.MSleep (delay)
+
+PUB thresh_M
+'' React to a magnetometer interrupt
+'' previously set in the IMU
+
+  dira[LEDRED]~~
+  dira[LEDBLUE]~~
+  
+  repeat
+    if ina[INT_M_PIN]
+      outa[LEDBLUE]~~
+      outa[LEDRED]~
+      ser.Str (fs.floattostring(__mx))
+      ser.Chars (32, 5)
+      ser.Str (fs.floattostring(__my))
+      ser.Chars (32, 5)
+      ser.Str (fs.floattostring(__mz))
+      ser.Chars (32, 5)
+      ser.NewLine
+    elseif ina[INT_M_PIN] == 0
+      outa[LEDBLUE]~
+      outa[LEDRED]~~
     time.MSleep (delay)
 
 PUB printRawXL
@@ -565,6 +599,44 @@ PUB imu_readMagCalculated(mx, my, mz) | tempX, tempY, tempZ 'WORKS
     long[my] -= __mBiasRaw[Y_AXIS]
     long[mz] -= __mBiasRaw[Z_AXIS]
 
+PUB imu_setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magThs, magThsL, magThsH 'PARTIAL
+  lowHigh &= $01
+  tempCfgValue := $00
+  tempCfgValue |= (lowHigh << 2)
+  tempCfgValue |= $03
+  tempSrcValue := $00
+  magThs := 0
+  magThsL := 0
+  magThsH := 0
+  magThs := math.TruncFInt (math.MulF(__mRes, threshold))'(__mRes * threshold)
+'      __mRes := 2298.85
+
+
+  ser.NewLine
+  ser.Dec (magThs)
+  ser.NewLine
+  waitforkey
+ 
+  
+  if (magThs < 0)
+    magThs := -1 * magThs
+  if (magThs > 32767)
+    magThs := 32767
+  magThsL := magThs & $FF
+  magThsH := (magThs >> 8) & $7F
+  imu_SPIwriteByte(CS_M_PIN, INT_THS_L_M, magThsL)
+  imu_SPIwriteByte(CS_M_PIN, INT_THS_H_M, magThsH)
+  case axis
+    X_AXIS :
+      tempCfgValue |= ((1 << 7) | 2)
+    Y_AXIS :
+      tempCfgValue |= ((1 << 6) | 2)
+    Z_AXIS :
+      tempCfgValue |= ((1 << 5) | 2)
+    OTHER :
+      tempCfgValue |= (%11100010)
+  imu_SPIwriteByte(CS_M_PIN, INT_CFG_M, tempCfgValue)
+
 PUB imu_clearMagInterrupt | tempRegValue 'UNTESTED
 '' Clears out any interrupts set up on the Magnetometer and
 '' resets all Magnetometer interrupt registers to their default values
@@ -685,7 +757,7 @@ PUB imu_setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempReg
   tempRegValue &= $FD
   imu_SPIwriteByte(CS_AG_PIN, CTRL_REG4, tempRegValue)
   imu_SPIreadBytes(CS_AG_PIN, INT_GEN_CFG_XL, @tempRegValue, 1)
-  if (andOr)
+  if andOr
     tempRegValue |= $80
   else
     tempRegValue &= $7F
