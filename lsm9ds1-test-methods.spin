@@ -1,15 +1,30 @@
-{{ This code is a test bed for the methods converted from the
-    Simple Library for Parallax's LSM9DS1 IMU module. Once methods
-    have been tested and appear to work like the C equivalents,
-    they can be copied into the lsm9ds1-test_procedure.spin top-level
-    object.
-}}
+{   |   1|0   |   2|0   |   3|0   |   4|0   |   5|0   |   6|0   |   7|0   |   >
+    --------------------------------------------
+    Filename: lsm9ds1-test-methods.spin
+    Author: Jesse Burt (avsa242@gmail.com)
+    Copyright (c) 2017
+    See end of file for terms of use.
+    --------------------------------------------
+    Special thanks to:
+    Brett Weir for the spin-standard-library
+    Dave Hein for the C to SPIN converter
+
+    I've created this code to be a test bed for the methods converted from
+    Parallax's Simple Library in C for their LSM9DS1 IMU module (#28065).
+    My intent is to create in SPIN, as much as I can, a 1:1 copy of the
+    original liblsm9ds1 (Test Procedure).c
+    Once I test a method and it appears to work like the C equivalents,
+    I will copy it into the lsm9ds1-test_procedure.spin top-level object.
+
+    Of course, it could also be used just to look at live values from each
+    of the sensors.
+}
 
 CON
 
-    _clkmode = xtal1 + pll16x
-    _xinfreq = 5_000_000
-   
+  _clkmode = xtal1 + pll16x
+  _xinfreq = 5_000_000
+
 CON
 '' LSM9DS1 Register mappings to their symbolic names
   ACT_THS = $04
@@ -100,34 +115,37 @@ CON
   FAHRENHEIT = 1
   KELVIN = 2
 
-  MSBFIRST = 1
-  MSBPRE = 0
-  LSBFIRST = 0
-  LSBPRE = 1
-  MSBPOST = 2
-  LSBPOST = 3
+  MSBFIRST = 1    'Vestigial - using the ones in the
+  MSBPRE = 0      'SPI object, instead.
+  LSBFIRST = 0    'For ex: spi#MSBFIRST
+  LSBPRE = 1      '
+  MSBPOST = 2     '
+  LSBPOST = 3     '_
 
-  SCL_PIN = 5
-  SDIO_PIN = 6
-  CS_AG_PIN = 7
-  CS_M_PIN = 8
-  INT_AG_PIN = 9
-  INT_M_PIN = 10
-  VCC_PIN = 5
-  GND_PIN = 4
-  LEDRED = 3
-  LEDYELLOW = 0
-  LEDGREEN = 2
-  LEDBLUE = 1
-  BUTTON_PIN = 0
+  VCC_PIN = 5     'These two will probably be removed.
+  GND_PIN = 4     'They seem to be leftovers from a different module?
 
-  XL_RAW = 0
-  XL_CAL = 1
-  GY_RAW = 2
-  GY_CAL = 3
-  M_RAW = 4
-  M_CAL = 5
-  M_THRESH = 6
+  SCL_PIN = 5     'IMPORTANT!!!
+  SDIO_PIN = 6    'Change these 6 to match your
+  CS_AG_PIN = 7   'actual connections!
+  CS_M_PIN = 8    '
+  INT_AG_PIN = 9  '
+  INT_M_PIN = 10  '_
+  
+{ The constants below aren't part of the original library }
+  LEDRED = 3      'Change these also,
+  LEDGREEN = 2    'though they're optional
+  LEDBLUE = 1     '
+  LEDYELLOW = 0   '
+  BUTTON_PIN = 0  '_
+
+  XL_RAW = 0      'Testing modes
+  XL_CAL = 1      '
+  GY_RAW = 2      '
+  GY_CAL = 3      '
+  M_RAW = 4       '
+  M_CAL = 5       '
+  M_THRESH = 6    '_
   
 VAR
 
@@ -139,7 +157,7 @@ VAR
   long __settings_accel_scale, __aRes, __aBias[3], __aBiasRaw[3]
   long __ax, __ay, __az
   
-  long __settings_mag_scale , __mRes, __mBias[3], __mBiasRaw[3]
+  long __settings_mag_scale, __mRes, __mBias[3], __mBiasRaw[3]
   long __mx, __my, __mz
 
   long delay
@@ -182,17 +200,17 @@ PUB main | i, choice, testmode
   
   __autoCalc := TRUE
   
-  testmode := M_THRESH'Which sensor to test, and what kind of output
+  testmode := M_THRESH      'Which sensor to test, and what kind of output
 
   imu_clearGyroInterrupt
   imu_clearAccelInterrupt
   imu_clearMagInterrupt
 
-  imu_setAccelScale(8) '2, 4, _8_, 16
-  imu_setGyroScale(500) '245, _500_, 2000
-  imu_setMagScale(12) '4, 8, _12_, 16
+  imu_setAccelScale(8)      '2, 4, _8_, 16
+  imu_setGyroScale(500)     '245, _500_, 2000
+  imu_setMagScale(4)       '4, 8, _12_, 16
 
-  imu_setMagInterrupt(Z_AXIS, 6.59, 1)
+  imu_setMagInterrupt(Z_AXIS, 1.99, 1)
   
   case testmode
     XL_RAW:
@@ -232,7 +250,7 @@ PUB main | i, choice, testmode
         outa[LEDYELLOW]~~
         imu_readGyroCalculated(@__gx, @__gy, @__gz)
     M_RAW:
-      choice := prompt(string("Calibrate magnetometer? "))
+      choice := Prompt(string("Calibrate magnetometer? "))
       repeat
         case choice
           "y", "Y":
@@ -245,7 +263,7 @@ PUB main | i, choice, testmode
           ser.Dec (__mBiasRaw[i])
           ser.Chars (32, 5)
         ser.NewLine
-        choice := prompt(string("Calibrate again? "))
+        choice := Prompt(string("Calibrate again? "))
         case choice
           "y", "Y":
             imu_setMagCalibration (0, 0, 0)
@@ -262,7 +280,7 @@ PUB main | i, choice, testmode
         outa[LEDBLUE]~~
         imu_readMag(@__mx, @__my, @__mz)
     M_CAL:
-      choice := prompt(string("Calibrate magnetometer? "))
+      choice := Prompt(string("Calibrate magnetometer? "))
       repeat
         case choice
           "y", "Y":
@@ -275,7 +293,7 @@ PUB main | i, choice, testmode
           ser.Dec (__mBiasRaw[i])
           ser.Chars (32, 5)
         ser.NewLine
-        choice := prompt(string("Calibrate again? "))
+        choice := Prompt(string("Calibrate again? "))
         case choice
           "y", "Y":
             imu_setMagCalibration (0, 0, 0)
@@ -302,8 +320,8 @@ PUB main | i, choice, testmode
         imu_readMagCalculated(@__mx, @__my, @__mz)
 
     OTHER:
-      ser.Str (string("Error: Invalid test mode specified.",13))
-      led
+      ser.Str (string("Error: Invalid test mode specified.", ser#NL))
+      halt_led
 
 PUB printRawM
 '' Print raw magnetometer values
@@ -609,14 +627,11 @@ PUB imu_setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, 
   magThsL := 0
   magThsH := 0
   magThs := math.TruncFInt (math.MulF(__mRes, threshold))'(__mRes * threshold)
-'      __mRes := 2298.85
-
 
   ser.NewLine
   ser.Dec (magThs)
   ser.NewLine
-  waitforkey
- 
+  WaitForKey
   
   if (magThs < 0)
     magThs := -1 * magThs
@@ -660,13 +675,7 @@ PUB imu_calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp
   imu_SPIwriteByte(CS_AG_PIN, FIFO_CTRL, (((FIFO_THS & $7) << 5) | $1F))
   repeat while samples < $1F
     imu_SPIreadBytes(CS_AG_PIN, FIFO_SRC, @tempS, 1) ' Read number of stored samples
-'    ser.Str (string("tempS: "))
-'    ser.dec (tempS.byte[0])
-'    ser.NewLine
     samples := tempS.byte[0] & $3F
-'  ser.Str (string("samples: "))
-'  ser.Dec (samples)
-'  ser.NewLine
   repeat ii from 0 to samples-1 'while (ii < byte[@samples])
     ' Read the gyro data stored in the FIFO
     imu_readGyro(@gx, @gy, @gz)
@@ -677,20 +686,7 @@ PUB imu_calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp
     aBiasRawTemp[0] += ax
     aBiasRawTemp[1] += ay
     aBiasRawTemp[2] += az - math.TruncFInt(__aRes) ' Assumes sensor facing up!
-'  ser.Str (string("aBiasRawTemp[0]="))
-'  ser.dec (aBiasRawTemp[0])
-'  ser.NewLine
-'  ser.Str (string("aBiasRawTemp[1]="))
-'  ser.dec (aBiasRawTemp[1])
-'  ser.NewLine
-'  ser.Str (string("aBiasRawTemp[2]="))
-'  ser.str (fs.FloatToString(aBiasRawTemp[2]))
-'  ser.Dec (aBiasRawTemp[2])
-'  ser.NewLine
-'  ser.Str (string("ii:",13))
   repeat ii from 0 to 2'while (ii < 3)
-'    ser.Dec (ii)
-'    ser.NewLine
     __gBiasRaw[ii] := gBiasRawTemp[ii] / samples
     __gBias[ii] := (__gBiasRaw[ii]) / __gRes
     __aBiasRaw[ii] := aBiasRawTemp[ii] / samples
@@ -701,7 +697,6 @@ PUB imu_calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp
   tempF &= !(1 << 1)
   imu_SPIwriteByte(CS_AG_PIN, CTRL_REG9, tempF)
   imu_SPIwriteByte(CS_AG_PIN, FIFO_CTRL, ((FIFO_OFF & $7) << 5))
-'  waitforkey  
 
 PUB imu_setAccelScale(aScl) | tempRegValue 'WORKS
 '' Sets the full-scale range of the Accelerometer.
@@ -744,9 +739,9 @@ PUB imu_readAccel(ax, ay, az) | temp[2], tempX, tempY, tempZ 'WORKS
 PUB imu_readAccelCalculated(ax, ay, az) | tempX, tempY, tempZ 'WORKS
 '' Reads the Accelerometer output registers and scales the outputs to g's (1 g = 9.8 m/s/s)
   imu_readAccel(@tempX, @tempY, @tempZ)
-  long[ax] := math.DivF (math.FloatF(tempX), __aRes)'(tempX) / __aRes
-  long[ay] := math.DivF (math.FloatF(tempY), __aRes)'(tempY) / __aRes
-  long[az] := math.DivF (math.FloatF(tempZ), __aRes)'(tempZ) / __aRes
+  long[ax] := math.DivF (math.FloatF(tempX), __aRes)
+  long[ay] := math.DivF (math.FloatF(tempY), __aRes)
+  long[az] := math.DivF (math.FloatF(tempZ), __aRes)
 
 PUB imu_setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue, accelThs, accelThsH, tempThs 'WORKS
 ''Configures the Accelerometer interrupt output to the INT_A/G pin.
@@ -945,32 +940,33 @@ PUB imu_SPIreadBytes(csPin, subAddress, dest, count) | rAddress, i 'WORKS
   high(csPin)
 
 
-PRI high(pin)
+PRI High(pin)
 '' Abbreviated way to bring an output pin high
     dira[pin]~~
     outa[pin]~~
     
-PRI low(pin)
+PRI Low(pin)
 '' Abbreviated way to bring an output pin low
     dira[pin]~~
     outa[pin]~
 
 {{ Some methods used as debugging aids, etc }}
-PRI led
-'' Blink Red LED at 2Hz, forever
+PRI Halt_LED
+'' Toggle Red LED at 2Hz, forever
   dira[LEDRED]~~
   repeat
     !outa[LEDRED]
-    waitcnt(cnt+clkfreq/2)
+    time.MSleep (500)
 
-PRI waitforkey
+PRI WaitForKey
 '' Simply waits for a keypress on the terminal
   ser.NewLine
-  ser.Str (string("Press any key to continue...",13))
+  ser.Str (string("Press any key to continue...", ser#NL))
   repeat until ser.CharIn
 
-PRI prompt(message): response
-'' Prints _message_ to the terminal and returns the resulting input (single character)
+PRI Prompt(message): response
+'' Prints _message_ with a preceding newline to the terminal
+'' and returns the resulting input (single character)
 '' from the terminal in _response_
   ser.NewLine
   ser.Str (message)
@@ -978,6 +974,31 @@ PRI prompt(message): response
   repeat until response := ser.CharIn
 
 
-PRI uTesla(Gauss): uTeslas
-''Given magnetic field in Gauss, returns the equivalent micro-Teslas (uT)
+PRI Tesla(Gauss): Teslas
+'' Given magnetic field in _Gauss_, returns the equivalent _Teslas_
+''  0.01Gs = 1uT
+''  0.10Gs = 10uT
+''  1.00Gs = 100uT
   return math.MulF (Gauss, 100.0)
+
+DAT
+{
+    --------------------------------------------------------------------------------------------------------
+    TERMS OF USE: MIT License
+
+    Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
+    associated documentation files (the "Software"), to deal in the Software without restriction, including
+    without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+    copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the
+    following conditions:
+
+    The above copyright notice and this permission notice shall be included in all copies or substantial
+    portions of the Software.
+
+    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT
+    LIMITED TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+    IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+    WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+    SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+    --------------------------------------------------------------------------------------------------------
+}
