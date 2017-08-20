@@ -145,7 +145,9 @@ CON
   GY_CAL = 3      '
   M_RAW = 4       '
   M_CAL = 5       '
-  M_THRESH = 6    '_
+  M_THRESH = 6    '
+  TEMP_RAW = 7    '
+  TEMP_CAL = 8    '_
   
 VAR
 
@@ -159,6 +161,8 @@ VAR
   
   long __settings_mag_scale, __mRes, __mBias[3], __mBiasRaw[3]
   long __mx, __my, __mz
+
+  long __temp
 
   long delay
   long stack[100]
@@ -175,7 +179,7 @@ OBJ
 PUB main | i, choice, testmode
   
   math.Start
-  fs.SetPrecision (3)
+  fs.SetPrecision (7)
   spi.start (10{For SPI_Asm: 1-129 works, for SPI_Spin: 7-129 works}, 0{Must be 0})
   ser.Start (115_200)
   delay := 50 'Delay in ms for terminal logging
@@ -200,7 +204,7 @@ PUB main | i, choice, testmode
   
   __autoCalc := TRUE
   
-  testmode := M_THRESH      'Which sensor to test, and what kind of output
+  testmode := TEMP_CAL 'Which sensor to test, and what kind of output
 
   imu_clearGyroInterrupt
   imu_clearAccelInterrupt
@@ -208,10 +212,10 @@ PUB main | i, choice, testmode
 
   imu_setAccelScale(8)      '2, 4, _8_, 16
   imu_setGyroScale(500)     '245, _500_, 2000
-  imu_setMagScale(4)       '4, 8, _12_, 16
+  imu_setMagScale(4)        '4, 8, _12_, 16
 
-  imu_setMagInterrupt(Z_AXIS, 1.99, 1)
-  
+  'imu_setMagInterrupt(Z_AXIS, 1.99, 1)
+
   case testmode
     XL_RAW:
       i:=cognew(printRawXL, @stack)
@@ -318,7 +322,24 @@ PUB main | i, choice, testmode
         outa[LEDRED]~
         outa[LEDBLUE]~~}
         imu_readMagCalculated(@__mx, @__my, @__mz)
-
+    TEMP_RAW:
+      i:=cognew(printRawTemp, @stack)
+      repeat
+        repeat while not imu_tempAvailable
+          outa[LEDRED]~~
+          outa[LEDBLUE]~
+        outa[LEDRED]~
+        outa[LEDBLUE]~~
+        imu_readTemp (@__temp)
+    TEMP_CAL:
+      i:=cognew(printCalcTemp, @stack)
+      repeat
+        repeat while not imu_tempAvailable
+          outa[LEDRED]~~
+          outa[LEDBLUE]~
+        outa[LEDRED]~
+        outa[LEDBLUE]~~
+        imu_readTempCalculated (@__temp, CELSIUS)
     OTHER:
       ser.Str (string("Error: Invalid test mode specified.", ser#NL))
       halt_led
@@ -327,14 +348,11 @@ PUB printRawM
 '' Print raw magnetometer values
   repeat
     ser.Dec (__mx)
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.dec (__my)
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.dec (__mz)
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.NewLine
     time.MSleep (delay)
 
@@ -342,20 +360,17 @@ PUB printCalcM
 '' Print calculated magnetometer values, in Gauss
   repeat
     ser.str (fs.floattostring(__mx))
-'    ser.Str (fs.floattostring(uTesla(__mx)))
-'    ser.Str (string("uT"))
-    repeat 5
-      ser.Char (32)
+'    ser.Str (fs.floattostring(Tesla(__mx)))
+'    ser.Str (string("T"))
+    ser.Chars(5, 32)
     ser.str (fs.floattostring(__my))
-'    ser.Str (fs.floattostring(uTesla(__my)))
-'    ser.Str (string("uT"))
-    repeat 5
-      ser.Char (32)
+'    ser.Str (fs.floattostring(Tesla(__my)))
+'    ser.Str (string("T"))
+    ser.Chars(5, 32)
     ser.str (fs.floattostring(__mz))
-'    ser.Str (fs.floattostring(uTesla(__mz)))
-'    ser.Str (string("uT"))
-    repeat 5
-      ser.Char (32)
+'    ser.Str (fs.floattostring(Tesla(__mz)))
+'    ser.Str (string("T"))
+    ser.Chars(5, 32)
     ser.NewLine
     time.MSleep (delay)
 
@@ -386,14 +401,11 @@ PUB printRawXL
 '' Print raw accelerometer values
   repeat
     ser.Dec (__ax)
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.dec (__ay)
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.dec (__az)
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.NewLine
     time.MSleep (delay)
 
@@ -401,14 +413,11 @@ PUB printCalcXL
 '' Print calculated accelerometer values, in G's
   repeat
     ser.str (fs.floattostring(__ax))
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.str (fs.floattostring(__ay))
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.str (fs.floattostring(__az))
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.NewLine
     time.MSleep (delay)
 
@@ -424,8 +433,12 @@ PUB thresh_XL
       outa[LEDGREEN]~~
       outa[LEDRED]~
       ser.Str (fs.floattostring(__ax))
+      ser.Chars(5, 32)
+      ser.Str (fs.floattostring(__ay))
+      ser.Chars(5, 32)
+      ser.Str (fs.floattostring(__az))
+      ser.Chars(5, 32)
       ser.NewLine
-      'time.MSleep (50)
     else
       outa[LEDGREEN]~
       outa[LEDRED]~~
@@ -435,14 +448,11 @@ PUB printRawG
 '' Print raw Gyroscope values
   repeat
     ser.Dec (__gx)
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.dec (__gy)
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.dec (__gz)
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.NewLine
     time.MSleep (delay)
 
@@ -450,14 +460,11 @@ PUB printCalcG
 '' Print calculated Gyroscope values, in Degrees Per Second
   repeat
     ser.str (fs.floattostring(__gx))
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.str (fs.floattostring(__gy))
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.str (fs.floattostring(__gz))
-    repeat 5
-      ser.Char (32)
+    ser.Chars(5, 32)
     ser.NewLine
     time.MSleep (delay)
 
@@ -472,12 +479,32 @@ PUB thresh_G
     if ina[INT_AG_PIN]
       outa[LEDGREEN]~~
       outa[LEDRED]~
+      ser.Str (fs.floattostring(__gx))
+      ser.Chars (5, 32)
       ser.Str (fs.floattostring(__gy))
+      ser.Chars (5, 32)
+      ser.Str (fs.floattostring(__gz))
+      ser.Chars (5, 32)
       ser.NewLine
-      time.MSleep (50)
+      time.MSleep (delay)
     else
       outa[LEDGREEN]~
       outa[LEDRED]~~
+
+PUB printRawTemp
+'' Print raw Temperature values
+  repeat
+    ser.Dec (__temp)
+    ser.NewLine
+    time.MSleep (delay)
+
+PUB printCalcTemp
+'' Print raw Temperature values
+  repeat
+    ser.Str (fs.FloatToString (__temp))
+    ser.NewLine
+    time.MSleep (delay)
+
 
 PUB imu_init(pinSCL, pinSDIO, pinAG, pinM) | xgTest, mTest, whoAmICombined 'WORKS
 '' Initialize the IMU
@@ -515,6 +542,60 @@ PUB imu_init(pinSCL, pinSDIO, pinAG, pinM) | xgTest, mTest, whoAmICombined 'WORK
   imu_setMagScale(12)
   ' Once everything is initialized, return the WHO_AM_I registers we read:
   return whoAmICombined
+
+PUB imu_tempAvailable | status
+  imu_SPIreadBytes(CS_AG_PIN, STATUS_REG_1, @status, 1)
+  return ((status & (1 << 2)) >> 2)
+
+PUB imu_readTemp(temperature) | temp[1], tempT 'WORKS
+' We'll read two bytes from the temperature sensor into temp
+
+' Read 2 bytes, beginning at OUT_TEMP_L
+  imu_SPIreadBytes(CS_AG_PIN, OUT_TEMP_L, @temp, 2)
+  tempT := (temp.byte[1] << 8) | temp.byte[0]
+  long[temperature] := ~~tempT
+
+PUB imu_readTempCalculated(temperature, tempUnit) | tempTemp 'PARTIAL
+  imu_readTemp(@tempTemp)
+  if (tempUnit == FAHRENHEIT)
+'    long[temperature] := ((tempTemp / 16.0) + 25.0) * 1.8 + 32.0
+    long[temperature] := math.AddF (math.MulF(math.AddF(math.DivF(math.FloatF(tempTemp), 16.0), 25.0), 1.8), 32.0)
+  else'if (tempUnit == CELSIUS)
+'    long[temperature] := (tempTemp / 16.0) + 25.0
+    long[temperature] := math.AddF (math.DivF(math.FloatF(tempTemp), 16.0), 25.0)
+  if (tempUnit == KELVIN)
+'    long[temperature] := math.AddF (math.AddF (math.DivF(math.FloatF(tempTemp), 16.0), 25.0), 273.15)
+    long[temperature] := math.AddF (long[temperature], 273.15)
+
+PUB imu_getGyroScale
+
+  return __settings_gyro_scale
+
+PUB imu_getAccelScale
+
+  return __settings_accel_scale
+
+PUB imu_getMagScale
+
+  return __settings_mag_scale
+
+PUB imu_getMagCalibration(mxBias, myBias, mzBias) 'UNTESTED
+
+  long[mxBias] := __mBiasRaw[X_AXIS]
+  long[myBias] := __mBiasRaw[Y_AXIS]
+  long[mzBias] := __mBiasRaw[Z_AXIS]
+
+PUB imu_getAccelCalibration(axBias, ayBias, azBias) 'UNTESTED
+
+  long[axBias] := __aBiasRaw[X_AXIS]
+  long[ayBias] := __aBiasRaw[Y_AXIS]
+  long[azBias] := __aBiasRaw[Z_AXIS]
+
+PUB imu_getGyroCalibration(gxBias, gyBias, gzBias) 'UNTESTED
+
+  long[gxBias] := __gBiasRaw[X_AXIS]
+  long[gyBias] := __gBiasRaw[Y_AXIS]
+  long[gzBias] := __gBiasRaw[Z_AXIS]
 
 PUB imu_setMagCalibration(mxBias, myBias, mzBias) | k, msb, lsb 'WORKS
 '' Manually set magnetometer calibration offset values
