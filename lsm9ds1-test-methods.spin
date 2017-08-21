@@ -179,7 +179,7 @@ OBJ
 PUB main | i, choice, testmode
   
   math.Start
-  fs.SetPrecision (7)
+  fs.SetPrecision (3)
   spi.start (10{For SPI_Asm: 1-129 works, for SPI_Spin: 7-129 works}, 0{Must be 0})
   ser.Start (115_200)
   delay := 50 'Delay in ms for terminal logging
@@ -204,12 +204,14 @@ PUB main | i, choice, testmode
   
   __autoCalc := TRUE
   
-  testmode := TEMP_CAL 'Which sensor to test, and what kind of output
+  testmode := M_CAL 'Which sensor to test, and what kind of output
 
   imu_clearGyroInterrupt
   imu_clearAccelInterrupt
   imu_clearMagInterrupt
 
+
+  
   imu_setAccelScale(8)      '2, 4, _8_, 16
   imu_setGyroScale(500)     '245, _500_, 2000
   imu_setMagScale(4)        '4, 8, _12_, 16
@@ -348,11 +350,11 @@ PUB printRawM
 '' Print raw magnetometer values
   repeat
     ser.Dec (__mx)
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.dec (__my)
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.dec (__mz)
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.NewLine
     time.MSleep (delay)
 
@@ -362,15 +364,15 @@ PUB printCalcM
     ser.str (fs.floattostring(__mx))
 '    ser.Str (fs.floattostring(Tesla(__mx)))
 '    ser.Str (string("T"))
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.str (fs.floattostring(__my))
 '    ser.Str (fs.floattostring(Tesla(__my)))
 '    ser.Str (string("T"))
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.str (fs.floattostring(__mz))
 '    ser.Str (fs.floattostring(Tesla(__mz)))
 '    ser.Str (string("T"))
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.NewLine
     time.MSleep (delay)
 
@@ -401,11 +403,11 @@ PUB printRawXL
 '' Print raw accelerometer values
   repeat
     ser.Dec (__ax)
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.dec (__ay)
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.dec (__az)
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.NewLine
     time.MSleep (delay)
 
@@ -413,11 +415,11 @@ PUB printCalcXL
 '' Print calculated accelerometer values, in G's
   repeat
     ser.str (fs.floattostring(__ax))
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.str (fs.floattostring(__ay))
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.str (fs.floattostring(__az))
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.NewLine
     time.MSleep (delay)
 
@@ -433,11 +435,11 @@ PUB thresh_XL
       outa[LEDGREEN]~~
       outa[LEDRED]~
       ser.Str (fs.floattostring(__ax))
-      ser.Chars(5, 32)
+      ser.Chars(32, 5)
       ser.Str (fs.floattostring(__ay))
-      ser.Chars(5, 32)
+      ser.Chars(32, 5)
       ser.Str (fs.floattostring(__az))
-      ser.Chars(5, 32)
+      ser.Chars(32, 5)
       ser.NewLine
     else
       outa[LEDGREEN]~
@@ -448,11 +450,11 @@ PUB printRawG
 '' Print raw Gyroscope values
   repeat
     ser.Dec (__gx)
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.dec (__gy)
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.dec (__gz)
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.NewLine
     time.MSleep (delay)
 
@@ -460,11 +462,11 @@ PUB printCalcG
 '' Print calculated Gyroscope values, in Degrees Per Second
   repeat
     ser.str (fs.floattostring(__gx))
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.str (fs.floattostring(__gy))
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.str (fs.floattostring(__gz))
-    ser.Chars(5, 32)
+    ser.Chars(32, 5)
     ser.NewLine
     time.MSleep (delay)
 
