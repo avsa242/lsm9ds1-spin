@@ -127,22 +127,11 @@ CON
   INT_AG_PIN = 9  '
   INT_M_PIN = 10  '_
   
-{ The constants below aren't part of the original library }
-  RED_LED_PIN = 3      'Change these also,
-  GRN_LED_PIN = 2    'though they're optional
-  BLU_LED_PIN = 1     '
-  YLW_LED_PIN = 0   '
-  BUTTON_PIN = 1  '_
 
-  XL_RAW = 0      'Testing modes
-  XL_CAL = 1      '
-  GY_RAW = 2      '
-  GY_CAL = 3      '
-  M_RAW = 4       '
-  M_CAL = 5       '
-  M_THRESH = 6    '
-  TEMP_RAW = 7    '
-  TEMP_CAL = 8    '_
+  RED_LED_PIN = 3 'Change these also
+  GRN_LED_PIN = 2 '
+  YLW_LED_PIN = 0 '
+
 
 OBJ
 '' Either SPI_Asm or SPIN_Spin may be used.
