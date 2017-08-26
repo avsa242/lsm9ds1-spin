@@ -180,9 +180,10 @@ PUB main | i, choice, testmode
   
   math.Start
   fs.SetPrecision (3)
-  spi.start (10{For SPI_Asm: 1-129 works, for SPI_Spin: 7-129 works}, 0{Must be 0})
+  spi.start (10{SPI_Asm: 1-129, SPI_Spin: 7-129}, 0{Must be 0})
   ser.Start (115_200)
-  delay := 50 'Delay in ms for terminal logging
+  'Delay in ms for terminal logging
+  delay := 50
 
   dira[SCL_PIN] := 0
   dira[SDIO_PIN] := 0
