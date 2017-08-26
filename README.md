@@ -20,8 +20,16 @@ As the header text in the lsm9ds1-test-methods.spin source mentions, the Test Ha
 original C version, so only the functions used in that are implemented. There may be settings, such as
 alternate data refresh rates that the IMU is capable of that aren't implemented here.
 
-### For the future:
-I _would_ like to rewrite the test method source to operate more interactively. Right now, changing test
-modes is a matter of changing a variable ("test_mode"). While this isn't terribly difficult, it means changing the source,
-reprogramming the Propeller, testing the output, and redoing this every time a different test mode is desired, which is a
-minor hassle.
+### Improvements Needed/For the future:
+Like many MCUs, the Propeller lacks hardware floating-point support, and unlike C, so does the SPIN language, really.
+As such, some floating-point objects were used to facilitate representing these non-whole numbers, and some of the lines used
+to calculate them are quite verbose looking (i.e., difficult to read). Even though an end-user using these SPIN methods
+shouldn't generally need to dissect the operation of them, I would like to investigate simplifying them
+(and FWIW, the way I've implemented it may not be the greatest to begin with. I was simply trying to achieve a match to
+the output of the original code).
+
+I _would_ like to rewrite the lsm9ds1-test-methods.spin test method source to operate more interactively.  Right now,
+changing test modes is a matter of changing a variable ("test_mode"). While this isn't terribly difficult, it means changing
+the source, reprogramming the Propeller, testing the output, and redoing this every time a different test mode is desired,
+which is a minor hassle. This source started out as just a way to vet the converted source, but I think there is value in
+having a tool that simply displays live data from the IMU.
