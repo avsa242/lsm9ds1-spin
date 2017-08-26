@@ -33,3 +33,7 @@ changing test modes is a matter of changing a variable ("test_mode"). While this
 the source, reprogramming the Propeller, testing the output, and redoing this every time a different test mode is desired,
 which is a minor hassle. This source started out as just a way to vet the converted source, but I think there is value in
 having a tool that simply displays live data from the IMU.
+
+Some may notice the use of pointers for returning data from the IMU through the same (VAR) variables used to call the methods with. During the initial conversion from C, I struggled a bit with how best to return data from the methods, as I didn't think SPIN supported pointers, at least not in the same way C does, and though I understood the concept of pointers, it didn't really _click_ with me. After seeing it actually work, however, I decided I liked having it the way it is now.
+
+Lastly, for those wondering why such a simple bit of code was placed in a git repository, especially online on github: I initialized a git repo on my computer, locally, somewhere mid-way through this whole process because I found on more than one occasion, I tried a change in the code that may've worked for what I was working on specifically at the time, but later seemed to break something, and I wasn't always sure what the cause was. Git makes it easy to "roll back" to previous versions to find out where a problem was introduced. As for putting it on github, it's to have an online backup for the code as well as an unencumbered, pretty universal way to share the code.
