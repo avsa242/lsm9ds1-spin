@@ -120,17 +120,17 @@ CON
   VCC_PIN = 5     'These two will probably be removed.
   GND_PIN = 4     'They seem to be leftovers from a different module?
 
-  SCL_PIN = 5     'IMPORTANT!!!
-  SDIO_PIN = 6    'Change these 6 to match your
-  CS_AG_PIN = 7   'actual connections!
-  CS_M_PIN = 8    '
-  INT_AG_PIN = 9  '
-  INT_M_PIN = 10  '_
+  SCL_PIN = 0     'IMPORTANT!!!
+  SDIO_PIN = 1    'Change these 6 to match your
+  CS_AG_PIN = 2   'actual connections!
+  CS_M_PIN = 3    '
+  INT_AG_PIN = 4  '
+  INT_M_PIN = 5  '_
   
 
-  RED_LED_PIN = 3 'Change these also
-  GRN_LED_PIN = 2 '
-  YLW_LED_PIN = 0 '
+  RED_LED_PIN = 26 'Change these also
+  GRN_LED_PIN = 27 '
+  YLW_LED_PIN = 27 '
 
 
 OBJ
