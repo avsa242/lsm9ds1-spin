@@ -1,97 +1,104 @@
-'ADD HEADER
+{
+    --------------------------------------------
+    Filename: sensor.imu.tri.lsm9ds1.spin
+    Author: Jesse Burt
+    Copyright (c) 2018
+    See end of file for terms of use.
+    --------------------------------------------
+}
 CON
 ' LSM9DS1 Register mappings to their symbolic names
-  ACT_THS = $04
-  ACT_DUR = $05
-  INT_GEN_CFG_XL = $06
-  INT_GEN_THS_X_XL = $07
-  INT_GEN_THS_Y_XL = $08
-  INT_GEN_THS_Z_XL = $09
-  INT_GEN_DUR_XL = $0A
-  REFERENCE_G = $0B
-  INT1_CTRL = $0C
-  INT2_CTRL = $0D
-  WHO_AM_I_XG = $0F
-  CTRL_REG1_G = $10
-  CTRL_REG2_G = $11
-  CTRL_REG3_G = $12
-  ORIENT_CFG_G = $13
-  INT_GEN_SRC_G = $14
-  OUT_TEMP_L = $15
-  OUT_TEMP_H = $16
-  STATUS_REG_0 = $17
-  OUT_X_L_G = $18
-  OUT_X_H_G = $19
-  OUT_Y_L_G = $1A
-  OUT_Y_H_G = $1B
-  OUT_Z_L_G = $1C
-  OUT_Z_H_G = $1D
-  CTRL_REG4 = $1E
-  CTRL_REG5_XL = $1F
-  CTRL_REG6_XL = $20
-  CTRL_REG7_XL = $21
-  CTRL_REG8 = $22
-  CTRL_REG9 = $23
-  CTRL_REG10 = $24
-  INT_GEN_SRC_XL = $26
-  STATUS_REG_1 = $27
-  OUT_X_L_XL = $28
-  OUT_X_H_XL = $29
-  OUT_Y_L_XL = $2A
-  OUT_Y_H_XL = $2B
-  OUT_Z_L_XL = $2C
-  OUT_Z_H_XL = $2D
-  FIFO_CTRL = $2E
-  FIFO_SRC = $2F
-  INT_GEN_CFG_G = $30
-  INT_GEN_THS_XH_G = $31
-  INT_GEN_THS_XL_G = $32
-  INT_GEN_THS_YH_G = $33
-  INT_GEN_THS_YL_G = $34
-  INT_GEN_THS_ZH_G = $35
-  INT_GEN_THS_ZL_G = $36
-  INT_GEN_DUR_G = $37
-  OFFSET_X_REG_L_M = $05
-  OFFSET_X_REG_H_M = $06
-  OFFSET_Y_REG_L_M = $07
-  OFFSET_Y_REG_H_M = $08
-  OFFSET_Z_REG_L_M = $09
-  OFFSET_Z_REG_H_M = $0A
-  WHO_AM_I_M = $0F
-  CTRL_REG1_M = $20
-  CTRL_REG2_M = $21
-  CTRL_REG3_M = $22
-  CTRL_REG4_M = $23
-  CTRL_REG5_M = $24
-  STATUS_REG_M = $27
-  OUT_X_L_M = $28
-  OUT_X_H_M = $29
-  OUT_Y_L_M = $2A
-  OUT_Y_H_M = $2B
-  OUT_Z_L_M = $2C
-  OUT_Z_H_M = $2D
-  INT_CFG_M = $30
-  INT_SRC_M = $30
-  INT_THS_L_M = $32
-  INT_THS_H_M = $33
-  WHO_AM_I_AG_RSP = $68
-  WHO_AM_I_M_RSP = $3D
-  FIFO_OFF = 0
-  FIFO_THS = 1
+  ACT_THS           = $04
+  ACT_DUR           = $05
+  INT_GEN_CFG_XL    = $06
+  INT_GEN_THS_X_XL  = $07
+  INT_GEN_THS_Y_XL  = $08
+  INT_GEN_THS_Z_XL  = $09
+  INT_GEN_DUR_XL    = $0A
+  REFERENCE_G       = $0B
+  INT1_CTRL         = $0C
+  INT2_CTRL         = $0D
+  WHO_AM_I_XG       = $0F
+  CTRL_REG1_G       = $10
+  CTRL_REG2_G       = $11
+  CTRL_REG3_G       = $12
+  ORIENT_CFG_G      = $13
+  INT_GEN_SRC_G     = $14
+  OUT_TEMP_L        = $15
+  OUT_TEMP_H        = $16
+  STATUS_REG_0      = $17
+  OUT_X_L_G         = $18
+  OUT_X_H_G         = $19
+  OUT_Y_L_G         = $1A
+  OUT_Y_H_G         = $1B
+  OUT_Z_L_G         = $1C
+  OUT_Z_H_G         = $1D
+  CTRL_REG4         = $1E
+  CTRL_REG5_XL      = $1F
+  CTRL_REG6_XL      = $20
+  CTRL_REG7_XL      = $21
+  CTRL_REG8         = $22
+  CTRL_REG9         = $23
+  CTRL_REG10        = $24
+  INT_GEN_SRC_XL    = $26
+  STATUS_REG_1      = $27
+  OUT_X_L_XL        = $28
+  OUT_X_H_XL        = $29
+  OUT_Y_L_XL        = $2A
+  OUT_Y_H_XL        = $2B
+  OUT_Z_L_XL        = $2C
+  OUT_Z_H_XL        = $2D
+  FIFO_CTRL         = $2E
+  FIFO_SRC          = $2F
+  INT_GEN_CFG_G     = $30
+  INT_GEN_THS_XH_G  = $31
+  INT_GEN_THS_XL_G  = $32
+  INT_GEN_THS_YH_G  = $33
+  INT_GEN_THS_YL_G  = $34
+  INT_GEN_THS_ZH_G  = $35
+  INT_GEN_THS_ZL_G  = $36
+  INT_GEN_DUR_G     = $37
+  OFFSET_X_REG_L_M  = $05
+  OFFSET_X_REG_H_M  = $06
+  OFFSET_Y_REG_L_M  = $07
+  OFFSET_Y_REG_H_M  = $08
+  OFFSET_Z_REG_L_M  = $09
+  OFFSET_Z_REG_H_M  = $0A
+  WHO_AM_I_M        = $0F
+  CTRL_REG1_M       = $20
+  CTRL_REG2_M       = $21
+  CTRL_REG3_M       = $22
+  CTRL_REG4_M       = $23
+  CTRL_REG5_M       = $24
+  STATUS_REG_M      = $27
+  OUT_X_L_M         = $28
+  OUT_X_H_M         = $29
+  OUT_Y_L_M         = $2A
+  OUT_Y_H_M         = $2B
+  OUT_Z_L_M         = $2C
+  OUT_Z_H_M         = $2D
+  INT_CFG_M         = $30
+  INT_SRC_M         = $30
+  INT_THS_L_M       = $32
+  INT_THS_H_M       = $33
+  WHO_AM_I_AG_RSP   = $68
+  WHO_AM_I_M_RSP    = $3D
+
+  FIFO_OFF          = 0
+  FIFO_THS          = 1
   FIFO_CONT_TRIGGER = 3
-  FIFO_OFF_TRIGGER = 4
-  FIFO_CONT = 5
-  X_AXIS = 0
-  Y_AXIS = 1
-  Z_AXIS = 2
-  ALL_AXIS = 3
-  CELSIUS = 0
-  FAHRENHEIT = 1
-  KELVIN = 2
+  FIFO_OFF_TRIGGER  = 4
+  FIFO_CONT         = 5
+  X_AXIS            = 0
+  Y_AXIS            = 1
+  Z_AXIS            = 2
+  ALL_AXIS          = 3
+  CELSIUS           = 0
+  FAHRENHEIT        = 1
+  KELVIN            = 2
 
 OBJ
-' Either SPI_Asm or SPIN_Spin may be used.
-    spi:    "SPI_Asm" 'Faster, but consumes 1 COG
+    spi:    "SPI_Asm"
     math:   "math.float" '1 COG
     fs:     "string.float" '0 COG
 
@@ -115,10 +122,11 @@ PUB Null
 
 PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
 
+  ifnot math.Start
+    abort FALSE
   ifnot spi.start (10, 0)
     spi.stop
     abort FALSE
-
   _scl_pin := SCL_PIN
   _sdio_pin := SDIO_PIN
   _cs_ag_pin := CS_AG_PIN
@@ -133,20 +141,42 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
   dira[_int_ag_pin] := 0
   dira[_int_m_pin] := 0
 
-  okay := init(_scl_pin, _sdio_pin, _cs_ag_pin, _cs_m_pin)
-  ifnot okay
-    spi.stop
-    abort FALSE
+  ' Initialize the IMU
+  high(CS_AG_PIN)
+  high(CS_M_PIN)
+  low(SCL_PIN)
+  waitcnt(cnt + clkfreq / 1000)
+  ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
+  SPIwriteByte(CS_AG_PIN, CTRL_REG8, %00001100)
+  SPIwriteByte(CS_M_PIN, CTRL_REG3_M, %10000100)
 
-  setGyroScale(245) 'most sensitive setting
-  setAccelScale(2) 'most sensitive setting
-  setMagScale(12) 'most sensitive setting
+  'Init Gyro
+  SPIwriteByte(CS_AG_PIN, CTRL_REG1_G, $C0)
+  SPIwriteByte(CS_AG_PIN, CTRL_REG2_G, $00)
+  SPIwriteByte(CS_AG_PIN, CTRL_REG3_G, $00)
+  SPIwriteByte(CS_AG_PIN, CTRL_REG4, $38)
+  SPIwriteByte(CS_AG_PIN, ORIENT_CFG_G, $00)
+  'Init Accel
+  SPIwriteByte(CS_AG_PIN, CTRL_REG5_XL, $38)
+  SPIwriteByte(CS_AG_PIN, CTRL_REG6_XL, $C0)
+  SPIwriteByte(CS_AG_PIN, CTRL_REG7_XL, $00)
+  'Init Mag
+  SPIwriteByte(CS_M_PIN, CTRL_REG2_M, $00)
+  SPIwriteByte(CS_M_PIN, CTRL_REG4_M, $0C)
+  SPIwriteByte(CS_M_PIN, CTRL_REG5_M, $00)
+  'Set Scales
+
+  setGyroScale(245)
+  setAccelScale(2)
+  setMagScale(8)
+  ' Once everything is initialized, return the WHO_AM_I registers we read:
+  okay := whoAmI
 
 PUB Stop
 
   spi.stop
 
-PUB accelAvailable | status
+PUB accelAvailable: status
 'Polls the Accelerometer status register to check if new data is available.
   SPIreadBytes(_cs_ag_pin, STATUS_REG_1, @status, 1)
   return (status & (1 << 0))
@@ -274,51 +304,11 @@ PUB gyroAvailable | status
   SPIreadBytes(_cs_ag_pin, STATUS_REG_1, @status, 1)
   return ((status & (1 << 1)) >> 1)
 
-PUB init(pinSCL, pinSDIO, pinAG, pinM) | xgTest, mTest, whoAmICombined
-' Initialize the IMU
-  high(pinAG)
-  high(pinM)
-  low(pinSCL) ' Pin output state to low
-  waitcnt(cnt + clkfreq / 1000)
-  ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
-  SPIwriteByte(pinAG, CTRL_REG8, %00001100)
-  SPIwriteByte(pinM, CTRL_REG3_M, %10000100)
-  ' To verify communication, we can read from the WHO_AM_I register of
-  ' each device. Store those in a variable so we can return them., xgTest, mTest
-  SPIreadBytes(pinM, WHO_AM_I_M, @mTest, 1) ' Read the gyro WHO_AM_I
-  SPIreadBytes(pinAG, WHO_AM_I_XG, @xgTest, 1) ' Read the accel/mag WHO_AM_I, whoAmICombined
-'  whoAmICombined := (xgTest << 8) | mTest
-  if (whoAmI <> ((WHO_AM_I_AG_RSP << 8) | WHO_AM_I_M_RSP))
-    return 0
-  
-  'Init Gyro
-  SPIwriteByte(pinAG, CTRL_REG1_G, $C0)
-  SPIwriteByte(pinAG, CTRL_REG2_G, $00)
-  SPIwriteByte(pinAG, CTRL_REG3_G, $00)
-  SPIwriteByte(pinAG, CTRL_REG4, $38)
-  SPIwriteByte(pinAG, ORIENT_CFG_G, $00)
-  'Init Accel
-  SPIwriteByte(pinAG, CTRL_REG5_XL, $38)
-  SPIwriteByte(pinAG, CTRL_REG6_XL, $C0)
-  SPIwriteByte(pinAG, CTRL_REG7_XL, $00)
-  'Init Mag
-  SPIwriteByte(pinM, CTRL_REG2_M, $00)
-  SPIwriteByte(pinM, CTRL_REG4_M, $0C)
-  SPIwriteByte(pinM, CTRL_REG5_M, $00)
-  'Set Scales
-  setGyroScale(500)
-  setAccelScale(8)
-  setMagScale(12)
-  ' Once everything is initialized, return the WHO_AM_I registers we read:
-  return whoAmICombined
-
-PUB whoAmI:whoAmICombined | mTest, xgTest
+PUB whoAmI: whoAmICombined | mTest, xgTest
 
   SPIreadBytes(_cs_m_pin, WHO_AM_I_M, @mTest, 1) ' Read the gyro WHO_AM_I
   SPIreadBytes(_cs_ag_pin, WHO_AM_I_XG, @xgTest, 1) ' Read the accel/mag WHO_AM_I, whoAmICombined
   whoAmICombined := (xgTest << 8) | mTest
-  if (whoAmICombined <> ((WHO_AM_I_AG_RSP << 8) | WHO_AM_I_M_RSP))
-    return 0
 
 PUB magAvailable | status
 ' Polls the Magnetometer status register to check if new data is available.
@@ -557,6 +547,7 @@ PUB setGyroScale(gScl) | ctrl1RegValue
   __settings_gyro_scale := gScl
   __gRes := math.DivF (32768.0, math.FloatF (gScl))
   ' Read current value of CTRL_REG1_G:, ctrl1RegValue
+
   SPIreadBytes(_cs_ag_pin, CTRL_REG1_G, @ctrl1RegValue, 1)
   ' Mask out scale bits (3 & 4):
   ctrl1RegValue &= $E7
@@ -641,6 +632,111 @@ PUB setMagScale(mScl) | temp
 PUB tempAvailable | status
   SPIreadBytes(_cs_ag_pin, STATUS_REG_1, @status, 1)
   return ((status & (1 << 2)) >> 2)
+
+PUB ReadAGReg8(reg): data_byte
+'Validate register and read byte from Accel/Gyro device
+'Allow only registers that are
+'1. Not 'reserved' (ST states reading should only be performed on registers listed in
+' their datasheet to guarantee proper behavior of the device)
+  data_byte := 0
+  case reg
+    $04..$0D, $0F..$24, $26..$37:
+      SPIreadBytes(_cs_ag_pin, reg, @data_byte, 1)
+    OTHER:
+      return 0
+
+PUB ReadAGReg16(reg): data_word
+'Validate register and read word from Accel/Gyro device
+'Allow only registers that are
+'1. One byte of a word-sized register
+'2. Not 'reserved' (ST states reading should only be performed on registers listed in
+' their datasheet to guarantee proper behavior of the device)
+  data_word := 0
+  case reg
+    $15, $16, $18, $1A, $1C, $28, $2A, $2C, $31, $33, $35:
+      SPIreadBytes(_cs_ag_pin, reg, @data_word, 2)
+    OTHER:
+      return 0
+
+PUB ReadMReg8(reg): data_byte
+'Validate register and read byte from Magnetometer device
+'Allow only registers that are
+'1. One byte of a word-sized register
+'2. Not 'reserved' (ST states reading should only be performed on registers listed in
+' their datasheet to guarantee proper behavior of the device)
+  data_byte := 0
+  case reg
+    $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
+      SPIreadBytes(_cs_m_pin, reg, @data_byte, 1)
+    OTHER:
+      return 0
+
+PUB ReadMReg16(reg): data_word
+'Validate register and read word from Magnetometer device
+'Allow only registers that are
+'1. One byte of a word-sized register
+'2. Not 'reserved' (ST states reading should only be performed on registers listed in
+' their datasheet to guarantee proper behavior of the device)
+  data_word := 0
+  case reg
+    $05, $07, $09, $28, $2A, $2C, $32:
+      SPIreadBytes(_cs_m_pin, reg, @data_word, 2)
+    OTHER:
+      return 0
+
+PUB WriteAGReg8(reg, writebyte)
+'Validate register and write byte to Accel/Gyro device
+'Allow only registers that are
+'1. Writeable
+'2. Not 'reserved' (ST claims writing to these can
+' permanently damage the device)
+  writebyte &= $FF
+  case reg
+    $04..$0D, $10..$13, $1E..$24, $2E, $30..$37:
+      SPIwriteByte(_cs_ag_pin, reg, @writebyte)
+    OTHER:
+      return 0
+
+PUB WriteAGReg16(reg, writeword)
+'Validate register and write word to Accel/Gyro device
+'Allow only registers that are
+'1. Writeable
+'2. One byte of a word-sized register
+'3. Not 'reserved' (ST claims writing to these can
+' permanently damage the device)
+  writeword &= $FFFF
+  case reg
+    $18, $1A, $1C, $31, $33, $35:
+      SPIwriteByte(_cs_ag_pin, reg, @writeword)
+    OTHER:
+      return 0
+
+PUB WriteMReg8(reg, writebyte)
+'Validate register and write byte to Magnetometer device
+'Allow only registers that are
+'1. Writeable
+'2. Not 'reserved' (ST claims writing to these can
+' permanently damage the device)
+  writebyte &= $FF
+  case reg
+    $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
+      SPIwriteByte(_cs_m_pin, reg, @writebyte)
+    OTHER:
+      return 0
+
+PUB WriteMReg16(reg, writeword)
+'Validate register and write word to Magnetometer device
+'Allow only registers that are
+'1. Writeable
+'2. One byte of a word-sized register
+'3. Not 'reserved' (ST claims writing to these can
+' permanently damage the device)
+  writeword &= $FFFF
+  case reg
+    $05, $07, $09, $28, $2A, $2C, $32:
+      SPIwriteByte(_cs_m_pin, reg, @writeword)
+    OTHER:
+      return 0
 
 PRI SPIwriteByte(csPin, subAddress, data)
 ' SPI: Write byte _data_ to SPI device at _subAddress_ on Propeller I/O pin _csPin_
