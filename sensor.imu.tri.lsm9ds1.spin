@@ -6,6 +6,9 @@
     See end of file for terms of use.
     --------------------------------------------
 }
+'TODO:
+' 1. Rewrite methods to use Read/WriteRegX methods
+' 2. Remove dependency on math libs - this means fixed-point integer-only math
 CON
 ' LSM9DS1 Register mappings to their symbolic names
   ACT_THS           = $04
@@ -147,23 +150,26 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
   low(SCL_PIN)
   waitcnt(cnt + clkfreq / 1000)
   ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
-  SPIwriteByte(CS_AG_PIN, CTRL_REG8, %00001100)
-  SPIwriteByte(CS_M_PIN, CTRL_REG3_M, %10000100)
+  WriteAGReg8 (CTRL_REG8, %0000_1100)
+  WriteMReg8 (CTRL_REG3_M, %1000_0100)
 
   'Init Gyro
-  SPIwriteByte(CS_AG_PIN, CTRL_REG1_G, $C0)
-  SPIwriteByte(CS_AG_PIN, CTRL_REG2_G, $00)
-  SPIwriteByte(CS_AG_PIN, CTRL_REG3_G, $00)
-  SPIwriteByte(CS_AG_PIN, CTRL_REG4, $38)
-  SPIwriteByte(CS_AG_PIN, ORIENT_CFG_G, $00)
+  WriteAGReg8 (CTRL_REG1_G, $C0)
+  WriteAGReg8 (CTRL_REG2_G, $00)
+  WriteAGReg8 (CTRL_REG3_G, $00)
+  WriteAGReg8 (CTRL_REG4, $38)
+  WriteAGReg8 (ORIENT_CFG_G, $00)
+
   'Init Accel
-  SPIwriteByte(CS_AG_PIN, CTRL_REG5_XL, $38)
-  SPIwriteByte(CS_AG_PIN, CTRL_REG6_XL, $C0)
-  SPIwriteByte(CS_AG_PIN, CTRL_REG7_XL, $00)
+  WriteAGReg8 (CTRL_REG5_XL, $38)
+  WriteAGReg8 (CTRL_REG6_XL, $C0)
+  WriteAGReg8 (CTRL_REG7_XL, $00)
+
   'Init Mag
-  SPIwriteByte(CS_M_PIN, CTRL_REG2_M, $00)
-  SPIwriteByte(CS_M_PIN, CTRL_REG4_M, $0C)
-  SPIwriteByte(CS_M_PIN, CTRL_REG5_M, $00)
+  WriteMReg8 (CTRL_REG2_M, $00)
+  WriteMReg8 (CTRL_REG4_M, $0C)
+  WriteMReg8 (CTRL_REG5_M, $00)
+
   'Set Scales
 
   setGyroScale(245)
@@ -178,19 +184,19 @@ PUB Stop
 
 PUB accelAvailable: status
 'Polls the Accelerometer status register to check if new data is available.
-  SPIreadBytes(_cs_ag_pin, STATUS_REG_1, @status, 1)
+  ReadAGReg (STATUS_REG_1, @status, 1)
   return (status & (1 << 0))
 
 PUB calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3], gBiasRawTemp[3], tempF, tempS
 ' Calibrates the Accelerometer and Gyroscope on the LSM9DS1 IMU module.
   samples := 0
   ' Turn on FIFO and set threshold to 32 samples
-  SPIreadBytes(_cs_ag_pin, CTRL_REG9, @tempF, 1)
+  ReadAGReg (CTRL_REG9, @tempF, 1)
   tempF |= (1 << 1)
-  SPIwriteByte(_cs_ag_pin, CTRL_REG9, tempF)
-  SPIwriteByte(_cs_ag_pin, FIFO_CTRL, (((FIFO_THS & $7) << 5) | $1F))
+  WriteAGReg8 (CTRL_REG9, tempF)
+  WriteAGReg8 (FIFO_CTRL, (((FIFO_THS & $7) << 5) | $1F))
   repeat while samples < $1F
-    SPIreadBytes(_cs_ag_pin, FIFO_SRC, @tempS, 1) ' Read number of stored samples
+    ReadAGReg (FIFO_SRC, @tempS, 1)
     samples := tempS.byte[0] & $3F
   repeat ii from 0 to samples-1 'while (ii < byte[@samples])
     ' Read the gyro data stored in the FIFO
@@ -209,10 +215,10 @@ PUB calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3],
     __aBias[ii] := __aBiasRaw[ii] / math.TruncFInt (__aRes)
   __autoCalc := 1
   'Disable FIFO
-  SPIreadBytes(_cs_ag_pin, CTRL_REG9, @tempF, 1)
+  ReadAGReg (CTRL_REG9, @tempF, 1)
   tempF &= !(1 << 1)
-  SPIwriteByte(_cs_ag_pin, CTRL_REG9, tempF)
-  SPIwriteByte(_cs_ag_pin, FIFO_CTRL, ((FIFO_OFF & $7) << 5))
+  WriteAGReg8 (CTRL_REG9, tempF)
+  WriteAGReg8 (FIFO_CTRL, ((FIFO_OFF & $7) << 5))
 
 PUB calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], msb, lsb
 ' Calibrates the Magnetometer on the LSM9DS1 IMU module.
@@ -232,42 +238,43 @@ PUB calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], msb, l
   repeat k from 0 to 2
     msb := (__mBiasRaw[k] & $FF00) >> 8
     lsb := __mBiasRaw[k] & $00FF
-    SPIwriteByte(_cs_m_pin, OFFSET_X_REG_L_M + (2 * k), lsb)
-    SPIwriteByte(_cs_m_pin, OFFSET_X_REG_H_M + (2 * k), msb)
+    WriteMReg8 (OFFSET_X_REG_L_M + (2 * k), lsb)
+    WriteMReg8 (OFFSET_X_REG_H_M + (2 * k), msb)
 
 PUB clearAccelInterrupt | tempRegValue
 ' Clears out any interrupts set up on the Accelerometer and
 ' resets all Accelerometer interrupt registers to their default values.
-  SPIwriteByte(_cs_ag_pin, INT_GEN_THS_X_XL, $00)
-  SPIwriteByte(_cs_ag_pin, INT_GEN_THS_Y_XL, $00)
-  SPIwriteByte(_cs_ag_pin, INT_GEN_THS_Z_XL, $00)
-  SPIwriteByte(_cs_ag_pin, INT_GEN_CFG_XL, $00)
-  SPIwriteByte(_cs_ag_pin, INT_GEN_DUR_XL, $00)
-  SPIreadBytes(_cs_ag_pin, INT1_CTRL, @tempRegValue, 1)
+  WriteAGReg8 (INT_GEN_THS_X_XL, $00)
+  WriteAGReg8 (INT_GEN_THS_Y_XL, $00)
+  WriteAGReg8 (INT_GEN_THS_Z_XL, $00)
+  WriteAGReg8 (INT_GEN_CFG_XL, $00)
+  WriteAGReg8 (INT_GEN_DUR_XL, $00)
+  ReadAGReg (INT1_CTRL, @tempRegValue, 1)
   tempRegValue &= $BF
-  SPIwriteByte(_cs_ag_pin, INT1_CTRL, tempRegValue)
+  WriteAGReg8 (INT1_CTRL, tempRegValue)
+
 
 PUB clearGyroInterrupt | tempRegValue
 ' Clears out any interrupts set up on the Gyroscope and resets all Gyroscope interrupt registers to their default values.
-  SPIwriteByte(_cs_ag_pin, INT_GEN_THS_XH_G, $00)
-  SPIwriteByte(_cs_ag_pin, INT_GEN_THS_XL_G, $00)
-  SPIwriteByte(_cs_ag_pin, INT_GEN_THS_YH_G, $00)
-  SPIwriteByte(_cs_ag_pin, INT_GEN_THS_YL_G, $00)
-  SPIwriteByte(_cs_ag_pin, INT_GEN_THS_ZH_G, $00)
-  SPIwriteByte(_cs_ag_pin, INT_GEN_THS_ZL_G, $00)
-  SPIwriteByte(_cs_ag_pin, INT_GEN_CFG_G, $00)
-  SPIwriteByte(_cs_ag_pin, INT_GEN_DUR_G, $00)
-  SPIreadBytes(_cs_ag_pin, INT1_CTRL, @tempRegValue, 1)
+  WriteAGReg8 (INT_GEN_THS_XH_G, $00)
+  WriteAGReg8 (INT_GEN_THS_XL_G, $00)
+  WriteAGReg8 (INT_GEN_THS_YH_G, $00)
+  WriteAGReg8 (INT_GEN_THS_YL_G, $00)
+  WriteAGReg8 (INT_GEN_THS_ZH_G, $00)
+  WriteAGReg8 (INT_GEN_THS_ZL_G, $00)
+  WriteAGReg8 (INT_GEN_CFG_G, $00)
+  WriteAGReg8 (INT_GEN_DUR_G, $00)
+  ReadAGReg (INT1_CTRL, @tempRegValue, 1)
   tempRegValue &= $7F
-  SPIwriteByte(_cs_ag_pin, INT1_CTRL, @tempRegValue)
+  WriteAGReg8 (INT1_CTRL, tempRegValue)
 
 PUB clearMagInterrupt | tempRegValue 'UNTESTED
 ' Clears out any interrupts set up on the Magnetometer and
 ' resets all Magnetometer interrupt registers to their default values
-  SPIwriteByte(_cs_m_pin, INT_THS_L_M, $00)
-  SPIwriteByte(_cs_m_pin, INT_THS_H_M, $00)
-  SPIwriteByte(_cs_m_pin, INT_SRC_M, $00)
-  SPIwriteByte(_cs_m_pin, INT_CFG_M, $00)
+  WriteMReg8 (INT_THS_L_M, $00)
+  WriteMReg8 (INT_THS_H_M, $00)
+  WriteMReg8 (INT_SRC_M, $00)
+  WriteMReg8 (INT_CFG_M, $00)
 
 PUB getAccelCalibration(axBias, ayBias, azBias) 'UNTESTED
 
@@ -301,25 +308,37 @@ PUB getMagScale
 
 PUB gyroAvailable | status
 ' Polls the Gyroscope status register to check if new data is available
-  SPIreadBytes(_cs_ag_pin, STATUS_REG_1, @status, 1)
+  ReadAGReg (STATUS_REG_1, @status, 1)
   return ((status & (1 << 1)) >> 1)
 
 PUB whoAmI: whoAmICombined | mTest, xgTest
 
-  SPIreadBytes(_cs_m_pin, WHO_AM_I_M, @mTest, 1) ' Read the gyro WHO_AM_I
-  SPIreadBytes(_cs_ag_pin, WHO_AM_I_XG, @xgTest, 1) ' Read the accel/mag WHO_AM_I, whoAmICombined
-  whoAmICombined := (xgTest << 8) | mTest
+  ReadMReg (WHO_AM_I_M, @mTest, 1)
+  ReadAGReg (WHO_AM_I_XG, @xgTest, 1)
+  mTest &= $FF
+  xgTest &= $FF
+  whoAmICombined := ((xgTest << 8) | mTest) & $FFFF
+
+PUB whoAmI_M: resp_m
+
+  ReadMReg (WHO_AM_I_M, @resp_m, 1)
+  resp_m &= $FF
+
+PUB whoAmI_AG: resp_ag
+
+  ReadAGReg (WHO_AM_I_XG, @resp_ag, 1)
+  resp_ag &= $FF
 
 PUB magAvailable | status
 ' Polls the Magnetometer status register to check if new data is available.
-  SPIreadBytes(_cs_m_pin, STATUS_REG_M, @status, 1)
+  ReadMReg (STATUS_REG_M, @status, 1)
   return ((status & (1 << 3)) >> 3)
 
 PUB readAccel(ax, ay, az) | temp[2], tempX, tempY, tempZ
 'Reads the Accelerometer output registers
 
 ' We'll read six bytes from the accelerometer into temp  , tempX, tempY, tempZ
-  SPIreadBytes(_cs_ag_pin, OUT_X_L_XL, @temp, 6) ' Read 6 bytes, beginning at OUT_X_L_XL
+  ReadAGReg (OUT_X_L_XL, @temp, 6)'reg, ptr, count)
   tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into ax
   tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into ay
   tempZ := (temp.byte[5] << 8) | temp.byte[4] ' Store z-axis values into az
@@ -342,7 +361,7 @@ PUB readGyro(gx, gy, gz) | temp[2], tempX, tempY, tempZ
 ' Reads the Gyroscope output registers.
 
 ' We'll read six bytes from the gyro into temp
-  SPIreadBytes(_cs_ag_pin, OUT_X_L_G, @temp, 6) ' Read 6 bytes, beginning at OUT_X_L_G
+  ReadAGReg (OUT_X_L_G, @temp, 6)
   tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into gx
   tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into gy
   tempZ := (temp.byte[5] << 8) | temp.byte[4] ' Store z-axis values into gz
@@ -367,7 +386,7 @@ PUB readMag(mx, my, mz) | temp[2], tempX, tempY, tempZ
 ' Reads the Magnetometer output registers.
 
 ' We'll read six bytes from the mag into temp
-  SPIreadBytes(_cs_m_pin, OUT_X_L_M, @temp, 6) ' Read 6 bytes, beginning at OUT_X_L_M
+  ReadMReg (OUT_X_L_M, @temp, 6)
   tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into mx
   tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into my
   tempZ := (temp.byte[5] << 8) | temp.byte[4] ' Store z-axis values into mz
@@ -390,7 +409,7 @@ PUB readTemp(temperature) | temp[1], tempT
 ' We'll read two bytes from the temperature sensor into temp
 
 ' Read 2 bytes, beginning at OUT_TEMP_L
-  SPIreadBytes(_cs_ag_pin, OUT_TEMP_L, @temp, 2)
+  ReadAGReg (OUT_TEMP_L, @temp, 2)
   tempT := (temp.byte[1] << 8) | temp.byte[0]
   long[temperature] := ~~tempT
 
@@ -417,10 +436,10 @@ PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValu
   overUnder &= $01
   andOr &= $01
   tempRegValue := 0
-  SPIreadBytes(_cs_ag_pin, CTRL_REG4, @tempRegValue, 1) ' Make sure interrupt is NOT latched
+  ReadAGReg (CTRL_REG4, @tempRegValue, 1)
   tempRegValue &= $FD
-  SPIwriteByte(_cs_ag_pin, CTRL_REG4, tempRegValue)
-  SPIreadBytes(_cs_ag_pin, INT_GEN_CFG_XL, @tempRegValue, 1)
+  WriteAGReg8 (CTRL_REG4, tempRegValue)
+  ReadAGReg (INT_GEN_CFG_XL, @tempRegValue, 1)
   if andOr
     tempRegValue |= $80
   else
@@ -435,27 +454,27 @@ PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValu
   case(axis)
     X_AXIS:
       tempRegValue |= (1 <<(0 + overUnder))
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_X_XL, accelThs)
+      WriteAGReg8 (INT_GEN_THS_X_XL, accelThs)
     Y_AXIS:
       tempRegValue |= (1 <<(2 + overUnder))
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_Y_XL, accelThs)
+      WriteAGReg8 (INT_GEN_THS_Y_XL, accelThs)
     Z_AXIS:
       tempRegValue |= (1 <<(4 + overUnder))
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_Z_XL, accelThs)
+      WriteAGReg8 (INT_GEN_THS_Z_XL, accelThs)
     OTHER:
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_X_XL, accelThs)
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_Y_XL, accelThs)
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_Z_XL, accelThs)
+      WriteAGReg8 (INT_GEN_THS_X_XL, accelThs)
+      WriteAGReg8 (INT_GEN_THS_Y_XL, accelThs)
+      WriteAGReg8 (INT_GEN_THS_Z_XL, accelThs)
       tempRegValue |= (%00010101 << overUnder)
-  SPIwriteByte(_cs_ag_pin, INT_GEN_CFG_XL, tempRegValue)
+  WriteAGReg8 (INT_GEN_CFG_XL, tempRegValue)
   if (duration > 0)
     duration := $80 | (duration & $7F)
   else
     duration := $00
-  SPIwriteByte(_cs_ag_pin, INT_GEN_DUR_XL, duration)
-  SPIreadBytes(_cs_ag_pin, INT1_CTRL, @tempRegValue, 1)
+  WriteAGReg8 (INT_GEN_DUR_XL, duration)
+  ReadAGReg (INT1_CTRL, @tempRegValue, 1)
   tempRegValue |= $40
-  SPIwriteByte(_cs_ag_pin, INT1_CTRL, tempRegValue)
+  WriteAGReg8 (INT1_CTRL, tempRegValue)
 
 PUB setAccelScale(aScl) | tempRegValue
 ' Sets the full-scale range of the Accelerometer.
@@ -466,7 +485,7 @@ PUB setAccelScale(aScl) | tempRegValue
   __aRes := math.DivF (32768.0, math.FloatF (aScl))
   __settings_accel_scale := aScl
   ' We need to preserve the other bytes in CTRL_REG6_XL. So, first read it:
-  SPIreadBytes(_cs_ag_pin, CTRL_REG6_XL, @tempRegValue, 1)
+  ReadAGReg (CTRL_REG6_XL, @tempRegValue, 1)
   ' Mask out accel scale bits:
   tempRegValue &= $E7
   case(aScl)
@@ -477,7 +496,7 @@ PUB setAccelScale(aScl) | tempRegValue
     16 :
       tempRegValue |= ($1 << 3)
     OTHER :
-  SPIwriteByte(_cs_ag_pin, CTRL_REG6_XL, tempRegValue)
+  WriteAGReg8 (CTRL_REG6_XL, tempRegValue)
 
 PUB setGyroCalibration(gxBias, gyBias, gzBias)
 ' Manually set gyroscope calibration offset values
@@ -489,10 +508,11 @@ PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue
 ' Configures the Gyroscope interrupt output to the INT_A/G pin.
   overUnder &= $01
   tempRegValue := 0
-  SPIreadBytes(_cs_ag_pin, CTRL_REG4, @tempRegValue, 1) ' Make sure interrupt is NOT latched
+  ReadAGReg (CTRL_REG4, @tempRegValue, 1)
   tempRegValue &= $FD
-  SPIwriteByte(_cs_ag_pin, CTRL_REG4, tempRegValue)
-  SPIreadBytes(_cs_ag_pin, INT_GEN_CFG_G, @tempRegValue, 1)
+  WriteAGReg8 (CTRL_REG4, tempRegValue)
+  WriteAGReg8 (CTRL_REG4, tempRegValue)
+  ReadAGReg (INT_GEN_CFG_G, @tempRegValue, 1)
   if andOr
     tempRegValue |= $80
   else
@@ -512,33 +532,33 @@ PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue
   case(axis)
     X_AXIS :
       tempRegValue |= (1 <<(0 + overUnder))
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_XH_G, gyroThsH)
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_XL_G, gyroThsL)
+      WriteAGReg8 (INT_GEN_THS_XH_G, gyroThsH)
+      WriteAGReg8 (INT_GEN_THS_XL_G, gyroThsL)
     Y_AXIS :
       tempRegValue |= (1 <<(2 + overUnder))
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_YH_G, gyroThsH)
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_YL_G, gyroThsL)
+      WriteAGReg8 (INT_GEN_THS_YH_G, gyroThsH)
+      WriteAGReg8 (INT_GEN_THS_YL_G, gyroThsL)
     Z_AXIS :
       tempRegValue |= (1 <<(4 + overUnder))
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_ZH_G, gyroThsH)
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_ZL_G, gyroThsL)
+      WriteAGReg8 (INT_GEN_THS_ZH_G, gyroThsH)
+      WriteAGReg8 (INT_GEN_THS_ZL_G, gyroThsL)
     OTHER :
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_XH_G, gyroThsH)
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_XL_G, gyroThsL)
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_YH_G, gyroThsH)
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_YL_G, gyroThsL)
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_ZH_G, gyroThsH)
-      SPIwriteByte(_cs_ag_pin, INT_GEN_THS_ZL_G, gyroThsL)
+      WriteAGReg8 (INT_GEN_THS_XH_G, gyroThsH)
+      WriteAGReg8 (INT_GEN_THS_XL_G, gyroThsL)
+      WriteAGReg8 (INT_GEN_THS_YH_G, gyroThsH)
+      WriteAGReg8 (INT_GEN_THS_YL_G, gyroThsL)
+      WriteAGReg8 (INT_GEN_THS_ZH_G, gyroThsH)
+      WriteAGReg8 (INT_GEN_THS_ZL_G, gyroThsL)
       tempRegValue |= (%00010101 << overUnder)
-  SPIwriteByte(_cs_ag_pin, INT_GEN_CFG_G, tempRegValue)
+  WriteAGReg8 (INT_GEN_CFG_G, tempRegValue)
   if (duration > 0)
     duration := $80 | (duration & $7F)
   else
     duration := $00
-  SPIwriteByte(_cs_ag_pin, INT_GEN_DUR_G, duration)
-  SPIreadBytes(_cs_ag_pin, INT1_CTRL, @tempRegValue, 1)
+  WriteAGReg8 (INT_GEN_DUR_G, duration)
+  ReadAGReg (INT1_CTRL, @tempRegValue, 1)
   tempRegValue |= $80
-  SPIwriteByte(_cs_ag_pin, INT1_CTRL, tempRegValue)
+  WriteAGReg8 (INT1_CTRL, tempRegValue)
 
 PUB setGyroScale(gScl) | ctrl1RegValue
 ' Sets the full-scale range of the Gyroscope.
@@ -548,7 +568,7 @@ PUB setGyroScale(gScl) | ctrl1RegValue
   __gRes := math.DivF (32768.0, math.FloatF (gScl))
   ' Read current value of CTRL_REG1_G:, ctrl1RegValue
 
-  SPIreadBytes(_cs_ag_pin, CTRL_REG1_G, @ctrl1RegValue, 1)
+  ReadAGReg (CTRL_REG1_G, @ctrl1RegValue, 1)
   ' Mask out scale bits (3 & 4):
   ctrl1RegValue &= $E7
   case(gScl)
@@ -557,7 +577,7 @@ PUB setGyroScale(gScl) | ctrl1RegValue
     2000 :
       ctrl1RegValue |= ($3 << 3)
     OTHER :
-  SPIwriteByte(_cs_ag_pin, CTRL_REG1_G, ctrl1RegValue)
+  WriteAGReg8 (CTRL_REG1_G, ctrl1RegValue)
 
 PUB setMagCalibration(mxBias, myBias, mzBias) | k, msb, lsb
 ' Manually set magnetometer calibration offset values
@@ -569,8 +589,9 @@ PUB setMagCalibration(mxBias, myBias, mzBias) | k, msb, lsb
   repeat k from 0 to 2
     msb := (__mBiasRaw[k] & $FF00) >> 8
     lsb := __mBiasRaw[k] & $00FF
-    SPIwriteByte(_cs_m_pin, OFFSET_X_REG_L_M + (2 * k), lsb)
-    SPIwriteByte(_cs_m_pin, OFFSET_X_REG_H_M + (2 * k), msb)
+
+    WriteMReg8(OFFSET_X_REG_L_M + (2 * k), lsb)
+    WriteMReg8(OFFSET_X_REG_H_M + (2 * k), msb)
 
 PUB setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magThs, magThsL, magThsH 'PARTIAL
 
@@ -590,8 +611,8 @@ PUB setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magT
     magThs := 32767
   magThsL := magThs & $FF
   magThsH := (magThs >> 8) & $7F
-  SPIwriteByte(_cs_m_pin, INT_THS_L_M, magThsL)
-  SPIwriteByte(_cs_m_pin, INT_THS_H_M, magThsH)
+  WriteMReg8(INT_THS_L_M, magThsL)
+  WriteMReg8(INT_THS_H_M, magThsH)
   case axis
     X_AXIS :
       tempCfgValue |= ((1 << 7) | 2)
@@ -601,14 +622,14 @@ PUB setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magT
       tempCfgValue |= ((1 << 5) | 2)
     OTHER :
       tempCfgValue |= (%11100010)
-  SPIwriteByte(_cs_m_pin, INT_CFG_M, tempCfgValue)
+  WriteMReg8(INT_CFG_M, tempCfgValue)
 
 PUB setMagScale(mScl) | temp
 ' Set the full-scale range of the magnetometer
   if (mScl <> 4) and (mScl <> 8) and (mScl <> 12) and (mScl <> 16)
     mScl := 4
   ' We need to preserve the other bytes in CTRL_REG6_XM. So, first read it:, temp
-  SPIreadBytes(_cs_m_pin, CTRL_REG2_M, @temp, 1)
+  ReadMReg (CTRL_REG2_M, @temp, 1)
   ' Then mask out the mag scale bits:
   temp &= $FF ^($3 << 5)
   case(mScl)
@@ -627,62 +648,53 @@ PUB setMagScale(mScl) | temp
     OTHER :
       __settings_mag_scale := 4
       __mRes := 6896.55
-  SPIwriteByte(_cs_m_pin, CTRL_REG2_M, temp)
+  WriteMReg8(CTRL_REG2_M, temp)
 
 PUB tempAvailable | status
-  SPIreadBytes(_cs_ag_pin, STATUS_REG_1, @status, 1)
+
+  ReadAGReg (STATUS_REG_1, @status, 1)
   return ((status & (1 << 2)) >> 2)
 
-PUB ReadAGReg8(reg): data_byte
-'Validate register and read byte from Accel/Gyro device
-'Allow only registers that are
-'1. Not 'reserved' (ST states reading should only be performed on registers listed in
-' their datasheet to guarantee proper behavior of the device)
-  data_byte := 0
-  case reg
-    $04..$0D, $0F..$24, $26..$37:
-      SPIreadBytes(_cs_ag_pin, reg, @data_byte, 1)
-    OTHER:
-      return 0
-
-PUB ReadAGReg16(reg): data_word
+PUB ReadAGReg(reg, ptr, count) | i
 'Validate register and read word from Accel/Gyro device
 'Allow only registers that are
-'1. One byte of a word-sized register
-'2. Not 'reserved' (ST states reading should only be performed on registers listed in
+'Not 'reserved' (ST states reading should only be performed on registers listed in
 ' their datasheet to guarantee proper behavior of the device)
-  data_word := 0
-  case reg
-    $15, $16, $18, $1A, $1C, $28, $2A, $2C, $31, $33, $35:
-      SPIreadBytes(_cs_ag_pin, reg, @data_word, 2)
-    OTHER:
-      return 0
+  if count > 0
+    case reg
+      $04..$0D, $0F..$24, $26..$37:
+        reg |= $80
+        low(_cs_ag_pin)
+        spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, reg)
+        repeat i from 0 to count-1
+          byte[ptr][i] := spi.shiftin(_sdio_pin, _scl_pin, spi#MSBPRE, 8)
+        high(_cs_ag_pin)
+        return ptr
+      OTHER:
+        return 0
+  else
+    return 0
 
-PUB ReadMReg8(reg): data_byte
-'Validate register and read byte from Magnetometer device
-'Allow only registers that are
-'1. One byte of a word-sized register
-'2. Not 'reserved' (ST states reading should only be performed on registers listed in
-' their datasheet to guarantee proper behavior of the device)
-  data_byte := 0
-  case reg
-    $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
-      SPIreadBytes(_cs_m_pin, reg, @data_byte, 1)
-    OTHER:
-      return 0
-
-PUB ReadMReg16(reg): data_word
+PUB ReadMReg(reg, ptr, count) | i
 'Validate register and read word from Magnetometer device
 'Allow only registers that are
-'1. One byte of a word-sized register
-'2. Not 'reserved' (ST states reading should only be performed on registers listed in
+'Not 'reserved' (ST states reading should only be performed on registers listed in
 ' their datasheet to guarantee proper behavior of the device)
-  data_word := 0
-  case reg
-    $05, $07, $09, $28, $2A, $2C, $32:
-      SPIreadBytes(_cs_m_pin, reg, @data_word, 2)
-    OTHER:
-      return 0
+  if count > 0
+    case reg
+      $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
+        reg |= $80
+        reg |= $40
+        low(_cs_m_pin)
+        spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, reg)
+        repeat i from 0 to count-1
+          byte[ptr][i] := spi.shiftin(_sdio_pin, _scl_pin, spi#MSBPRE, 8)
+        high(_cs_m_pin)
+        return ptr
+      OTHER:
+        return 0
+  else
+    return 0
 
 PUB WriteAGReg8(reg, writebyte)
 'Validate register and write byte to Accel/Gyro device
@@ -693,11 +705,11 @@ PUB WriteAGReg8(reg, writebyte)
   writebyte &= $FF
   case reg
     $04..$0D, $10..$13, $1E..$24, $2E, $30..$37:
-      SPIwriteByte(_cs_ag_pin, reg, @writebyte)
+      SPIwriteBytes(_cs_ag_pin, reg, writebyte, 1)
     OTHER:
       return 0
 
-PUB WriteAGReg16(reg, writeword)
+{PUB WriteAGReg16(reg, writeword)
 'Validate register and write word to Accel/Gyro device
 'Allow only registers that are
 '1. Writeable
@@ -707,10 +719,10 @@ PUB WriteAGReg16(reg, writeword)
   writeword &= $FFFF
   case reg
     $18, $1A, $1C, $31, $33, $35:
-      SPIwriteByte(_cs_ag_pin, reg, @writeword)
+      SPIwriteWord(_cs_ag_pin, reg, writeword, 2)
     OTHER:
       return 0
-
+}
 PUB WriteMReg8(reg, writebyte)
 'Validate register and write byte to Magnetometer device
 'Allow only registers that are
@@ -720,11 +732,11 @@ PUB WriteMReg8(reg, writebyte)
   writebyte &= $FF
   case reg
     $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
-      SPIwriteByte(_cs_m_pin, reg, @writebyte)
+      SPIwriteBytes(_cs_m_pin, reg, writebyte, 1)
     OTHER:
       return 0
 
-PUB WriteMReg16(reg, writeword)
+{PUB WriteMReg16(reg, writeword)
 'Validate register and write word to Magnetometer device
 'Allow only registers that are
 '1. Writeable
@@ -734,17 +746,25 @@ PUB WriteMReg16(reg, writeword)
   writeword &= $FFFF
   case reg
     $05, $07, $09, $28, $2A, $2C, $32:
-      SPIwriteByte(_cs_m_pin, reg, @writeword)
+      SPIwriteBytes(_cs_m_pin, reg, writeword, 2)
     OTHER:
       return 0
-
-PRI SPIwriteByte(csPin, subAddress, data)
+}
+PRI SPIwriteBytes(csPin, subAddress, data, count) | bytecnt
 ' SPI: Write byte _data_ to SPI device at _subAddress_ on Propeller I/O pin _csPin_
   low(csPin)
   spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, subAddress & $3F)
-  spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, data)
+  repeat bytecnt from 0 to count-1
+    spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, data.byte[bytecnt])
   high(csPin)
 
+{PRI SPIwriteWord(csPin, subAddress, data)
+' SPI: Write word _data_ to SPI device at _subAddress_ on Propeller I/O pin _csPin_
+  low(csPin)
+  spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, subAddress & $3F)
+  spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 16, data)
+  high(csPin)
+}
 PRI SPIreadBytes(csPin, subAddress, dest, count) | rAddress, i
 ' SPI: Read _count_ bytes from SPI device at _subAddress_ on Propeller I/O pin _csPin_ into pointer _dest_
   ' To indicate a read, set bit 0 (msb) of first byte to 1, rAddress
