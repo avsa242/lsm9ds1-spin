@@ -1,14 +1,13 @@
 {
     --------------------------------------------
     Filename: sensor.imu.tri.lsm9ds1.spin
+    Description: Driver for the ST LSM9DS1 3-axis IMU
+      (ported from Parallax's Simple Library in C)
     Author: Jesse Burt
     Copyright (c) 2018
     See end of file for terms of use.
     --------------------------------------------
 }
-'TODO:
-' 1. Rewrite methods to use Read/WriteRegX methods
-' 2. Remove dependency on math libs - this means fixed-point integer-only math
 CON
 ' LSM9DS1 Register mappings to their symbolic names
   ACT_THS           = $04
@@ -101,9 +100,8 @@ CON
   KELVIN            = 2
 
 OBJ
-    spi:    "SPI_Asm"
-    math:   "math.float" '1 COG
-    fs:     "string.float" '0 COG
+
+  spi:    "SPI_Asm"
 
 VAR
 
@@ -111,12 +109,15 @@ VAR
 
   long __settings_gyro_scale, __gRes, __gBias[3], __gBiasRaw[3]
   long __gx, __gy, __gz ' x, y, and z axis readings of the gyroscope
+  long _gyro_pre
 
   long __settings_accel_scale, __aRes, __aBias[3], __aBiasRaw[3]
   long __ax, __ay, __az ' x, y, and z axis readings of the accelerometer
+  long _accel_pre
   
   long __settings_mag_scale, __mRes, __mBias[3], __mBiasRaw[3]
   long __mx, __my, __mz ' x, y, and z axis readings of the magnetometer
+  long _mag_pre
 
   long _scl_pin, _sdio_pin, _cs_ag_pin, _cs_m_pin, _int_ag_pin, _int_m_pin
 
@@ -125,9 +126,7 @@ PUB Null
 
 PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
 
-  ifnot math.Start
-    abort FALSE
-  ifnot spi.start (10, 0)
+  ifnot okay := spi.start (10, 0)
     spi.stop
     abort FALSE
   _scl_pin := SCL_PIN
@@ -145,9 +144,9 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
   dira[_int_m_pin] := 0
 
   ' Initialize the IMU
-  high(CS_AG_PIN)
-  high(CS_M_PIN)
-  low(SCL_PIN)
+  high(_cs_ag_pin)
+  high(_cs_m_pin)
+  low(_scl_pin)
   waitcnt(cnt + clkfreq / 1000)
   ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
   WriteAGReg8 (CTRL_REG8, %0000_1100)
@@ -175,8 +174,11 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
   setGyroScale(245)
   setAccelScale(2)
   setMagScale(8)
-  ' Once everything is initialized, return the WHO_AM_I registers we read:
-  okay := whoAmI
+
+  SetPrecision (3)
+  ' Once everything is initialized, check the WHO_AM_I registers
+  ifnot whoAmI
+    abort FALSE
 
 PUB Stop
 
@@ -207,12 +209,12 @@ PUB calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3],
     readAccel(@ax, @ay, @az)
     aBiasRawTemp[0] += ax
     aBiasRawTemp[1] += ay
-    aBiasRawTemp[2] += az - math.TruncFInt(__aRes) ' Assumes sensor facing up!
+    aBiasRawTemp[2] += az - __aRes ' Assumes sensor facing up!
   repeat ii from 0 to 2'while (ii < 3)
     __gBiasRaw[ii] := gBiasRawTemp[ii] / samples
     __gBias[ii] := (__gBiasRaw[ii]) / __gRes
     __aBiasRaw[ii] := aBiasRawTemp[ii] / samples
-    __aBias[ii] := __aBiasRaw[ii] / math.TruncFInt (__aRes)
+    __aBias[ii] := __aBiasRaw[ii] / __aRes
   __autoCalc := 1
   'Disable FIFO
   ReadAGReg (CTRL_REG9, @tempF, 1)
@@ -350,16 +352,15 @@ PUB readAccel(ax, ay, az) | temp[2], tempX, tempY, tempZ
     long[ay] -= __aBiasRaw[Y_AXIS]
     long[az] -= __aBiasRaw[Z_AXIS]
 
-PUB readAccelCalculated(ax, ay, az) | tempX, tempY, tempZ
-' Reads the Accelerometer output registers and scales the outputs to g's (1 g = 9.8 m/s/s)
+PUB readAccelCalculated(ax, ay, az) | tempX, tempY, tempZ, scale
+' Reads the Accelerometer output registers and scales the outputs to milli-g's (1 g = 9.8 m/s/s)
   readAccel(@tempX, @tempY, @tempZ)
-  long[ax] := math.DivF (math.FloatF(tempX), __aRes)
-  long[ay] := math.DivF (math.FloatF(tempY), __aRes)
-  long[az] := math.DivF (math.FloatF(tempZ), __aRes)
+  long[ax] := (tempX*_accel_pre)/(__aRes)
+  long[ay] := (tempY*_accel_pre)/(__aRes)
+  long[az] := (tempZ*_accel_pre)/(__aRes)
 
 PUB readGyro(gx, gy, gz) | temp[2], tempX, tempY, tempZ
 ' Reads the Gyroscope output registers.
-
 ' We'll read six bytes from the gyro into temp
   ReadAGReg (OUT_X_L_G, @temp, 6)
   tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into gx
@@ -375,21 +376,20 @@ PUB readGyro(gx, gy, gz) | temp[2], tempX, tempY, tempZ
 
 PUB readGyroCalculated(gx, gy, gz) | tempX, tempY, tempZ
 ' Reads the Gyroscope output registers and scales the outputs to degrees of rotation per second (DPS).
-
 ' Return the gyro raw reading times our pre-calculated DPS / (ADC tick):, tempX, tempY, tempZ
   readGyro(@tempX, @tempY, @tempZ)
-  long[gx] := math.DivF (math.floatf(tempX), __gRes)
-  long[gy] := math.DivF (math.floatf(tempY), __gRes)
-  long[gz] := math.DivF (math.floatf(tempZ), __gRes)
+  long[gx] := (tempX*_gyro_pre)/__gRes
+  long[gy] := (tempY*_gyro_pre)/__gRes
+  long[gz] := (tempZ*_gyro_pre)/__gRes
 
 PUB readMag(mx, my, mz) | temp[2], tempX, tempY, tempZ
 ' Reads the Magnetometer output registers.
-
 ' We'll read six bytes from the mag into temp
   ReadMReg (OUT_X_L_M, @temp, 6)
   tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into mx
   tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into my
   tempZ := (temp.byte[5] << 8) | temp.byte[4] ' Store z-axis values into mz
+
   long[mx] := ~~tempX
   long[my] := ~~tempY
   long[mz] := ~~tempZ
@@ -397,9 +397,9 @@ PUB readMag(mx, my, mz) | temp[2], tempX, tempY, tempZ
 PUB readMagCalculated(mx, my, mz) | tempX, tempY, tempZ
 ' Reads the Magnetometer output registers and scales the outputs to Gauss.
   readMag(@tempX, @tempY, @tempZ)
-  long[mx] := math.DivF (math.FloatF(tempX), __mRes)'(tempX) / __mRes
-  long[my] := math.DivF (math.FloatF(tempY), __mRes)'(tempY) / __mRes
-  long[mz] := math.DivF (math.FloatF(tempZ), __mRes)'(tempZ) / __mRes
+  long[mx] := (tempX*_mag_pre)/__mRes
+  long[my] := (tempY*_mag_pre)/__mRes
+  long[mz] := (tempZ*_mag_pre)/__mRes
   if (__autoCalc)
     long[mx] -= __mBiasRaw[X_AXIS]
     long[my] -= __mBiasRaw[Y_AXIS]
@@ -407,23 +407,23 @@ PUB readMagCalculated(mx, my, mz) | tempX, tempY, tempZ
 
 PUB readTemp(temperature) | temp[1], tempT
 ' We'll read two bytes from the temperature sensor into temp
-
 ' Read 2 bytes, beginning at OUT_TEMP_L
   ReadAGReg (OUT_TEMP_L, @temp, 2)
   tempT := (temp.byte[1] << 8) | temp.byte[0]
   long[temperature] := ~~tempT
 
 PUB readTempCalculated(temperature, tempUnit) | tempTemp 'PARTIAL
+
   readTemp(@tempTemp)
-  if (tempUnit == FAHRENHEIT)
-'    long[temperature] := ((tempTemp / 16.0) + 25.0) * 1.8 + 32.0
-    long[temperature] := math.AddF (math.MulF(math.AddF(math.DivF(math.FloatF(tempTemp), 16.0), 25.0), 1.8), 32.0)
-  else'if (tempUnit == CELSIUS)
-'    long[temperature] := (tempTemp / 16.0) + 25.0
-    long[temperature] := math.AddF (math.DivF(math.FloatF(tempTemp), 16.0), 25.0)
-  if (tempUnit == KELVIN)
-'    long[temperature] := math.AddF (math.AddF (math.DivF(math.FloatF(tempTemp), 16.0), 25.0), 273.15)
-    long[temperature] := math.AddF (long[temperature], 273.15)
+  case tempUnit
+    FAHRENHEIT:
+      long[temperature] := ((tempTemp / 16) + 25) * 1800 + 32000
+    CELSIUS:
+      long[temperature] := ((tempTemp / 16) + 25) * 1000 '(tempTemp / 16.0) + 25.0
+    KELVIN:
+      long[temperature] := (((tempTemp/ 16) + 25) * 1000) + 273150'16) + 25) + 273.15
+    OTHER:
+      long[temperature] := (tempTemp / 16) + 25 * 1000'(tempTemp / 16.0) + 25.0
 
 PUB setAccelCalibration(axBias, ayBias, azBias)
 ' Manually set accelerometer calibration offset values
@@ -448,7 +448,7 @@ PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValu
     threshold := -1 * threshold
   accelThs := 0
   tempThs := 0
-  tempThs := math.TruncFInt(math.MulF(__aRes, threshold)) >> 7
+  tempThs := (__aRes * threshold) >> 7
   accelThs := tempThs & $FF
 
   case(axis)
@@ -482,7 +482,7 @@ PUB setAccelScale(aScl) | tempRegValue
 
   if (aScl <> 2) and (aScl <> 4) and (aScl <> 8) and (aScl <> 16)
     aScl := 2
-  __aRes := math.DivF (32768.0, math.FloatF (aScl))
+  __aRes := 32768/aScl
   __settings_accel_scale := aScl
   ' We need to preserve the other bytes in CTRL_REG6_XL. So, first read it:
   ReadAGReg (CTRL_REG6_XL, @tempRegValue, 1)
@@ -520,7 +520,7 @@ PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue
   gyroThs := 0
   gyroThsH := 0
   gyroThsL := 0
-  gyroThs := math.truncfint(math.mulf(__gRes, math.FloatF (threshold)))
+  gyroThs := __gRes * threshold
 
   if gyroThs > 16383
     gyroThs := 16383
@@ -565,7 +565,7 @@ PUB setGyroScale(gScl) | ctrl1RegValue
   if ((gScl <> 245) and (gScl <> 500) and (gScl <> 2000))
     gScl := 245
   __settings_gyro_scale := gScl
-  __gRes := math.DivF (32768.0, math.FloatF (gScl))
+  __gRes := 32768/gScl
   ' Read current value of CTRL_REG1_G:, ctrl1RegValue
 
   ReadAGReg (CTRL_REG1_G, @ctrl1RegValue, 1)
@@ -603,7 +603,7 @@ PUB setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magT
   magThs := 0
   magThsL := 0
   magThsH := 0
-  magThs := math.TruncFInt (math.MulF(__mRes, threshold))'(__mRes * threshold)
+  magThs := __mRes * threshold
 
   if (magThs < 0)
     magThs := -1 * magThs
@@ -626,29 +626,67 @@ PUB setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magT
 
 PUB setMagScale(mScl) | temp
 ' Set the full-scale range of the magnetometer
-  if (mScl <> 4) and (mScl <> 8) and (mScl <> 12) and (mScl <> 16)
-    mScl := 4
+'  if (mScl <> 4) and (mScl <> 8) and (mScl <> 12) and (mScl <> 16)
+'    mScl := 4      ' Don't think this IF is needed...
+'                   ...seems it's validated by the CASE block below
   ' We need to preserve the other bytes in CTRL_REG6_XM. So, first read it:, temp
   ReadMReg (CTRL_REG2_M, @temp, 1)
   ' Then mask out the mag scale bits:
   temp &= $FF ^($3 << 5)
   case(mScl)
-    8 :
+    8:
       temp |= ($1 << 5)
       __settings_mag_scale := 8
-      __mRes := 3448.28
-    12 :
+      __mRes := 3448'.28
+    12:
       temp |= ($2 << 5)
       __settings_mag_scale := 12
-      __mRes := 2298.85
-    16 :
+      __mRes := 2298'.85
+    16:
       temp |= ($3 << 5)
       __settings_mag_scale := 16
-      __mRes := 1724.14
+      __mRes := 1724'.14
     OTHER :
       __settings_mag_scale := 4
-      __mRes := 6896.55
+      __mRes := 6896'.55
   WriteMReg8(CTRL_REG2_M, temp)
+
+PUB SetPrecision(digits)
+'Set fixed-point math precision
+'for ALL sensors
+  SetPrecisionAccel (digits)
+  SetPrecisionGyro (digits)
+  SetPrecisionMag (digits)
+
+PUB SetPrecisionAccel(digits) | scale_factor
+'Set fixed-point math precision
+  scale_factor := 1
+
+  if digits < 0 or digits > 4
+    digits := 3
+  repeat digits
+    scale_factor *= 10
+  _accel_pre := scale_factor
+
+PUB SetPrecisionGyro(digits) | scale_factor
+'Set fixed-point math precision
+  scale_factor := 1
+
+  if digits < 0 or digits > 4
+    digits := 3
+  repeat digits
+    scale_factor *= 10
+  _gyro_pre := scale_factor
+
+PUB SetPrecisionMag(digits) | scale_factor
+'Set fixed-point math precision
+  scale_factor := 1
+
+  if digits < 0 or digits > 4
+    digits := 3
+  repeat digits
+    scale_factor *= 10
+  _mag_pre := scale_factor
 
 PUB tempAvailable | status
 

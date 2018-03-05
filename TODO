@@ -1,0 +1,3 @@
+* Rewrite methods to use Read/WriteRegX methods - DONE
+* Remove dependency on math libs - DONE
+* Implement fixed-point integer-only math - WIP
