@@ -68,7 +68,7 @@ PUB Main
       OTHER:
         _demo_state := DISP_HELP
 
-PUB Setup | t
+PUB Setup
 
   _ser_cog := ser.Start (115_200)
   ser.Clear

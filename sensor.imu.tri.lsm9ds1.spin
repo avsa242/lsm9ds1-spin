@@ -10,7 +10,7 @@
 }
 CON
 ' LSM9DS1 Register mappings to their symbolic names
-  ACT_THS           = $04
+  ACT_THS           = $04 'TODO: Move these to separate file
   ACT_DUR           = $05
   INT_GEN_CFG_XL    = $06
   INT_GEN_THS_X_XL  = $07
@@ -102,10 +102,10 @@ CON
 OBJ
 
   spi:    "SPI_Asm"
-
+  'TODO: Use io.spin
 VAR
 
-  long __autoCalc
+  long __autoCalc 'TODO: Rename VARs to all use one underscore prefix
 
   long __settings_gyro_scale, __gRes, __gBias[3], __gBiasRaw[3]
   long __gx, __gy, __gz ' x, y, and z axis readings of the gyroscope
@@ -170,7 +170,6 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
   WriteMReg8 (CTRL_REG5_M, $00)
 
   'Set Scales
-
   setGyroScale(245)
   setAccelScale(2)
   setMagScale(8)
@@ -191,7 +190,7 @@ PUB accelAvailable: status
 
 PUB calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3], gBiasRawTemp[3], tempF, tempS
 ' Calibrates the Accelerometer and Gyroscope on the LSM9DS1 IMU module.
-  samples := 0
+  samples := 32
   ' Turn on FIFO and set threshold to 32 samples
   ReadAGReg (CTRL_REG9, @tempF, 1)
   tempF |= (1 << 1)
@@ -200,7 +199,7 @@ PUB calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3],
   repeat while samples < $1F
     ReadAGReg (FIFO_SRC, @tempS, 1)
     samples := tempS.byte[0] & $3F
-  repeat ii from 0 to samples-1 'while (ii < byte[@samples])
+  repeat ii from 0 to samples-1
     ' Read the gyro data stored in the FIFO
     readGyro(@gx, @gy, @gz)
     gBiasRawTemp[0] += gx
@@ -210,7 +209,7 @@ PUB calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3],
     aBiasRawTemp[0] += ax
     aBiasRawTemp[1] += ay
     aBiasRawTemp[2] += az - __aRes ' Assumes sensor facing up!
-  repeat ii from 0 to 2'while (ii < 3)
+  repeat ii from 0 to 2
     __gBiasRaw[ii] := gBiasRawTemp[ii] / samples
     __gBias[ii] := (__gBiasRaw[ii]) / __gRes
     __aBiasRaw[ii] := aBiasRawTemp[ii] / samples
@@ -224,7 +223,7 @@ PUB calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3],
 
 PUB calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], msb, lsb
 ' Calibrates the Magnetometer on the LSM9DS1 IMU module.
-  repeat i from 0 to 128
+  repeat i from 0 to 32
     repeat while not magAvailable 'Wait until new data available
     readMag(@mx, @my, @mz)
     magTemp[0] := mx
@@ -339,7 +338,7 @@ PUB magAvailable | status
 PUB readAccel(ax, ay, az) | temp[2], tempX, tempY, tempZ
 'Reads the Accelerometer output registers
 
-' We'll read six bytes from the accelerometer into temp  , tempX, tempY, tempZ
+' We'll read six bytes from the accelerometer into temp
   ReadAGReg (OUT_X_L_XL, @temp, 6)'reg, ptr, count)
   tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into ax
   tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into ay
@@ -412,7 +411,7 @@ PUB readTemp(temperature) | temp[1], tempT
   tempT := (temp.byte[1] << 8) | temp.byte[0]
   long[temperature] := ~~tempT
 
-PUB readTempCalculated(temperature, tempUnit) | tempTemp 'PARTIAL
+PUB readTempCalculated(temperature, tempUnit) | tempTemp 'TODO: REVIEW (remove CELSIUS case - OTHER covers it)
 
   readTemp(@tempTemp)
   case tempUnit
@@ -520,7 +519,7 @@ PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue
   gyroThs := 0
   gyroThsH := 0
   gyroThsL := 0
-  gyroThs := __gRes * threshold
+  gyroThs := __gRes * threshold 'TODO: REVIEW (use limit min/max operators and eliminate conditionals below?)
 
   if gyroThs > 16383
     gyroThs := 16383
