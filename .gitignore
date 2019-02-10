@@ -1,4 +1,2 @@
-lsm9ds1-test-methods.binary
-liblsm9ds1-test_procedure.binary
-sensor.imu.tri.lsm9ds1.binary
 .gitignore
+*.binary
