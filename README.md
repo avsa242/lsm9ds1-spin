@@ -21,3 +21,4 @@ This is a P8X32A/Propeller driver object for the LSM9DS1 9-DoF IMU.
 ## TODO
 
 - [ ] Code cleanup
+- [ ] Implement I2C driver variant

@@ -48,7 +48,7 @@ PUB Null
 PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
 
     if lookup(SCL_PIN: 0..31) and lookup(SDIO_PIN: 0..31) and lookup(CS_AG_PIN: 0..31) and lookup(CS_M_PIN: 0..31) and lookup(INT_AG_PIN: 0..31) and lookup(INT_M_PIN: 0..31)
-        okay := spi.start (10, 0)
+        okay := spi.start (core#CLK_DELAY, core#CPOL)
 
         _scl_pin := SCL_PIN
         _sdio_pin := SDIO_PIN
@@ -687,9 +687,9 @@ PUB WriteMReg8(reg, writebyte)
 PRI SPIwriteBytes(csPin, subAddress, data, count) | bytecnt
 ' SPI: Write byte _data_ to SPI device at _subAddress_ on Propeller I/O pin _csPin_
     low(csPin)
-    spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, subAddress & $3F)
+    spi.shiftout(_sdio_pin, _scl_pin, core#MOSI_BITORDER, 8, subAddress & $3F)
     repeat bytecnt from 0 to count-1
-        spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, data.byte[bytecnt])
+        spi.shiftout(_sdio_pin, _scl_pin, core#MOSI_BITORDER, 8, data.byte[bytecnt])
     high(csPin)
 
 PRI SPIreadBytes(csPin, subAddress, dest, count) | rAddress, i
@@ -701,9 +701,9 @@ PRI SPIreadBytes(csPin, subAddress, dest, count) | rAddress, i
     if (csPin == _cs_m_pin) and count > 1
         rAddress |= $40
     low(csPin)
-    spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, rAddress)
+    spi.shiftout(_sdio_pin, _scl_pin, core#MOSI_BITORDER, 8, rAddress)
     repeat i from 0 to count-1
-        byte[dest][i] := spi.shiftin(_sdio_pin, _scl_pin, spi#MSBPRE, 8)
+        byte[dest][i] := spi.shiftin(_sdio_pin, _scl_pin, core#MISO_BITORDER, 8)
     high(csPin)
 
 PRI High(pin)
