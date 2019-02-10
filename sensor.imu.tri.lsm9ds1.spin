@@ -183,6 +183,23 @@ PUB AGDataRate(Hz) | tmp
     tmp := (tmp | Hz) & core#CTRL_REG1_G_MASK
     WriteAGReg8 (core#CTRL_REG1_G, tmp)
 
+PUB GyroScale(scale) | tmp
+' Set full scale of gyroscope output, in degrees per second (dps)
+'   Valid values: 245, 500, 2000
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG1_G, @tmp, 1)
+    case scale := lookdown(scale: 245, 500, 0, 2000)
+        1, 2, 4:
+            scale := (scale - 1) << core#FLD_FS
+        OTHER:
+            tmp := ((tmp >> core#FLD_FS) & core#BITS_FS) + 1
+            return lookup(tmp: 245, 500, 0, 2000)
+
+    tmp &= core#MASK_FS
+    tmp := (tmp | scale) & core#CTRL_REG1_G_MASK
+    WriteAGReg8 (core#CTRL_REG1_G, tmp)
+
+
 PUB SWReset | tmp'XXX
 
     ReadAGReg (core#CTRL_REG8, @tmp, 1)

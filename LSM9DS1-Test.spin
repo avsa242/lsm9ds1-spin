@@ -49,7 +49,18 @@ PUB Main
     BDU(1)
     H_LACTIVE(1)
     ODR(1)
+    FS(1)
     flash
+
+PUB FS(reps) | tmp, read
+
+    repeat reps
+        repeat tmp from 1 to 4
+            if tmp == 3
+                next
+            imu.GyroScale (lookup(tmp: 245, 500, 0, 2000))
+            read := imu.GyroScale (-2)
+            Message (string("FS"), lookup(tmp: 245, 500, 0, 2000), read)
 
 PUB ODR(reps) | tmp, read
 
