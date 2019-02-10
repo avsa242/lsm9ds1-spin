@@ -1,8 +1,11 @@
 {
     --------------------------------------------
-    Filename: LSM9DS1-Demo.spin
+    Filename: LSM9DS1-Test.spin
     Author: Jesse Burt
-    Copyright (c) 2018
+    Description: Test harness for LSM9DS1 driver
+    Copyright (c) 2019
+    Started Aug 12, 2017
+    Updated Feb 10, 2019
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -69,28 +72,24 @@ PUB Main
 
 PUB Setup
 
-    _ser_cog := ser.Start (115_200)
+    repeat until _ser_cog := ser.Start (115_200)
     ser.Clear
-    _imu_cog := imu.Start (SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN)
+    ser.Str (string("Serial terminal started", ser#NL))
     _keyDaemon_cog := cognew(keyDaemon, @_keyDaemon_stack)
-    _max_cols := 4
 
-    if _imu_cog
-        if imu.whoAmI == $683D
-            ser.Str (string("LSM9DS1 found!", ser#NL))
-        else
-            ser.Str (string("LSM9DS1 not found - halting!", ser#NL))
-            imu.Stop
-            ser.Stop
-            cogstop(_keyDaemon_cog)
-            repeat
-    else
-        ser.Str (string("LSM9DS1 object unable to start SPI cog - halting!", ser#NL))
-        imu.Stop
-        ser.Stop
-        cogstop(_keyDaemon_cog)
-        repeat
-    waitkey
+    if _imu_cog := imu.Start (SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN)
+        if imu.whoAmI == imu#WHO_AM_I
+            ser.Str (string("LSM9DS1 driver started", ser#NL))
+            _max_cols := 4
+            waitkey
+            return
+    ser.Str (string("Unable to start LSM9DS1 driver", ser#NL))
+    imu.Stop
+    cogstop(_keyDaemon_cog)
+    time.MSleep (1)
+    ser.Stop
+    repeat
+
 
 PUB Help
 

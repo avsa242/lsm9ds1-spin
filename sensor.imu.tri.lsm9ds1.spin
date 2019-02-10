@@ -5,19 +5,20 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2019
     Started Aug 12, 2017
-    Updated Feb 9, 2019
+    Updated Feb 10, 2019
     See end of file for terms of use.
     --------------------------------------------
 }
 CON
 
-  X_AXIS            = 0
-  Y_AXIS            = 1
-  Z_AXIS            = 2
-  ALL_AXIS          = 3
-  CELSIUS           = 0
-  FAHRENHEIT        = 1
-  KELVIN            = 2
+    X_AXIS      = 0
+    Y_AXIS      = 1
+    Z_AXIS      = 2
+    ALL_AXIS    = 3
+    CELSIUS     = 0
+    FAHRENHEIT  = 1
+    KELVIN      = 2
+    WHO_AM_I    = core#WHOAMI
 
 OBJ
 

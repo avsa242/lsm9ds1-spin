@@ -5,7 +5,7 @@
     Description: LSM9DS1 low-level constants
     Copyright (c) 2019
     Started Feb 9, 2019
-    Updated Feb 9, 2019
+    Updated Feb 10, 2019
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -16,7 +16,7 @@ CON
     CLK_DELAY           = 10
     MOSI_BITORDER       = 5             'MSBFIRST
     MISO_BITORDER       = 0             'MSBPRE
-
+    WHOAMI              = $683D
 ' LSM9DS1 Register map
     ACT_THS             = $04 'TODO: Move these to separate file
     ACT_DUR             = $05
