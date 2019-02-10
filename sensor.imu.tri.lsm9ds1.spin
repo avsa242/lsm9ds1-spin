@@ -1,10 +1,11 @@
 {
     --------------------------------------------
     Filename: sensor.imu.tri.lsm9ds1.spin
-    Description: Driver for the ST LSM9DS1 3-axis IMU
-      (ported from Parallax's Simple Library in C)
     Author: Jesse Burt
-    Copyright (c) 2018
+    Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
+    Copyright (c) 2019
+    Started Aug 12, 2017
+    Updated Feb 9, 2019
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -25,18 +26,18 @@ OBJ
   'TODO: Use io.spin
 VAR
 
-  long __autoCalc 'TODO: Rename VARs to all use one underscore prefix
+  long _autoCalc
 
-  long __settings_gyro_scale, __gRes, __gBias[3], __gBiasRaw[3]
-  long __gx, __gy, __gz ' x, y, and z axis readings of the gyroscope
+  long _settings_gyro_scale, _gRes, _gBias[3], _gBiasRaw[3]
+  long _gx, _gy, _gz ' x, y, and z axis readings of the gyroscope
   long _gyro_pre
 
-  long __settings_accel_scale, __aRes, __aBias[3], __aBiasRaw[3]
-  long __ax, __ay, __az ' x, y, and z axis readings of the accelerometer
+  long _settings_accel_scale, _aRes, _aBias[3], _aBiasRaw[3]
+  long _ax, _ay, _az ' x, y, and z axis readings of the accelerometer
   long _accel_pre
   
-  long __settings_mag_scale, __mRes, __mBias[3], __mBiasRaw[3]
-  long __mx, __my, __mz ' x, y, and z axis readings of the magnetometer
+  long _settings_mag_scale, _mRes, _mBias[3], _mBiasRaw[3]
+  long _mx, _my, _mz ' x, y, and z axis readings of the magnetometer
   long _mag_pre
 
   long _scl_pin, _sdio_pin, _cs_ag_pin, _cs_m_pin, _int_ag_pin, _int_m_pin
@@ -46,36 +47,37 @@ PUB Null
 
 PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
 
-    ifnot okay := spi.start (10, 0)
-        spi.stop
-        abort FALSE
-    _scl_pin := SCL_PIN
-    _sdio_pin := SDIO_PIN
-    _cs_ag_pin := CS_AG_PIN
-    _cs_m_pin := CS_M_PIN
-    _int_ag_pin := INT_AG_PIN
-    _int_m_pin := INT_M_PIN
+    if lookup(SCL_PIN: 0..31) and lookup(SDIO_PIN: 0..31) and lookup(CS_AG_PIN: 0..31) and lookup(CS_M_PIN: 0..31) and lookup(INT_AG_PIN: 0..31) and lookup(INT_M_PIN: 0..31)
+        okay := spi.start (10, 0)
 
-    dira[_scl_pin] := 0
-    dira[_sdio_pin] := 0
-    dira[_cs_ag_pin] := 0
-    dira[_cs_m_pin] := 0
-    dira[_int_ag_pin] := 0
-    dira[_int_m_pin] := 0
+        _scl_pin := SCL_PIN
+        _sdio_pin := SDIO_PIN
+        _cs_ag_pin := CS_AG_PIN
+        _cs_m_pin := CS_M_PIN
+        _int_ag_pin := INT_AG_PIN
+        _int_m_pin := INT_M_PIN
+
+        dira[_scl_pin] := 0
+        dira[_sdio_pin] := 0
+        dira[_cs_ag_pin] := 0
+        dira[_cs_m_pin] := 0
+        dira[_int_ag_pin] := 0
+        dira[_int_m_pin] := 0
 
 ' Initialize the IMU
-    high(_cs_ag_pin)
-    high(_cs_m_pin)
-    low(_scl_pin)
-    waitcnt(cnt + clkfreq / 1000)
+        high(_cs_ag_pin)
+        high(_cs_m_pin)
+        low(_scl_pin)
+        waitcnt(cnt + clkfreq / 1000)
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
-    WriteAGReg8 (core#CTRL_REG8, %0000_1100)
-    WriteMReg8 (core#CTRL_REG3_M, %1000_0100)
+        WriteAGReg8 (core#CTRL_REG8, %0000_1100)
+        WriteMReg8 (core#CTRL_REG3_M, %1000_0100)
 
-    Defaults
+        Defaults
 ' Once everything is initialized, check the WHO_AM_I registers
-    ifnot whoAmI
-        abort FALSE
+        ifnot whoAmI
+            Stop
+            return FALSE
 
 PUB Stop
 
@@ -132,13 +134,13 @@ PUB calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3],
     readAccel(@ax, @ay, @az)
     aBiasRawTemp[0] += ax
     aBiasRawTemp[1] += ay
-    aBiasRawTemp[2] += az - __aRes ' Assumes sensor facing up!
+    aBiasRawTemp[2] += az - _aRes ' Assumes sensor facing up!
   repeat ii from 0 to 2
-    __gBiasRaw[ii] := gBiasRawTemp[ii] / samples
-    __gBias[ii] := (__gBiasRaw[ii]) / __gRes
-    __aBiasRaw[ii] := aBiasRawTemp[ii] / samples
-    __aBias[ii] := __aBiasRaw[ii] / __aRes
-  __autoCalc := 1
+    _gBiasRaw[ii] := gBiasRawTemp[ii] / samples
+    _gBias[ii] := (_gBiasRaw[ii]) / _gRes
+    _aBiasRaw[ii] := aBiasRawTemp[ii] / samples
+    _aBias[ii] := _aBiasRaw[ii] / _aRes
+  _autoCalc := 1
   'Disable FIFO
   ReadAGReg (core#CTRL_REG9, @tempF, 1)
   tempF &= !(1 << 1)
@@ -159,10 +161,10 @@ PUB calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], msb, l
       if (magTemp[j] < magMin[j])
         magMin[j] := magTemp[j]
   repeat j from 0 to 2
-    __mBiasRaw[j] := (magMax[j] + magMin[j])/2
+    _mBiasRaw[j] := (magMax[j] + magMin[j])/2
   repeat k from 0 to 2
-    msb := (__mBiasRaw[k] & $FF00) >> 8
-    lsb := __mBiasRaw[k] & $00FF
+    msb := (_mBiasRaw[k] & $FF00) >> 8
+    lsb := _mBiasRaw[k] & $00FF
     WriteMReg8 (core#OFFSET_X_REG_L_M + (2 * k), lsb)
     WriteMReg8 (core#OFFSET_X_REG_H_M + (2 * k), msb)
 
@@ -203,33 +205,33 @@ PUB clearMagInterrupt | tempRegValue 'UNTESTED
 
 PUB getAccelCalibration(axBias, ayBias, azBias) 'UNTESTED
 
-  long[axBias] := __aBiasRaw[X_AXIS]
-  long[ayBias] := __aBiasRaw[Y_AXIS]
-  long[azBias] := __aBiasRaw[Z_AXIS]
+  long[axBias] := _aBiasRaw[X_AXIS]
+  long[ayBias] := _aBiasRaw[Y_AXIS]
+  long[azBias] := _aBiasRaw[Z_AXIS]
 
 PUB getAccelScale
 
-  return __settings_accel_scale
+  return _settings_accel_scale
 
 PUB getGyroCalibration(gxBias, gyBias, gzBias) 'UNTESTED
 
-  long[gxBias] := __gBiasRaw[X_AXIS]
-  long[gyBias] := __gBiasRaw[Y_AXIS]
-  long[gzBias] := __gBiasRaw[Z_AXIS]
+  long[gxBias] := _gBiasRaw[X_AXIS]
+  long[gyBias] := _gBiasRaw[Y_AXIS]
+  long[gzBias] := _gBiasRaw[Z_AXIS]
 
 PUB getGyroScale
 
-  return __settings_gyro_scale
+  return _settings_gyro_scale
 
 PUB getMagCalibration(mxBias, myBias, mzBias) 'UNTESTED
 
-  long[mxBias] := __mBiasRaw[X_AXIS]
-  long[myBias] := __mBiasRaw[Y_AXIS]
-  long[mzBias] := __mBiasRaw[Z_AXIS]
+  long[mxBias] := _mBiasRaw[X_AXIS]
+  long[myBias] := _mBiasRaw[Y_AXIS]
+  long[mzBias] := _mBiasRaw[Z_AXIS]
 
 PUB getMagScale
 
-  return __settings_mag_scale
+  return _settings_mag_scale
 
 PUB gyroAvailable | status
 ' Polls the Gyroscope status register to check if new data is available
@@ -270,17 +272,17 @@ PUB readAccel(ax, ay, az) | temp[2], tempX, tempY, tempZ
   long[ax] := ~~tempX
   long[ay] := ~~tempY
   long[az] := ~~tempZ
-  if (__autoCalc)
-    long[ax] -= __aBiasRaw[X_AXIS]
-    long[ay] -= __aBiasRaw[Y_AXIS]
-    long[az] -= __aBiasRaw[Z_AXIS]
+  if (_autoCalc)
+    long[ax] -= _aBiasRaw[X_AXIS]
+    long[ay] -= _aBiasRaw[Y_AXIS]
+    long[az] -= _aBiasRaw[Z_AXIS]
 
 PUB readAccelCalculated(ax, ay, az) | tempX, tempY, tempZ, scale
 ' Reads the Accelerometer output registers and scales the outputs to milli-g's (1 g = 9.8 m/s/s)
   readAccel(@tempX, @tempY, @tempZ)
-  long[ax] := (tempX*_accel_pre)/(__aRes)
-  long[ay] := (tempY*_accel_pre)/(__aRes)
-  long[az] := (tempZ*_accel_pre)/(__aRes)
+  long[ax] := (tempX*_accel_pre)/(_aRes)
+  long[ay] := (tempY*_accel_pre)/(_aRes)
+  long[az] := (tempZ*_accel_pre)/(_aRes)
 
 PUB readGyro(gx, gy, gz) | temp[2], tempX, tempY, tempZ
 ' Reads the Gyroscope output registers.
@@ -292,18 +294,18 @@ PUB readGyro(gx, gy, gz) | temp[2], tempX, tempY, tempZ
   long[gx] := ~~tempX
   long[gy] := ~~tempY
   long[gz] := ~~tempZ
-  if (__autoCalc)
-    long[gx] -= __gBiasRaw[X_AXIS]
-    long[gy] -= __gBiasRaw[Y_AXIS]
-    long[gz] -= __gBiasRaw[Z_AXIS]
+  if (_autoCalc)
+    long[gx] -= _gBiasRaw[X_AXIS]
+    long[gy] -= _gBiasRaw[Y_AXIS]
+    long[gz] -= _gBiasRaw[Z_AXIS]
 
 PUB readGyroCalculated(gx, gy, gz) | tempX, tempY, tempZ
 ' Reads the Gyroscope output registers and scales the outputs to degrees of rotation per second (DPS).
 ' Return the gyro raw reading times our pre-calculated DPS / (ADC tick):, tempX, tempY, tempZ
   readGyro(@tempX, @tempY, @tempZ)
-  long[gx] := (tempX*_gyro_pre)/__gRes
-  long[gy] := (tempY*_gyro_pre)/__gRes
-  long[gz] := (tempZ*_gyro_pre)/__gRes
+  long[gx] := (tempX*_gyro_pre)/_gRes
+  long[gy] := (tempY*_gyro_pre)/_gRes
+  long[gz] := (tempZ*_gyro_pre)/_gRes
 
 PUB readMag(mx, my, mz) | temp[2], tempX, tempY, tempZ
 ' Reads the Magnetometer output registers.
@@ -320,13 +322,13 @@ PUB readMag(mx, my, mz) | temp[2], tempX, tempY, tempZ
 PUB readMagCalculated(mx, my, mz) | tempX, tempY, tempZ
 ' Reads the Magnetometer output registers and scales the outputs to Gauss.
   readMag(@tempX, @tempY, @tempZ)
-  long[mx] := (tempX*_mag_pre)/__mRes
-  long[my] := (tempY*_mag_pre)/__mRes
-  long[mz] := (tempZ*_mag_pre)/__mRes
-  if (__autoCalc)
-    long[mx] -= __mBiasRaw[X_AXIS]
-    long[my] -= __mBiasRaw[Y_AXIS]
-    long[mz] -= __mBiasRaw[Z_AXIS]
+  long[mx] := (tempX*_mag_pre)/_mRes
+  long[my] := (tempY*_mag_pre)/_mRes
+  long[mz] := (tempZ*_mag_pre)/_mRes
+  if (_autoCalc)
+    long[mx] -= _mBiasRaw[X_AXIS]
+    long[my] -= _mBiasRaw[Y_AXIS]
+    long[mz] -= _mBiasRaw[Z_AXIS]
 
 PUB readTemp(temperature) | temp[1], tempT
 ' We'll read two bytes from the temperature sensor into temp
@@ -350,9 +352,9 @@ PUB readTempCalculated(temperature, tempUnit) | tempTemp 'TODO: REVIEW (remove C
 
 PUB setAccelCalibration(axBias, ayBias, azBias)
 ' Manually set accelerometer calibration offset values
-  __aBiasRaw[X_AXIS] := axBias
-  __aBiasRaw[Y_AXIS] := ayBias
-  __aBiasRaw[Z_AXIS] := azBias
+  _aBiasRaw[X_AXIS] := axBias
+  _aBiasRaw[Y_AXIS] := ayBias
+  _aBiasRaw[Z_AXIS] := azBias
 
 PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue, accelThs, accelThsH, tempThs
 'Configures the Accelerometer interrupt output to the INT_A/G pin.
@@ -371,7 +373,7 @@ PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValu
     threshold := -1 * threshold
   accelThs := 0
   tempThs := 0
-  tempThs := (__aRes * threshold) >> 7
+  tempThs := (_aRes * threshold) >> 7
   accelThs := tempThs & $FF
 
   case(axis)
@@ -405,8 +407,8 @@ PUB setAccelScale(aScl) | tempRegValue
 
   if (aScl <> 2) and (aScl <> 4) and (aScl <> 8) and (aScl <> 16)
     aScl := 2
-  __aRes := 32768/aScl
-  __settings_accel_scale := aScl
+  _aRes := 32768/aScl
+  _settings_accel_scale := aScl
   ' We need to preserve the other bytes in CTRL_REG6_XL. So, first read it:
   ReadAGReg (core#CTRL_REG6_XL, @tempRegValue, 1)
   ' Mask out accel scale bits:
@@ -423,9 +425,9 @@ PUB setAccelScale(aScl) | tempRegValue
 
 PUB setGyroCalibration(gxBias, gyBias, gzBias)
 ' Manually set gyroscope calibration offset values
-  __gBiasRaw[X_AXIS] := gxBias
-  __gBiasRaw[Y_AXIS] := gyBias
-  __gBiasRaw[Z_AXIS] := gzBias
+  _gBiasRaw[X_AXIS] := gxBias
+  _gBiasRaw[Y_AXIS] := gyBias
+  _gBiasRaw[Z_AXIS] := gzBias
 
 PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue, gyroThs, gyroThsH, gyroThsL
 ' Configures the Gyroscope interrupt output to the INT_A/G pin.
@@ -443,7 +445,7 @@ PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue
   gyroThs := 0
   gyroThsH := 0
   gyroThsL := 0
-  gyroThs := __gRes * threshold 'TODO: REVIEW (use limit min/max operators and eliminate conditionals below?)
+  gyroThs := _gRes * threshold 'TODO: REVIEW (use limit min/max operators and eliminate conditionals below?)
 
   if gyroThs > 16383
     gyroThs := 16383
@@ -487,8 +489,8 @@ PUB setGyroScale(gScl) | ctrl1RegValue
 ' Sets the full-scale range of the Gyroscope.
   if ((gScl <> 245) and (gScl <> 500) and (gScl <> 2000))
     gScl := 245
-  __settings_gyro_scale := gScl
-  __gRes := 32768/gScl
+  _settings_gyro_scale := gScl
+  _gRes := 32768/gScl
   ' Read current value of CTRL_REG1_G:, ctrl1RegValue
 
   ReadAGReg (core#CTRL_REG1_G, @ctrl1RegValue, 1)
@@ -505,13 +507,13 @@ PUB setGyroScale(gScl) | ctrl1RegValue
 PUB setMagCalibration(mxBias, myBias, mzBias) | k, msb, lsb
 ' Manually set magnetometer calibration offset values
 ' (non-volatile)
-  __mBiasRaw[X_AXIS] := mxBias
-  __mBiasRaw[Y_AXIS] := myBias
-  __mBiasRaw[Z_AXIS] := mzBias
+  _mBiasRaw[X_AXIS] := mxBias
+  _mBiasRaw[Y_AXIS] := myBias
+  _mBiasRaw[Z_AXIS] := mzBias
 
   repeat k from 0 to 2
-    msb := (__mBiasRaw[k] & $FF00) >> 8
-    lsb := __mBiasRaw[k] & $00FF
+    msb := (_mBiasRaw[k] & $FF00) >> 8
+    lsb := _mBiasRaw[k] & $00FF
 
     WriteMReg8(core#OFFSET_X_REG_L_M + (2 * k), lsb)
     WriteMReg8(core#OFFSET_X_REG_H_M + (2 * k), msb)
@@ -526,7 +528,7 @@ PUB setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magT
   magThs := 0
   magThsL := 0
   magThsH := 0
-  magThs := __mRes * threshold
+  magThs := _mRes * threshold
 
   if (magThs < 0)
     magThs := -1 * magThs
@@ -559,19 +561,19 @@ PUB setMagScale(mScl) | temp
   case(mScl)
     8:
       temp |= ($1 << 5)
-      __settings_mag_scale := 8
-      __mRes := 3448'.28
+      _settings_mag_scale := 8
+      _mRes := 3448'.28
     12:
       temp |= ($2 << 5)
-      __settings_mag_scale := 12
-      __mRes := 2298'.85
+      _settings_mag_scale := 12
+      _mRes := 2298'.85
     16:
       temp |= ($3 << 5)
-      __settings_mag_scale := 16
-      __mRes := 1724'.14
+      _settings_mag_scale := 16
+      _mRes := 1724'.14
     OTHER :
-      __settings_mag_scale := 4
-      __mRes := 6896'.55
+      _settings_mag_scale := 4
+      _mRes := 6896'.55
   WriteMReg8(core#CTRL_REG2_M, temp)
 
 PUB SetPrecision(digits)
@@ -670,20 +672,6 @@ PUB WriteAGReg8(reg, writebyte)
     OTHER:
       return 0
 
-{PUB WriteAGReg16(reg, writeword)
-'Validate register and write word to Accel/Gyro device
-'Allow only registers that are
-'1. Writeable
-'2. One byte of a word-sized register
-'3. Not 'reserved' (ST claims writing to these can
-' permanently damage the device)
-  writeword &= $FFFF
-  case reg
-    $18, $1A, $1C, $31, $33, $35:
-      SPIwriteWord(_cs_ag_pin, reg, writeword, 2)
-    OTHER:
-      return 0
-}
 PUB WriteMReg8(reg, writebyte)
 'Validate register and write byte to Magnetometer device
 'Allow only registers that are
@@ -697,20 +685,6 @@ PUB WriteMReg8(reg, writebyte)
     OTHER:
       return 0
 
-{PUB WriteMReg16(reg, writeword)
-'Validate register and write word to Magnetometer device
-'Allow only registers that are
-'1. Writeable
-'2. One byte of a word-sized register
-'3. Not 'reserved' (ST claims writing to these can
-' permanently damage the device)
-  writeword &= $FFFF
-  case reg
-    $05, $07, $09, $28, $2A, $2C, $32:
-      SPIwriteBytes(_cs_m_pin, reg, writeword, 2)
-    OTHER:
-      return 0
-}
 PRI SPIwriteBytes(csPin, subAddress, data, count) | bytecnt
 ' SPI: Write byte _data_ to SPI device at _subAddress_ on Propeller I/O pin _csPin_
   low(csPin)
@@ -719,13 +693,6 @@ PRI SPIwriteBytes(csPin, subAddress, data, count) | bytecnt
     spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, data.byte[bytecnt])
   high(csPin)
 
-{PRI SPIwriteWord(csPin, subAddress, data)
-' SPI: Write word _data_ to SPI device at _subAddress_ on Propeller I/O pin _csPin_
-  low(csPin)
-  spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, subAddress & $3F)
-  spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 16, data)
-  high(csPin)
-}
 PRI SPIreadBytes(csPin, subAddress, dest, count) | rAddress, i
 ' SPI: Read _count_ bytes from SPI device at _subAddress_ on Propeller I/O pin _csPin_ into pointer _dest_
   ' To indicate a read, set bit 0 (msb) of first byte to 1, rAddress
