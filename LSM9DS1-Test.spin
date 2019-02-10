@@ -50,7 +50,16 @@ PUB Main
     H_LACTIVE(1)
     ODR(1)
     FS(1)
+    LP_MODE(1)
     flash
+
+PUB LP_MODE(reps) | tmp, read
+
+    repeat reps
+        repeat tmp from 0 to 1
+            imu.GyroLowPower (tmp)
+            read := imu.GyroLowPower (-2)
+            Message (string("LP_MODE"), tmp, read)
 
 PUB FS(reps) | tmp, read
 

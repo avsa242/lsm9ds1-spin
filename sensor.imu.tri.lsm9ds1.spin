@@ -151,6 +151,7 @@ PUB Endian(endianness) | tmp
     tmp := (tmp | endianness) & core#CTRL_REG8_MASK
     WriteAGReg8 (core#CTRL_REG8, tmp)
 
+
 PUB IntLevel(active_state) | tmp
 ' Set active state for interrupts
 '   Valid values: HIGH (0) - active high, LOW (1) - active low
@@ -166,6 +167,22 @@ PUB IntLevel(active_state) | tmp
     tmp &= core#MASK_H_LACTIVE
     tmp := (tmp | active_state) & core#CTRL_REG8_MASK
     WriteAGReg8 (core#CTRL_REG8, tmp)
+
+PUB GyroLowPower(enabled) | tmp
+' Enable low-power mode
+'   Valid values: FALSE or 0: Disable, TRUE or 1: Enable
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG3_G, @tmp, 1)
+    case ||enabled
+        0, 1:
+            enabled := ||enabled << core#FLD_LP_MODE
+        OTHER:
+            tmp := (tmp >> core#FLD_LP_MODE) & %1
+            return tmp
+
+    tmp &= core#MASK_LP_MODE
+    tmp := (tmp | enabled) & core#CTRL_REG3_G_MASK
+    WriteAGReg8 (core#CTRL_REG3_G, tmp)
 
 PUB AGDataRate(Hz) | tmp
 ' Set output data rate, in Hz, of accelerometer and gyroscope

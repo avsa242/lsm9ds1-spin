@@ -43,7 +43,23 @@ CON
         MASK_BW         = CTRL_REG1_G_MASK ^ (BITS_BW << FLD_BW)
 
     CTRL_REG2_G         = $11
+    CTRL_REG2_G_MASK    = $0F
+        FLD_INT_SEL     = 2
+        FLD_OUT_SEL     = 0
+        BITS_INT_SEL    = %11
+        BITS_OUT_SEL    = %11
+        MASK_INT_SEL    = CTRL_REG2_G_MASK ^ (BITS_INT_SEL << FLD_INT_SEL)
+        MASK_OUT_SEL    = CTRL_REG2_G_MASK ^ (BITS_OUT_SEL << FLD_OUT_SEL)
+
     CTRL_REG3_G         = $12
+    CTRL_REG3_G_MASK    = $CF
+        FLD_LP_MODE     = 7
+        FLD_HP_EN       = 6
+        FLD_HPCF_G      = 0
+        BITS_HPCF_G     = %1111
+        BITS_LP_MODE    = %1
+        MASK_LP_MODE    = CTRL_REG3_G_MASK ^ (BITS_LP_MODE << FLD_LP_MODE)
+
     ORIENT_CFG_G        = $13
     INT_GEN_SRC_G       = $14
     OUT_TEMP_L          = $15
