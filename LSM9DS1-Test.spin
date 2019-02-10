@@ -48,7 +48,16 @@ PUB Main
     BLE(1)
     BDU(1)
     H_LACTIVE(1)
+    ODR(1)
     flash
+
+PUB ODR(reps) | tmp, read
+
+    repeat reps
+        repeat tmp from 1 to 7
+            imu.AGDataRate (lookup(tmp: 0, 14{.9}, 59{.5}, 119, 238, 476, 952))
+            read := imu.AGDataRate (-2)
+            Message (string("ODR"), lookup(tmp: 0, 14{.9}, 59{.5}, 119, 238, 476, 952), read)
 
 PUB H_LACTIVE(reps) | tmp, read
 
@@ -137,6 +146,7 @@ PUB waitkey
 
 PUB flash
 
+    dira[DEBUG_LED] := 1
     repeat
         !outa[DEBUG_LED]
         time.MSleep (100)

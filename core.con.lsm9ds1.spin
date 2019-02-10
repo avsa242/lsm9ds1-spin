@@ -29,7 +29,19 @@ CON
     INT1_CTRL           = $0C
     INT2_CTRL           = $0D
     WHO_AM_I_XG         = $0F
+
     CTRL_REG1_G         = $10
+    CTRL_REG1_G_MASK    = $FB
+        FLD_ODR         = 5
+        FLD_FS          = 3
+        FLD_BW          = 0
+        BITS_ODR        = %111
+        BITS_FS         = %11
+        BITS_BW         = %11
+        MASK_ODR        = CTRL_REG1_G_MASK ^ (BITS_ODR << FLD_ODR)
+        MASK_FS         = CTRL_REG1_G_MASK ^ (BITS_FS << FLD_FS)
+        MASK_BW         = CTRL_REG1_G_MASK ^ (BITS_BW << FLD_BW)
+
     CTRL_REG2_G         = $11
     CTRL_REG3_G         = $12
     ORIENT_CFG_G        = $13

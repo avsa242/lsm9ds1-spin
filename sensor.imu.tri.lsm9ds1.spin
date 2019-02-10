@@ -167,6 +167,22 @@ PUB IntLevel(active_state) | tmp
     tmp := (tmp | active_state) & core#CTRL_REG8_MASK
     WriteAGReg8 (core#CTRL_REG8, tmp)
 
+PUB AGDataRate(Hz) | tmp
+' Set output data rate, in Hz, of accelerometer and gyroscope
+'   Valid values: 0 (power down), 14, 59, 119, 238, 476, 952
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG1_G, @tmp, 1)
+    case Hz := lookdown(Hz: 0, 14{.9}, 59{.5}, 119, 238, 476, 952)
+        1..7:
+            Hz := (Hz - 1) << core#FLD_ODR
+        OTHER:
+            tmp := ((tmp >> core#FLD_ODR) & core#BITS_ODR) +1
+            return lookup(tmp: 0, 14{.9}, 59{.5}, 119, 238, 476, 952)
+
+    tmp &= core#MASK_ODR
+    tmp := (tmp | Hz) & core#CTRL_REG1_G_MASK
+    WriteAGReg8 (core#CTRL_REG1_G, tmp)
+
 PUB SWReset | tmp'XXX
 
     ReadAGReg (core#CTRL_REG8, @tmp, 1)
