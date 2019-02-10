@@ -57,6 +57,8 @@ CON
         FLD_IF_ADD_INC  = 2
         FLD_BLE         = 1
         FLD_SW_RESET    = 0
+        MASK_H_LACTIVE  = CTRL_REG8_MASK ^ (1 << FLD_H_LACTIVE)
+        MASK_BDU        = CTRL_REG8_MASK ^ (1 << FLD_BDU)
         MASK_BLE        = CTRL_REG8_MASK ^ (1 << FLD_BLE)
         MASK_SW_RESET   = CTRL_REG8_MASK ^ (1 << FLD_SW_RESET)
 

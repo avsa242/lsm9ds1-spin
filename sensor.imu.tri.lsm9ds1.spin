@@ -25,11 +25,15 @@ CON
     LITTLE      = 0
     BIG         = 1
 
+    HIGH        = 0
+    LOW         = 1
+
 OBJ
 
     spi     : "SPI_Asm"
     core    : "core.con.lsm9ds1"
-  'TODO: Use io.spin
+    io      : "io"
+
 VAR
 
     long _autoCalc
@@ -63,17 +67,17 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
         _int_ag_pin := INT_AG_PIN
         _int_m_pin := INT_M_PIN
 
-        dira[_scl_pin] := 0
-        dira[_sdio_pin] := 0
-        dira[_cs_ag_pin] := 0
-        dira[_cs_m_pin] := 0
-        dira[_int_ag_pin] := 0
-        dira[_int_m_pin] := 0
+        io.Input (_scl_pin)
+        io.Input (_sdio_pin)
+        io.Output (_cs_ag_pin)
+        io.Output (_cs_m_pin)
+        io.Input (_int_ag_pin)
+        io.Input (_int_m_pin)
 
 ' Initialize the IMU
-        high(_cs_ag_pin)
-        high(_cs_m_pin)
-        low(_scl_pin)
+        io.High (_cs_ag_pin)
+        io.High (_cs_m_pin)
+        io.Low (_scl_pin)
         waitcnt(cnt + clkfreq / 1000)
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
         WriteAGReg8 (core#CTRL_REG8, %0000_1100)
@@ -115,6 +119,22 @@ PUB Defaults
 
     SetPrecision (3)
 
+PUB BlockUpdate(enabled) | tmp
+' Wait until both MSB and LSB of output registers are read before updating
+'   Valid values: 0 (Continuous update), TRUE/1 (Do not update until both MSB and LSB are read)
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG8, @tmp, 1)
+    case ||enabled
+        0, 1:
+            enabled := ||enabled << core#FLD_BDU
+        OTHER:
+            tmp := (tmp >> core#FLD_BDU) & %1
+            return tmp
+
+    tmp &= core#MASK_BDU
+    tmp := (tmp | enabled) & core#CTRL_REG8_MASK
+    WriteAGReg8 (core#CTRL_REG8, tmp)
+
 PUB Endian(endianness) | tmp
 ' Choose byte order of data
 '   Valid values: LITTLE (0) or BIG (1)
@@ -129,6 +149,22 @@ PUB Endian(endianness) | tmp
 
     tmp &= core#MASK_BLE
     tmp := (tmp | endianness) & core#CTRL_REG8_MASK
+    WriteAGReg8 (core#CTRL_REG8, tmp)
+
+PUB IntLevel(active_state) | tmp
+' Set active state for interrupts
+'   Valid values: HIGH (0) - active high, LOW (1) - active low
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG8, @tmp, 1)
+    case active_state
+        HIGH, LOW:
+            active_state := active_state << core#FLD_H_LACTIVE
+        OTHER:
+            tmp := (tmp >> core#FLD_H_LACTIVE) & %1
+            return tmp
+
+    tmp &= core#MASK_H_LACTIVE
+    tmp := (tmp | active_state) & core#CTRL_REG8_MASK
     WriteAGReg8 (core#CTRL_REG8, tmp)
 
 PUB SWReset | tmp'XXX
@@ -656,11 +692,11 @@ PUB ReadAGReg(reg, ptr, count) | i
         case reg
             $04..$0D, $0F..$24, $26..$37:
                 reg |= $80
-                low(_cs_ag_pin)
+                io.Low(_cs_ag_pin)
                 spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, reg)
                 repeat i from 0 to count-1
                     byte[ptr][i] := spi.shiftin(_sdio_pin, _scl_pin, spi#MSBPRE, 8)
-                high(_cs_ag_pin)
+                io.High(_cs_ag_pin)
                 return ptr
             OTHER:
                 return 0
@@ -677,11 +713,11 @@ PUB ReadMReg(reg, ptr, count) | i
             $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
                 reg |= $80
                 reg |= $40
-                low(_cs_m_pin)
+                io.Low(_cs_m_pin)
                 spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, reg)
                 repeat i from 0 to count-1
                     byte[ptr][i] := spi.shiftin(_sdio_pin, _scl_pin, spi#MSBPRE, 8)
-                high(_cs_m_pin)
+                io.High(_cs_m_pin)
                 return ptr
             OTHER:
                 return 0
@@ -716,11 +752,11 @@ PUB WriteMReg8(reg, writebyte)
 
 PRI SPIwriteBytes(csPin, subAddress, data, count) | bytecnt
 ' SPI: Write byte _data_ to SPI device at _subAddress_ on Propeller I/O pin _csPin_
-    low(csPin)
+    io.Low (csPin)
     spi.shiftout(_sdio_pin, _scl_pin, core#MOSI_BITORDER, 8, subAddress & $3F)
     repeat bytecnt from 0 to count-1
         spi.shiftout(_sdio_pin, _scl_pin, core#MOSI_BITORDER, 8, data.byte[bytecnt])
-    high(csPin)
+    io.High (csPin)
 
 PRI SPIreadBytes(csPin, subAddress, dest, count) | rAddress, i
 ' SPI: Read _count_ bytes from SPI device at _subAddress_ on Propeller I/O pin _csPin_ into pointer _dest_
@@ -730,21 +766,11 @@ PRI SPIreadBytes(csPin, subAddress, dest, count) | rAddress, i
 ' set bit 1 to 1. The remaining six bytes are the address to be read
     if (csPin == _cs_m_pin) and count > 1
         rAddress |= $40
-    low(csPin)
+    io.Low (csPin)
     spi.shiftout(_sdio_pin, _scl_pin, core#MOSI_BITORDER, 8, rAddress)
     repeat i from 0 to count-1
         byte[dest][i] := spi.shiftin(_sdio_pin, _scl_pin, core#MISO_BITORDER, 8)
-    high(csPin)
-
-PRI High(pin)
-' Abbreviated way to bring an output pin high
-    dira[pin]~~
-    outa[pin]~~
-    
-PRI Low(pin)
-' Abbreviated way to bring an output pin low
-    dira[pin]~~
-    outa[pin]~
+    io.High(csPin)
 
 {*
  * TERMS OF USE: MIT License

@@ -46,7 +46,25 @@ PUB Main
     Setup
 
     BLE(1)
+    BDU(1)
+    H_LACTIVE(1)
     flash
+
+PUB H_LACTIVE(reps) | tmp, read
+
+    repeat reps
+        repeat tmp from 0 to 1
+            imu.IntLevel (tmp)
+            read := imu.IntLevel (-2)
+            Message (string("H_LACTIVE"), tmp, read)
+
+PUB BDU(reps) | tmp, read
+
+    repeat reps
+        repeat tmp from 0 to 1
+            imu.BlockUpdate (tmp)
+            read := imu.BlockUpdate (-2)
+            Message (string("BDU"), tmp, read)
 
 PUB BLE(reps) | tmp, read
 
