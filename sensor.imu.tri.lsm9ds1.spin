@@ -15,10 +15,15 @@ CON
     Y_AXIS      = 1
     Z_AXIS      = 2
     ALL_AXIS    = 3
+
     CELSIUS     = 0
     FAHRENHEIT  = 1
     KELVIN      = 2
+
     WHO_AM_I    = core#WHOAMI
+
+    LITTLE      = 0
+    BIG         = 1
 
 OBJ
 
@@ -109,6 +114,30 @@ PUB Defaults
     setMagScale(8)
 
     SetPrecision (3)
+
+PUB Endian(endianness) | tmp
+' Choose byte order of data
+'   Valid values: LITTLE (0) or BIG (1)
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG8, @tmp, 1)
+    case endianness
+        LITTLE, BIG:
+            endianness := endianness << core#FLD_BLE
+        OTHER:
+            tmp := (tmp >> core#FLD_BLE) & %1
+            return tmp
+
+    tmp &= core#MASK_BLE
+    tmp := (tmp | endianness) & core#CTRL_REG8_MASK
+    WriteAGReg8 (core#CTRL_REG8, tmp)
+
+PUB SWReset | tmp'XXX
+
+    ReadAGReg (core#CTRL_REG8, @tmp, 1)
+    tmp &= core#MASK_SW_RESET
+    tmp := (tmp | %1) & core#CTRL_REG8_MASK
+    WriteAGReg8 (core#CTRL_REG8, tmp)
+    return tmp
 
 PUB accelAvailable: status
 'Polls the Accelerometer status register to check if new data is available.

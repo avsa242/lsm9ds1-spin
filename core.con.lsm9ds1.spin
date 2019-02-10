@@ -48,6 +48,18 @@ CON
     CTRL_REG6_XL        = $20
     CTRL_REG7_XL        = $21
     CTRL_REG8           = $22
+    CTRL_REG8_MASK      = $FF
+        FLD_BOOT        = 7
+        FLD_BDU         = 6
+        FLD_H_LACTIVE   = 5
+        FLD_PP_OD       = 4
+        FLD_SIM         = 3
+        FLD_IF_ADD_INC  = 2
+        FLD_BLE         = 1
+        FLD_SW_RESET    = 0
+        MASK_BLE        = CTRL_REG8_MASK ^ (1 << FLD_BLE)
+        MASK_SW_RESET   = CTRL_REG8_MASK ^ (1 << FLD_SW_RESET)
+
     CTRL_REG9           = $23
     CTRL_REG10          = $24
     INT_GEN_SRC_XL      = $26
