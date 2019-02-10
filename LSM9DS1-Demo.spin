@@ -33,7 +33,7 @@ CON
 
 OBJ
 
-  cfg       : "core.con.client.flip"
+  cfg       : "core.con.boardcfg.flip"
   ser       : "com.serial.terminal"
   time      : "time"
   imu       : "sensor.imu.tri.lsm9ds1"
@@ -52,7 +52,7 @@ PUB Main
   imu.setMagScale (12)
   _demo_state := DISP_HELP
 
-  DisplayTempCalc
+'  DisplayTempCalc
   repeat
     case _demo_state
       PRINT_REGS:   PrintRegs
@@ -108,8 +108,10 @@ PUB Help
 
 PUB DisplayAccelCalc | ax, ay, az
 
+  ser.Clear
   repeat until _demo_state <> DISP_ACCCAL
-    ser.Clear
+'    ser.Clear
+    ser.Position (0, 0)
     ser.Str (string("Display Calculated Accel data (milli-g's):", ser#NL))
     imu.readAccelCalculated (@ax, @ay, @az)
     ser.Str (string("AX: "))
@@ -122,8 +124,10 @@ PUB DisplayAccelCalc | ax, ay, az
 
 PUB DisplayGyroCalc| gx, gy, gz
 
+  ser.Clear
   repeat until _demo_state <> DISP_GYCAL
-    ser.Clear
+ '   ser.Clear
+    ser.Position (0, 0)
     ser.Str (string("Display Calculated Gyro data (milli-degrees per second):", ser#NL))
     imu.readGyroCalculated (@gx, @gy, @gz)
     ser.Str (string("GX: "))
@@ -136,8 +140,10 @@ PUB DisplayGyroCalc| gx, gy, gz
 
 PUB DisplayMagCalc| mx, my, mz
 
+  ser.Clear
   repeat until _demo_state <> DISP_MAGCAL
-    ser.Clear
+'    ser.Clear
+    ser.Position (0, 0)
     ser.Str (string("Display calculated Mag data (milli-gauss):", ser#NL))
     imu.readMagCalculated (@mx, @my, @mz)
     ser.Str (string("MX: "))
@@ -150,8 +156,10 @@ PUB DisplayMagCalc| mx, my, mz
 
 PUB DisplayTempCalc | temp
 
+  ser.Clear
   repeat until _demo_state <> DISP_TEMPCAL
-    ser.Clear
+'    ser.Clear
+    ser.Position (0, 0)
     ser.Str (string("Display Calculated Temp data (milli-degrees Celsius):", ser#NL))
     imu.readTempCalculated (@temp, imu#CELSIUS)
     ser.Str (string("Temp: "))
@@ -160,8 +168,10 @@ PUB DisplayTempCalc | temp
 
 PUB DisplayTempRaw | t
 
+  ser.Clear
   repeat until _demo_state <> DISP_TEMPRAW
-    ser.Clear
+'    ser.Clear
+    ser.Position (0, 0)
     ser.Str (string("Display RAW Temp data:", ser#NL))
     imu.readTemp (@t)
     ser.Str (string("Temp: "))
@@ -170,8 +180,10 @@ PUB DisplayTempRaw | t
   
 PUB DisplayMagRaw | mx, my, mz
 
+  ser.Clear
   repeat until _demo_state <> DISP_MAGRAW
-    ser.Clear
+'    ser.Clear
+    ser.Position (0, 0)
     ser.Str (string("Display RAW Mag data:", ser#NL))
     imu.readMag (@mx, @my, @mz)
     ser.Str (string("MX: "))
@@ -184,8 +196,10 @@ PUB DisplayMagRaw | mx, my, mz
 
 PUB DisplayAccelRaw | ax, ay, az
 
+  ser.Clear
   repeat until _demo_state <> DISP_ACCRAW
-    ser.Clear
+'    ser.Clear
+    ser.Position (0, 0)
     ser.Str (string("Display RAW Accel data:", ser#NL))
     imu.readAccel (@ax, @ay, @az)
     ser.Str (string("AX: "))
@@ -198,8 +212,10 @@ PUB DisplayAccelRaw | ax, ay, az
 
 PUB DisplayGyroRaw | gx, gy, gz
 
+  ser.Clear
   repeat until _demo_state <> DISP_GYRAW
-    ser.Clear
+'    ser.Clear
+    ser.Position (0, 0)
     ser.Str (string("Display RAW Gyro data:", ser#NL))
     imu.readGyro (@gx, @gy, @gz)
     ser.Str (string("GX: "))
@@ -212,8 +228,10 @@ PUB DisplayGyroRaw | gx, gy, gz
 
 PUB PrintRegs | rec_size, table_offs, icol, regval_tmp
 
+  ser.Clear
   repeat until _demo_state <> PRINT_REGS
-    ser.Clear
+'    ser.Clear
+    ser.Position (0, 0)
     rule (80, 10, ".")  
     rec_size := 18
     icol := 0
