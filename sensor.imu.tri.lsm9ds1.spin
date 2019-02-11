@@ -119,7 +119,23 @@ PUB Defaults
 
     SetPrecision (3)
 
-PUB BlockUpdate(enabled) | tmp
+PUB AGDataRate(Hz) | tmp
+' Set output data rate, in Hz, of accelerometer and gyroscope
+'   Valid values: 0 (power down), 14, 59, 119, 238, 476, 952
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG1_G, @tmp, 1)
+    case Hz := lookdown(Hz: 0, 14{.9}, 59{.5}, 119, 238, 476, 952)
+        1..7:
+            Hz := (Hz - 1) << core#FLD_ODR
+        OTHER:
+            tmp := ((tmp >> core#FLD_ODR) & core#BITS_ODR) +1
+            return lookup(tmp: 0, 14{.9}, 59{.5}, 119, 238, 476, 952)
+
+    tmp &= core#MASK_ODR
+    tmp := (tmp | Hz) & core#CTRL_REG1_G_MASK
+    WriteAGReg8 (core#CTRL_REG1_G, tmp)
+
+PUB BlockUpdate(enabled) | tmp 'XXX Make PRI? Doesn't seem like user-facing functionality
 ' Wait until both MSB and LSB of output registers are read before updating
 '   Valid values: 0 (Continuous update), TRUE/1 (Do not update until both MSB and LSB are read)
 '   Any other value polls the chip and returns the current setting
@@ -151,23 +167,6 @@ PUB Endian(endianness) | tmp
     tmp := (tmp | endianness) & core#CTRL_REG8_MASK
     WriteAGReg8 (core#CTRL_REG8, tmp)
 
-
-PUB IntLevel(active_state) | tmp
-' Set active state for interrupts
-'   Valid values: HIGH (0) - active high, LOW (1) - active low
-'   Any other value polls the chip and returns the current setting
-    ReadAGReg (core#CTRL_REG8, @tmp, 1)
-    case active_state
-        HIGH, LOW:
-            active_state := active_state << core#FLD_H_LACTIVE
-        OTHER:
-            tmp := (tmp >> core#FLD_H_LACTIVE) & %1
-            return tmp
-
-    tmp &= core#MASK_H_LACTIVE
-    tmp := (tmp | active_state) & core#CTRL_REG8_MASK
-    WriteAGReg8 (core#CTRL_REG8, tmp)
-
 PUB GyroLowPower(enabled) | tmp
 ' Enable low-power mode
 '   Valid values: FALSE or 0: Disable, TRUE or 1: Enable
@@ -183,22 +182,6 @@ PUB GyroLowPower(enabled) | tmp
     tmp &= core#MASK_LP_MODE
     tmp := (tmp | enabled) & core#CTRL_REG3_G_MASK
     WriteAGReg8 (core#CTRL_REG3_G, tmp)
-
-PUB AGDataRate(Hz) | tmp
-' Set output data rate, in Hz, of accelerometer and gyroscope
-'   Valid values: 0 (power down), 14, 59, 119, 238, 476, 952
-'   Any other value polls the chip and returns the current setting
-    ReadAGReg (core#CTRL_REG1_G, @tmp, 1)
-    case Hz := lookdown(Hz: 0, 14{.9}, 59{.5}, 119, 238, 476, 952)
-        1..7:
-            Hz := (Hz - 1) << core#FLD_ODR
-        OTHER:
-            tmp := ((tmp >> core#FLD_ODR) & core#BITS_ODR) +1
-            return lookup(tmp: 0, 14{.9}, 59{.5}, 119, 238, 476, 952)
-
-    tmp &= core#MASK_ODR
-    tmp := (tmp | Hz) & core#CTRL_REG1_G_MASK
-    WriteAGReg8 (core#CTRL_REG1_G, tmp)
 
 PUB GyroScale(scale) | tmp
 ' Set full scale of gyroscope output, in degrees per second (dps)
@@ -216,6 +199,21 @@ PUB GyroScale(scale) | tmp
     tmp := (tmp | scale) & core#CTRL_REG1_G_MASK
     WriteAGReg8 (core#CTRL_REG1_G, tmp)
 
+PUB IntLevel(active_state) | tmp
+' Set active state for interrupts
+'   Valid values: HIGH (0) - active high, LOW (1) - active low
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG8, @tmp, 1)
+    case active_state
+        HIGH, LOW:
+            active_state := active_state << core#FLD_H_LACTIVE
+        OTHER:
+            tmp := (tmp >> core#FLD_H_LACTIVE) & %1
+            return tmp
+
+    tmp &= core#MASK_H_LACTIVE
+    tmp := (tmp | active_state) & core#CTRL_REG8_MASK
+    WriteAGReg8 (core#CTRL_REG8, tmp)
 
 PUB SWReset | tmp'XXX
 
@@ -225,6 +223,15 @@ PUB SWReset | tmp'XXX
     WriteAGReg8 (core#CTRL_REG8, tmp)
     return tmp
 
+PUB Temperature
+' Get temperature from chip
+'   Result is two's-complement
+    ReadAGReg (core#OUT_TEMP_L, @result, 2)
+    result &= $FFFF
+    if result > 32767
+        result := result - 65536
+
+'--- OLD CODE BELOW ---
 PUB accelAvailable: status
 'Polls the Accelerometer status register to check if new data is available.
     ReadAGReg (core#STATUS_REG_1, @status, 1)
@@ -445,14 +452,14 @@ PUB readMagCalculated(mx, my, mz) | tempX, tempY, tempZ
         long[my] -= _mBiasRaw[Y_AXIS]
         long[mz] -= _mBiasRaw[Z_AXIS]
 
-PUB readTemp(temperature) | temp[1], tempT
+{PUB readTemp(temperature) | temp[1], tempT
 ' We'll read two bytes from the temperature sensor into temp
 ' Read 2 bytes, beginning at OUT_TEMP_L
     ReadAGReg (core#OUT_TEMP_L, @temp, 2)
     tempT := (temp.byte[1] << 8) | temp.byte[0]
-    long[temperature] := ~~tempT
+    long[temperature] := ~~tempT}
 
-PUB readTempCalculated(temperature, tempUnit) | tempTemp 'TODO: REVIEW (remove CELSIUS case - OTHER covers it)
+{PUB readTempCalculated(temperature, tempUnit) | tempTemp 'TODO: REVIEW (remove CELSIUS case - OTHER covers it)
 
     readTemp(@tempTemp)
     case tempUnit
@@ -464,7 +471,7 @@ PUB readTempCalculated(temperature, tempUnit) | tempTemp 'TODO: REVIEW (remove C
             long[temperature] := (((tempTemp/ 16) + 25) * 1000) + 273150'16) + 25) + 273.15
         OTHER:
             long[temperature] := (tempTemp / 16) + 25 * 1000'(tempTemp / 16.0) + 25.0
-
+}
 PUB setAccelCalibration(axBias, ayBias, azBias)
 ' Manually set accelerometer calibration offset values
     _aBiasRaw[X_AXIS] := axBias

@@ -51,7 +51,15 @@ PUB Main
     ODR(1)
     FS(1)
     LP_MODE(1)
+    OUT_TEMP(5)
     flash
+
+
+PUB OUT_TEMP(reps) | read
+
+    repeat reps
+        read := imu.Temperature
+        Message (string("OUT_TEMP"), read, read)
 
 PUB LP_MODE(reps) | tmp, read
 

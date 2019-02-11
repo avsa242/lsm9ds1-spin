@@ -17,8 +17,9 @@ CON
     MOSI_BITORDER       = 5             'MSBFIRST
     MISO_BITORDER       = 0             'MSBPRE
     WHOAMI              = $683D
+
 ' LSM9DS1 Register map
-    ACT_THS             = $04 'TODO: Move these to separate file
+    ACT_THS             = $04
     ACT_DUR             = $05
     INT_GEN_CFG_XL      = $06
     INT_GEN_THS_X_XL    = $07
