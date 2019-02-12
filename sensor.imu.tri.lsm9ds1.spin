@@ -135,6 +135,24 @@ PUB AGDataRate(Hz) | tmp
     tmp := (tmp | Hz) & core#CTRL_REG1_G_MASK
     WriteAGReg8 (core#CTRL_REG1_G, tmp)
 
+PUB AvailAccel | tmp
+' Accelerometer sensor new data available
+'   Returns TRUE or FALSE
+    ReadAGReg (core#STATUS_REG, @tmp, 1)
+    result := ((tmp >> core#FLD_XLDA) & %1) * TRUE
+
+PUB AvailGyro | tmp
+' Gyroscope sensor new data available
+'   Returns TRUE or FALSE
+    ReadAGReg (core#STATUS_REG, @tmp, 1)
+    result := ((tmp >> core#FLD_GDA) & %1) * TRUE
+
+PUB AvailTemp | tmp
+' Temperature sensor new data available
+'   Returns TRUE or FALSE
+    ReadAGReg (core#STATUS_REG, @tmp, 1)
+    result := ((tmp >> core#FLD_TDA) & %1) * TRUE
+
 PUB BlockUpdate(enabled) | tmp 'XXX Make PRI? Doesn't seem like user-facing functionality
 ' Wait until both MSB and LSB of output registers are read before updating
 '   Valid values: 0 (Continuous update), TRUE/1 (Do not update until both MSB and LSB are read)

@@ -55,8 +55,28 @@ PUB Main
     IG_XL(1)
     IG_G(1)
     IG_INACT(1)
+    TDA(1)
+    GDA(1)
+    XLDA(1)
     flash
 
+PUB XLDA(reps) | read
+' XXX No verification
+    repeat reps
+        read := imu.AvailAccel
+        Message (string("XLDA"), read, read)
+
+PUB GDA(reps) | read
+' XXX No verification
+    repeat reps
+        read := imu.AvailGyro
+        Message (string("GDA"), read, read)
+
+PUB TDA(reps) | read
+' XXX No verification
+    repeat reps
+        read := imu.AvailTemp
+        Message (string("TDA"), read, read)
 
 PUB IG_INACT (reps) | read
 ' XXX No verification
