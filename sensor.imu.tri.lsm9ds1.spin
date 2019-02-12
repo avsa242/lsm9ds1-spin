@@ -268,10 +268,6 @@ PUB Temperature
         result := result - 65536
 
 '--- OLD CODE BELOW ---
-PUB accelAvailable: status
-'Polls the Accelerometer status register to check if new data is available.
-    ReadAGReg (core#STATUS_REG_1, @status, 1)
-    return (status & (1 << 0))
 
 PUB calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3], gBiasRawTemp[3], tempF, tempS
 ' Calibrates the Accelerometer and Gyroscope on the LSM9DS1 IMU module.
@@ -390,11 +386,6 @@ PUB getMagCalibration(mxBias, myBias, mzBias) 'UNTESTED
 PUB getMagScale
 
     return _settings_mag_scale
-
-PUB gyroAvailable | status
-' Polls the Gyroscope status register to check if new data is available
-    ReadAGReg (core#STATUS_REG_1, @status, 1)
-    return ((status & (1 << 1)) >> 1)
 
 PUB whoAmI: whoAmICombined | mTest, xgTest
 
@@ -770,11 +761,6 @@ PUB SetPrecisionMag(digits) | scale_factor
     repeat digits
         scale_factor *= 10
     _mag_pre := scale_factor
-
-PUB tempAvailable | status
-
-  ReadAGReg (core#STATUS_REG_1, @status, 1)
-  return ((status & (1 << 2)) >> 2)
 
 PUB ReadAGReg(reg, ptr, count) | i
 'Validate register and read word from Accel/Gyro device
