@@ -52,11 +52,32 @@ PUB Main
     FS(1)
     LP_MODE(1)
     OUT_TEMP(5)
+    IG_XL(1)
+    IG_G(1)
+    IG_INACT(1)
     flash
 
 
-PUB OUT_TEMP(reps) | read
+PUB IG_INACT (reps) | read
+' XXX No verification
+    repeat reps
+        read := imu.IntInactivity
+        Message (string("IG_INACT"), read, read)
 
+PUB IG_G (reps) | read
+' XXX No verification
+    repeat reps
+        read := imu.IntGyro
+        Message (string("IG_G"), read, read)
+
+PUB IG_XL (reps) | read
+' XXX No verification
+    repeat reps
+        read := imu.IntAccel
+        Message (string("IG_XL"), read, read)
+
+PUB OUT_TEMP(reps) | read
+' XXX No verification
     repeat reps
         read := imu.Temperature
         Message (string("OUT_TEMP"), read, read)

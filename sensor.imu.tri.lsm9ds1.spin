@@ -199,6 +199,24 @@ PUB GyroScale(scale) | tmp
     tmp := (tmp | scale) & core#CTRL_REG1_G_MASK
     WriteAGReg8 (core#CTRL_REG1_G, tmp)
 
+PUB IntAccel | tmp
+' Accelerometer interrupt output signal
+'   Returns TRUE if interrupt asserted, FALSE if not
+    ReadAGReg (core#STATUS_REG, @tmp, 1)
+    result := ((tmp >> core#FLD_IG_XL) & %1) * TRUE
+
+PUB IntGyro | tmp
+' Accelerometer interrupt output signal
+'   Returns TRUE if interrupt asserted, FALSE if not
+    ReadAGReg (core#STATUS_REG, @tmp, 1)
+    result := ((tmp >> core#FLD_IG_G) & %1) * TRUE
+
+PUB IntInactivity | tmp
+' Accelerometer interrupt output signal
+'   Returns TRUE if interrupt asserted, FALSE if not
+    ReadAGReg (core#STATUS_REG, @tmp, 1)
+    result := ((tmp >> core#FLD_INACT) & %1) * TRUE
+
 PUB IntLevel(active_state) | tmp
 ' Set active state for interrupts
 '   Valid values: HIGH (0) - active high, LOW (1) - active low

@@ -65,7 +65,16 @@ CON
     INT_GEN_SRC_G       = $14
     OUT_TEMP_L          = $15
     OUT_TEMP_H          = $16
-    STATUS_REG_0        = $17
+    STATUS_REG          = $17
+        STATUS_REG_MASK = $7F
+        FLD_IG_XL       = 6
+        FLD_IG_G        = 5
+        FLD_INACT       = 4
+        FLD_BOOT_STATUS = 3
+        FLD_TDA         = 2
+        FLD_GDA         = 1
+        FLD_XLDA        = 0
+
     OUT_X_L_G           = $18
     OUT_X_H_G           = $19
     OUT_Y_L_G           = $1A
