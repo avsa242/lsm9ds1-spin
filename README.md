@@ -16,6 +16,7 @@ This is a P8X32A/Propeller driver object for the LSM9DS1 9-DoF IMU.
 
 ## Limitations
 
+* _testing_ branch may be **very broken** at times!
 * Some data may be imprecise because of fixed-point math implementation (unverified)
 
 ## TODO
