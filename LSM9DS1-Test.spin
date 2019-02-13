@@ -41,7 +41,7 @@ VAR
     byte  _ser_cog, _imu_cog
     byte  _max_cols
 
-PUB Main
+PUB Main | x, y, z
 
     Setup
 

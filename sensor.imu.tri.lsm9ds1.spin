@@ -185,6 +185,23 @@ PUB Endian(endianness) | tmp
     tmp := (tmp | endianness) & core#CTRL_REG8_MASK
     WriteAGReg8 (core#CTRL_REG8, tmp)
 
+PUB GyroOutEnable(x, y, z) | tmp, bits
+' Enable data output for Gyroscope - per axis
+'   Valid values: FALSE/0 or TRUE, 1, for each axis
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG4, @tmp, 1)
+    case bits := (||z << 2) | (||y << 1) | ||x
+        %000..%111:
+            bits <<= core#FLD_XEN_G
+        OTHER:
+            tmp := (tmp >> core#FLD_XEN_G) & core#BITS_EN_G
+            return tmp
+
+    tmp &= core#MASK_EN_G
+    tmp := (tmp | bits) & core#CTRL_REG4_MASK
+    WriteAGReg8 (core#CTRL_REG4, tmp)
+
+
 PUB GyroLowPower(enabled) | tmp
 ' Enable low-power mode
 '   Valid values: FALSE or 0: Disable, TRUE or 1: Enable
@@ -250,6 +267,48 @@ PUB IntLevel(active_state) | tmp
     tmp &= core#MASK_H_LACTIVE
     tmp := (tmp | active_state) & core#CTRL_REG8_MASK
     WriteAGReg8 (core#CTRL_REG8, tmp)
+
+PUB ReadAccel(ax, ay, az) | temp[2], tempX, tempY, tempZ
+'Reads the Accelerometer output registers
+' We'll read six bytes from the accelerometer into temp
+    ReadAGReg (core#OUT_X_L_XL, @temp, 6)'reg, ptr, count)
+    tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into ax
+    tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into ay
+    tempZ := (temp.byte[5] << 8) | temp.byte[4] ' Store z-axis values into az
+    long[ax] := ~~tempX
+    long[ay] := ~~tempY
+    long[az] := ~~tempZ
+    if (_autoCalc)
+        long[ax] -= _aBiasRaw[X_AXIS]
+        long[ay] -= _aBiasRaw[Y_AXIS]
+        long[az] -= _aBiasRaw[Z_AXIS]
+
+PUB ReadGyro(gx, gy, gz) | temp[2], tempX, tempY, tempZ
+' Reads the Gyroscope output registers.
+' We'll read six bytes from the gyro into temp
+    ReadAGReg (core#OUT_X_L_G, @temp, 6)
+    tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into gx
+    tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into gy
+    tempZ := (temp.byte[5] << 8) | temp.byte[4] ' Store z-axis values into gz
+    long[gx] := ~~tempX
+    long[gy] := ~~tempY
+    long[gz] := ~~tempZ
+    if (_autoCalc)
+        long[gx] -= _gBiasRaw[X_AXIS]
+        long[gy] -= _gBiasRaw[Y_AXIS]
+        long[gz] -= _gBiasRaw[Z_AXIS]
+
+PUB ReadMag(mx, my, mz) | temp[2], tempX, tempY, tempZ
+' Reads the Magnetometer output registers.
+' We'll read six bytes from the mag into temp
+    ReadMReg (core#OUT_X_L_M, @temp, 6)
+    tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into mx
+    tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into my
+    tempZ := (temp.byte[5] << 8) | temp.byte[4] ' Store z-axis values into mz
+
+    long[mx] := ~~tempX
+    long[my] := ~~tempY
+    long[mz] := ~~tempZ
 
 PUB SWReset | tmp'XXX
 
@@ -410,43 +469,12 @@ PUB magAvailable | status
     ReadMReg (core#STATUS_REG_M, @status, 1)
     return ((status & (1 << 3)) >> 3)
 
-PUB readAccel(ax, ay, az) | temp[2], tempX, tempY, tempZ
-'Reads the Accelerometer output registers
-
-' We'll read six bytes from the accelerometer into temp
-    ReadAGReg (core#OUT_X_L_XL, @temp, 6)'reg, ptr, count)
-    tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into ax
-    tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into ay
-    tempZ := (temp.byte[5] << 8) | temp.byte[4] ' Store z-axis values into az
-    long[ax] := ~~tempX
-    long[ay] := ~~tempY
-    long[az] := ~~tempZ
-    if (_autoCalc)
-        long[ax] -= _aBiasRaw[X_AXIS]
-        long[ay] -= _aBiasRaw[Y_AXIS]
-        long[az] -= _aBiasRaw[Z_AXIS]
-
 PUB readAccelCalculated(ax, ay, az) | tempX, tempY, tempZ, scale
 ' Reads the Accelerometer output registers and scales the outputs to milli-g's (1 g = 9.8 m/s/s)
     readAccel(@tempX, @tempY, @tempZ)
     long[ax] := (tempX*_accel_pre)/(_aRes)
     long[ay] := (tempY*_accel_pre)/(_aRes)
     long[az] := (tempZ*_accel_pre)/(_aRes)
-
-PUB readGyro(gx, gy, gz) | temp[2], tempX, tempY, tempZ
-' Reads the Gyroscope output registers.
-' We'll read six bytes from the gyro into temp
-    ReadAGReg (core#OUT_X_L_G, @temp, 6)
-    tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into gx
-    tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into gy
-    tempZ := (temp.byte[5] << 8) | temp.byte[4] ' Store z-axis values into gz
-    long[gx] := ~~tempX
-    long[gy] := ~~tempY
-    long[gz] := ~~tempZ
-    if (_autoCalc)
-        long[gx] -= _gBiasRaw[X_AXIS]
-        long[gy] -= _gBiasRaw[Y_AXIS]
-        long[gz] -= _gBiasRaw[Z_AXIS]
 
 PUB readGyroCalculated(gx, gy, gz) | tempX, tempY, tempZ
 ' Reads the Gyroscope output registers and scales the outputs to degrees of rotation per second (DPS).
@@ -455,18 +483,6 @@ PUB readGyroCalculated(gx, gy, gz) | tempX, tempY, tempZ
     long[gx] := (tempX*_gyro_pre)/_gRes
     long[gy] := (tempY*_gyro_pre)/_gRes
     long[gz] := (tempZ*_gyro_pre)/_gRes
-
-PUB readMag(mx, my, mz) | temp[2], tempX, tempY, tempZ
-' Reads the Magnetometer output registers.
-' We'll read six bytes from the mag into temp
-    ReadMReg (core#OUT_X_L_M, @temp, 6)
-    tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into mx
-    tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into my
-    tempZ := (temp.byte[5] << 8) | temp.byte[4] ' Store z-axis values into mz
-
-    long[mx] := ~~tempX
-    long[my] := ~~tempY
-    long[mz] := ~~tempZ
 
 PUB readMagCalculated(mx, my, mz) | tempX, tempY, tempZ
 ' Reads the Magnetometer output registers and scales the outputs to Gauss.
