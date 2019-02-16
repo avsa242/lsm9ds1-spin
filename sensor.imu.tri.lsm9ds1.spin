@@ -113,11 +113,27 @@ PUB Defaults
     WriteMReg8 (core#CTRL_REG5_M, $00)
 
 'Set Scales
-    setGyroScale(245)
-    setAccelScale(2)
+    GyroScale(245)
+    AccelScale(2)
     setMagScale(8)
 
     SetPrecision (3)
+
+PUB AccelHighRes(enabled) | tmp
+' Enable high resolution mode for accelerometer
+'   Valid values: FALSE/0 or TRUE, 1
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG7_XL, @tmp, 1)
+    case ||enabled
+        0, 1:
+            enabled := enabled << core#FLD_HR
+        OTHER:
+            tmp := (tmp >> core#FLD_HR) & core#BITS_HR
+            return tmp
+
+    tmp &= core#MASK_HR
+    tmp := (tmp | enabled) & core#CTRL_REG7_XL_MASK
+    WriteAGReg8 (core#CTRL_REG7_XL, tmp)
 
 PUB AccelOutEnable(x, y, z) | tmp, bits
 ' Enable data output for Accelerometer - per axis
@@ -136,9 +152,8 @@ PUB AccelOutEnable(x, y, z) | tmp, bits
     WriteAGReg8 (core#CTRL_REG5_XL, tmp)
 
 PUB AccelScale(scale) | tmp
-' Sets the full-scale range of the Accelerometer.
-' This function can be called to set the scale of the Accelerometer to 2, 4, 8, or 16 g's.
-'   Valid values: XXX
+' Sets the full-scale range of the Accelerometer, in g's
+'   Valid values: 2, 4, 8, 16
 '   Any other value polls the chip and returns the current setting
     ReadAGReg (core#CTRL_REG6_XL, @tmp, 1)
     case scale := lookdown(scale: 2, 16, 4, 8)
@@ -283,7 +298,24 @@ PUB GyroScale(scale) | tmp
     tmp &= core#MASK_FS
     tmp := (tmp | scale) & core#CTRL_REG1_G_MASK
     WriteAGReg8 (core#CTRL_REG1_G, tmp)
+{' Sets the full-scale range of the Gyroscope.
+    if ((gScl <> 245) and (gScl <> 500) and (gScl <> 2000))
+        gScl := 245
+    _settings_gyro_scale := gScl
+    _gRes := 32768/gScl
+' Read current value of CTRL_REG1_G:, ctrl1RegValue
 
+    ReadAGReg (core#CTRL_REG1_G, @ctrl1RegValue, 1)
+' Mask out scale bits (3 & 4):
+    ctrl1RegValue &= $E7
+    case(gScl)
+        500 :
+            ctrl1RegValue |= ($1 << 3)
+        2000 :
+            ctrl1RegValue |= ($3 << 3)
+        OTHER :
+    WriteAGReg8 (core#CTRL_REG1_G, ctrl1RegValue)
+}
 PUB IntAccel | tmp
 ' Accelerometer interrupt output signal
 '   Returns TRUE if interrupt asserted, FALSE if not
@@ -616,28 +648,6 @@ PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValu
     tempRegValue |= $40
     WriteAGReg8 (core#INT1_CTRL, tempRegValue)
 
-PUB setAccelScale(aScl) | tempRegValue
-' Sets the full-scale range of the Accelerometer.
-' This function can be called to set the scale of the Accelerometer to 2, 4, 8, or 16 g's.
-
-    if (aScl <> 2) and (aScl <> 4) and (aScl <> 8) and (aScl <> 16)
-        aScl := 2
-    _aRes := 32768/aScl
-    _settings_accel_scale := aScl
-    ' We need to preserve the other bytes in CTRL_REG6_XL. So, first read it:
-    ReadAGReg (core#CTRL_REG6_XL, @tempRegValue, 1)
-    ' Mask out accel scale bits:
-    tempRegValue &= $E7
-    case(aScl)
-        4:
-            tempRegValue |= ($2 << 3)
-        8:
-            tempRegValue |= ($3 << 3)
-        16:
-            tempRegValue |= ($1 << 3)
-        OTHER :
-    WriteAGReg8 (core#CTRL_REG6_XL, tempRegValue)
-
 PUB setGyroCalibration(gxBias, gyBias, gzBias)
 ' Manually set gyroscope calibration offset values
     _gBiasRaw[X_AXIS] := gxBias
@@ -699,25 +709,6 @@ PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue
     ReadAGReg (core#INT1_CTRL, @tempRegValue, 1)
     tempRegValue |= $80
     WriteAGReg8 (core#INT1_CTRL, tempRegValue)
-
-PUB setGyroScale(gScl) | ctrl1RegValue
-' Sets the full-scale range of the Gyroscope.
-    if ((gScl <> 245) and (gScl <> 500) and (gScl <> 2000))
-        gScl := 245
-    _settings_gyro_scale := gScl
-    _gRes := 32768/gScl
-' Read current value of CTRL_REG1_G:, ctrl1RegValue
-
-    ReadAGReg (core#CTRL_REG1_G, @ctrl1RegValue, 1)
-' Mask out scale bits (3 & 4):
-    ctrl1RegValue &= $E7
-    case(gScl)
-        500 :
-            ctrl1RegValue |= ($1 << 3)
-        2000 :
-            ctrl1RegValue |= ($3 << 3)
-        OTHER :
-    WriteAGReg8 (core#CTRL_REG1_G, ctrl1RegValue)
 
 PUB setMagCalibration(mxBias, myBias, mzBias) | k, msb, lsb
 ' Manually set magnetometer calibration offset values

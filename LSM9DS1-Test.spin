@@ -41,7 +41,7 @@ VAR
     byte  _ser_cog, _imu_cog
     byte  _max_cols
 
-PUB Main | x, y, z
+PUB Main
 
     Setup
 
@@ -59,7 +59,16 @@ PUB Main | x, y, z
     GDA(1)
     XLDA(1)
     FS_XL(1)
+    HR(1)
     flash
+
+PUB HR(reps) | tmp, read
+
+    repeat reps
+        repeat tmp from 0 to 1
+            imu.AccelHighRes (tmp)
+            read := imu.AccelHighRes (-2)
+            Message (string("HR"), tmp, read)
 
 PUB FS_XL(reps) | tmp, read
 

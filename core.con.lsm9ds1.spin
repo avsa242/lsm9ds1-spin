@@ -127,8 +127,21 @@ CON
         MASK_BW_SCAL    = CTRL_REG6_XL_MASK ^ (BITS_BW_SCAL << FLD_BW_SCAL)
         MASK_BW_XL      = CTRL_REG6_XL_MASK ^ (BITS_BW_XL << FLD_BW_XL)
 
-
     CTRL_REG7_XL        = $21
+    CTRL_REG7_XL_MASK   = $E5
+        FLD_HR          = 7
+        FLD_DCF         = 5
+        FLD_FDS         = 2
+        FLD_HPIS1       = 0
+        BITS_HR         = %1
+        BITS_DCF        = %11
+        BITS_FDS        = %1
+        BITS_HPIS1      = %1
+        MASK_HR         = CTRL_REG7_XL_MASK ^ (BITS_HR << FLD_HR)
+        MASK_DCF        = CTRL_REG7_XL_MASK ^ (BITS_DCF << FLD_DCF)
+        MASK_FDS        = CTRL_REG7_XL_MASK ^ (BITS_FDS << FLD_FDS)
+        MASK_HPIS1      = CTRL_REG7_XL_MASK ^ (BITS_HPIS1 << FLD_HPIS1)
+
     CTRL_REG8           = $22
     CTRL_REG8_MASK      = $FF
         FLD_BOOT        = 7
