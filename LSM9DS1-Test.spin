@@ -58,7 +58,16 @@ PUB Main | x, y, z
     TDA(1)
     GDA(1)
     XLDA(1)
+    FS_XL(1)
     flash
+
+PUB FS_XL(reps) | tmp, read
+
+    repeat reps
+        repeat tmp from 1 to 4
+            imu.AccelScale (lookup(tmp: 2, 16, 4, 8))
+            read := imu.AccelScale (-2)
+            Message (string("FS_XL"), lookup(tmp: 2, 16, 4, 8), read)
 
 PUB XLDA(reps) | read
 ' XXX No verification

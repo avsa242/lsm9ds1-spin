@@ -135,7 +135,41 @@ PUB AccelOutEnable(x, y, z) | tmp, bits
     tmp := (tmp | bits) & core#CTRL_REG5_XL_MASK
     WriteAGReg8 (core#CTRL_REG5_XL, tmp)
 
+PUB AccelScale(scale) | tmp
+' Sets the full-scale range of the Accelerometer.
+' This function can be called to set the scale of the Accelerometer to 2, 4, 8, or 16 g's.
+'   Valid values: XXX
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG6_XL, @tmp, 1)
+    case scale := lookdown(scale: 2, 16, 4, 8)
+        1..4:
+            scale := (scale - 1) << core#FLD_FS_XL
+        OTHER:
+            tmp := ((tmp >> core#FLD_FS_XL) & core#BITS_FS_XL) + 1
+            return lookup(tmp: 2, 16, 4, 8)
 
+    tmp &= core#MASK_FS_XL
+    tmp := (tmp | scale) & core#CTRL_REG6_XL_MASK
+    WriteAGReg8 (core#CTRL_REG6_XL, tmp)
+{
+    if (aScl <> 2) and (aScl <> 4) and (aScl <> 8) and (aScl <> 16)
+        aScl := 2
+    _aRes := 32768/aScl
+    _settings_accel_scale := aScl
+    ' We need to preserve the other bytes in CTRL_REG6_XL. So, first read it:
+    ReadAGReg (core#CTRL_REG6_XL, @tempRegValue, 1)
+    ' Mask out accel scale bits:
+    tempRegValue &= $E7
+    case(aScl)
+        4:
+            tempRegValue |= ($2 << 3)
+        8:
+            tempRegValue |= ($3 << 3)
+        16:
+            tempRegValue |= ($1 << 3)
+        OTHER :
+    WriteAGReg8 (core#CTRL_REG6_XL, tempRegValue)
+}
 PUB AGDataRate(Hz) | tmp
 ' Set output data rate, in Hz, of accelerometer and gyroscope
 '   Valid values: 0 (power down), 14, 59, 119, 238, 476, 952

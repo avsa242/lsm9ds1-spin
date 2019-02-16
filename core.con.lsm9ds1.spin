@@ -113,6 +113,21 @@ CON
         MASK_EN_XL      = CTRL_REG5_XL_MASK ^ (BITS_EN_XL << FLD_XEN_XL)
 
     CTRL_REG6_XL        = $20
+    CTRL_REG6_XL_MASK   = $FF
+        FLD_ODR_XL      = 5
+        FLD_FS_XL       = 3
+        FLD_BW_SCAL     = 2
+        FLD_BW_XL       = 0
+        BITS_ODR_XL     = %111
+        BITS_FS_XL      = %11
+        BITS_BW_SCAL    = %1
+        BITS_BW_XL      = %11
+        MASK_ODR_XL     = CTRL_REG6_XL_MASK ^ (BITS_ODR_XL << FLD_ODR_XL)
+        MASK_FS_XL      = CTRL_REG6_XL_MASK ^ (BITS_FS_XL << FLD_FS_XL)
+        MASK_BW_SCAL    = CTRL_REG6_XL_MASK ^ (BITS_BW_SCAL << FLD_BW_SCAL)
+        MASK_BW_XL      = CTRL_REG6_XL_MASK ^ (BITS_BW_XL << FLD_BW_XL)
+
+
     CTRL_REG7_XL        = $21
     CTRL_REG8           = $22
     CTRL_REG8_MASK      = $FF
