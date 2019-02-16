@@ -180,6 +180,16 @@ CON
 
     CTRL_REG10              = $24
     INT_GEN_SRC_XL          = $26
+    INT_GEN_SRC_XL_MASK     = $7F
+        FLD_IA_XL           = 6
+        FLD_ZH_XL           = 5
+        FLD_ZL_XL           = 4
+        FLD_YH_XL           = 3
+        FLD_YL_XL           = 2
+        FLD_XH_XL           = 1
+        FLD_XL_XL           = 0
+
+
     STATUS_REG_1            = $27
     OUT_X_L_XL              = $28
     OUT_X_H_XL              = $29

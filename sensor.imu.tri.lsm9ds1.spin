@@ -348,6 +348,12 @@ PUB GyroScale(scale) | tmp
         OTHER :
     WriteAGReg8 (core#CTRL_REG1_G, ctrl1RegValue)
 }
+PUB Interrupt | tmp
+' Interrupt active
+'   Returns TRUE if one or more interrupts asserted, FALSE if not
+    ReadAGReg (core#INT_GEN_SRC_XL, @tmp, 1)
+    result := ((tmp >> core#FLD_IA_XL) & %1) * TRUE
+
 PUB IntAccel | tmp
 ' Accelerometer interrupt output signal
 '   Returns TRUE if interrupt asserted, FALSE if not
