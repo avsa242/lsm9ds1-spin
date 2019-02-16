@@ -81,6 +81,7 @@ CON
     OUT_Y_H_G           = $1B
     OUT_Z_L_G           = $1C
     OUT_Z_H_G           = $1D
+
     CTRL_REG4           = $1E
     CTRL_REG4_MASK      = $3B
         FLD_ZEN_G       = 5
@@ -95,7 +96,22 @@ CON
         MASK_EN_G       = CTRL_REG4_MASK ^ (BITS_EN_G << FLD_XEN_G)
         MASK_LIR_XL1    = CTRL_REG4_MASK ^ (1 << FLD_LIR_XL1)
         MASK_4D_XL1     = CTRL_REG4_MASK ^ (1 << FLD_4D_XL1)
+
     CTRL_REG5_XL        = $1F
+    CTRL_REG5_XL_MASK   = $F8
+        FLD_DEC_1       = 7
+        FLD_DEC_0       = 6
+        FLD_ZEN_xL      = 5
+        FLD_YEN_XL      = 4
+        FLD_XEN_XL      = 3
+        BITS_EN_XL      = %111
+        MASK_DEC_1      = CTRL_REG5_XL_MASK ^ (1 << FLD_DEC_1)
+        MASK_DEC_0      = CTRL_REG5_XL_MASK ^ (1 << FLD_DEC_0)
+        MASK_ZEN_XL     = CTRL_REG5_XL_MASK ^ (1 << FLD_ZEN_XL)
+        MASK_YEN_XL     = CTRL_REG5_XL_MASK ^ (1 << FLD_YEN_XL)
+        MASK_XEN_XL     = CTRL_REG5_XL_MASK ^ (1 << FLD_XEN_XL)
+        MASK_EN_XL      = CTRL_REG5_XL_MASK ^ (BITS_EN_XL << FLD_XEN_XL)
+
     CTRL_REG6_XL        = $20
     CTRL_REG7_XL        = $21
     CTRL_REG8           = $22

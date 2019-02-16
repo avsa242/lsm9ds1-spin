@@ -119,6 +119,23 @@ PUB Defaults
 
     SetPrecision (3)
 
+PUB AccelOutEnable(x, y, z) | tmp, bits
+' Enable data output for Accelerometer - per axis
+'   Valid values: FALSE/0 or TRUE, 1, for each axis
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG5_XL, @tmp, 1)
+    case bits := (||z << 2) | (||y << 1) | ||x
+        %000..%111:
+            bits <<= core#FLD_XEN_XL
+        OTHER:
+            tmp := (tmp >> core#FLD_XEN_XL) & core#BITS_EN_XL
+            return tmp
+
+    tmp &= core#MASK_EN_XL
+    tmp := (tmp | bits) & core#CTRL_REG5_XL_MASK
+    WriteAGReg8 (core#CTRL_REG5_XL, tmp)
+
+
 PUB AGDataRate(Hz) | tmp
 ' Set output data rate, in Hz, of accelerometer and gyroscope
 '   Valid values: 0 (power down), 14, 59, 119, 238, 476, 952
@@ -200,7 +217,6 @@ PUB GyroOutEnable(x, y, z) | tmp, bits
     tmp &= core#MASK_EN_G
     tmp := (tmp | bits) & core#CTRL_REG4_MASK
     WriteAGReg8 (core#CTRL_REG4, tmp)
-
 
 PUB GyroLowPower(enabled) | tmp
 ' Enable low-power mode
