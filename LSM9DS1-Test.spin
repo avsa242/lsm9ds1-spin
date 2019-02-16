@@ -61,7 +61,16 @@ PUB Main
     FS_XL(1)
     HR(1)
     SLEEP_G(1)
+    FIFO_EN (1)
     flash
+
+PUB FIFO_EN(reps) | tmp, read
+
+    repeat reps
+        repeat tmp from 0 to 1
+            imu.FIFO (tmp)
+            read := imu.FIFO (-2)
+            Message (string("FIFO_EN"), tmp, read)
 
 PUB SLEEP_G(reps) | tmp, read
 

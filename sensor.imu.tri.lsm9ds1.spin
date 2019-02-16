@@ -251,6 +251,22 @@ PUB Endian(endianness) | tmp
     tmp := (tmp | endianness) & core#CTRL_REG8_MASK
     WriteAGReg8 (core#CTRL_REG8, tmp)
 
+PUB FIFO(enabled) | tmp
+' Enable FIFO memory
+'   Valid values: FALSE (0), TRUE(1 or -1)
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG9, @tmp, 1)
+    case ||enabled
+        0, 1:
+            enabled := ||enabled << core#FLD_FIFO_EN
+        OTHER:
+            tmp := (tmp >> core#FLD_FIFO_EN) & core#BITS_FIFO_EN
+            return tmp
+
+    tmp &= core#MASK_FIFO_EN
+    tmp := (tmp | enabled) & core#CTRL_REG9_MASK
+    WriteAGReg8 (core#CTRL_REG9, tmp)
+
 PUB GyroOutEnable(x, y, z) | tmp, bits
 ' Enable data output for Gyroscope - per axis
 '   Valid values: FALSE/0 or TRUE, 1, for each axis
