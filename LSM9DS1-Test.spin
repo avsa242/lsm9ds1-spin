@@ -60,7 +60,16 @@ PUB Main
     XLDA(1)
     FS_XL(1)
     HR(1)
+    SLEEP_G(1)
     flash
+
+PUB SLEEP_G(reps) | tmp, read
+
+    repeat reps
+        repeat tmp from 0 to 1
+            imu.GyroSleep (tmp)
+            read := imu.GyroSleep (-2)
+            Message (string("SLEEP_G"), tmp, read)
 
 PUB HR(reps) | tmp, read
 

@@ -283,6 +283,22 @@ PUB GyroLowPower(enabled) | tmp
     tmp := (tmp | enabled) & core#CTRL_REG3_G_MASK
     WriteAGReg8 (core#CTRL_REG3_G, tmp)
 
+PUB GyroSleep(enabled) | tmp
+' Enable gyroscope sleep mode (last measured values frozen)
+'   Valid values: FALSE or 0: Disable, TRUE or 1: Enable
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#CTRL_REG9, @tmp, 1)
+    case ||enabled
+        0, 1:
+            enabled := ||enabled << core#FLD_SLEEP_G
+        OTHER:
+            tmp := (tmp >> core#FLD_SLEEP_G) & core#BITS_SLEEP_G
+            return tmp
+
+    tmp &= core#MASK_SLEEP_G
+    tmp := (tmp | enabled) & core#CTRL_REG9_MASK
+    WriteAGReg8 (core#CTRL_REG9, tmp)
+
 PUB GyroScale(scale) | tmp
 ' Set full scale of gyroscope output, in degrees per second (dps)
 '   Valid values: 245, 500, 2000
