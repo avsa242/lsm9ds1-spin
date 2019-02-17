@@ -5,7 +5,7 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2019
     Started Aug 12, 2017
-    Updated Feb 10, 2019
+    Updated Feb 16, 2019
     See end of file for terms of use.
     --------------------------------------------
 }

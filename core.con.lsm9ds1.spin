@@ -5,7 +5,7 @@
     Description: LSM9DS1 low-level constants
     Copyright (c) 2019
     Started Feb 9, 2019
-    Updated Feb 10, 2019
+    Updated Feb 16, 2019
     See end of file for terms of use.
     --------------------------------------------
 }
