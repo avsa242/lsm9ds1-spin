@@ -121,7 +121,7 @@ PUB Defaults
 
 PUB AccelHighRes(enabled) | tmp
 ' Enable high resolution mode for accelerometer
-'   Valid values: FALSE/0 or TRUE, 1
+'   Valid values: FALSE (0) or TRUE (1 or -1)
 '   Any other value polls the chip and returns the current setting
     ReadAGReg (core#CTRL_REG7_XL, @tmp, 1)
     case ||enabled
@@ -137,7 +137,7 @@ PUB AccelHighRes(enabled) | tmp
 
 PUB AccelOutEnable(x, y, z) | tmp, bits
 ' Enable data output for Accelerometer - per axis
-'   Valid values: FALSE/0 or TRUE, 1, for each axis
+'   Valid values: FALSE (0) or TRUE (1 or -1), for each axis
 '   Any other value polls the chip and returns the current setting
     ReadAGReg (core#CTRL_REG5_XL, @tmp, 1)
     case bits := (||z << 2) | (||y << 1) | ||x
@@ -221,7 +221,7 @@ PUB AvailTemp | tmp
 
 PUB BlockUpdate(enabled) | tmp 'XXX Make PRI? Doesn't seem like user-facing functionality
 ' Wait until both MSB and LSB of output registers are read before updating
-'   Valid values: 0 (Continuous update), TRUE/1 (Do not update until both MSB and LSB are read)
+'   Valid values: FALSE (0): Continuous update, TRUE (1 or -1): Do not update until both MSB and LSB are read
 '   Any other value polls the chip and returns the current setting
     ReadAGReg (core#CTRL_REG8, @tmp, 1)
     case ||enabled
@@ -267,8 +267,22 @@ PUB FIFO(enabled) | tmp
     tmp := (tmp | enabled) & core#CTRL_REG9_MASK
     WriteAGReg8 (core#CTRL_REG9, tmp)
 
+PUB GyroActivityThr(threshold) | tmp
+' Set gyroscope inactivity threshold (use GyroInactiveSleep to define behavior on inactivity)
+'   Valid values: 0..127 (0 effectively disables the feature)
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#ACT_THS, @tmp, 1)
+    case threshold
+        0..127:
+        OTHER:
+            return tmp & core#BITS_ACT_THS
+
+    tmp &= core#MASK_ACT_THS
+    tmp := (tmp | threshold) & core#ACT_THS_MASK
+    WriteAGReg8 (core#ACT_THS, tmp)
+
 PUB GyroInactiveSleep(enabled) | tmp
-' Enable gyroscope sleep mode when inactive (see XXX ACTIVITY THR)
+' Enable gyroscope sleep mode when inactive (see GyroActivityThr)
 '   Valid values: FALSE (0): Gyroscope powers down, TRUE (1 or -1) Gyroscope enters sleep mode
 '   Any other value polls the chip and returns the current setting
     ReadAGReg (core#ACT_THS, @tmp, 1)
@@ -285,7 +299,7 @@ PUB GyroInactiveSleep(enabled) | tmp
 
 PUB GyroOutEnable(x, y, z) | tmp, bits
 ' Enable data output for Gyroscope - per axis
-'   Valid values: FALSE/0 or TRUE, 1, for each axis
+'   Valid values: FALSE (0) or TRUE (1 or -1), for each axis
 '   Any other value polls the chip and returns the current setting
     ReadAGReg (core#CTRL_REG4, @tmp, 1)
     case bits := (||z << 2) | (||y << 1) | ||x
@@ -301,7 +315,7 @@ PUB GyroOutEnable(x, y, z) | tmp, bits
 
 PUB GyroLowPower(enabled) | tmp
 ' Enable low-power mode
-'   Valid values: FALSE or 0: Disable, TRUE or 1: Enable
+'   Valid values: FALSE (0), TRUE (1 or -1)
 '   Any other value polls the chip and returns the current setting
     ReadAGReg (core#CTRL_REG3_G, @tmp, 1)
     case ||enabled
@@ -317,7 +331,7 @@ PUB GyroLowPower(enabled) | tmp
 
 PUB GyroSleep(enabled) | tmp
 ' Enable gyroscope sleep mode (last measured values frozen)
-'   Valid values: FALSE or 0: Disable, TRUE or 1: Enable
+'   Valid values: FALSE (0), TRUE (1 or -1)
 '   Any other value polls the chip and returns the current setting
     ReadAGReg (core#CTRL_REG9, @tmp, 1)
     case ||enabled

@@ -25,6 +25,7 @@ CON
         FLD_ACT_THS         = 0
         BITS_ACT_THS        = %1111111
         MASK_SLEEP_ON_INACT = ACT_THS_MASK ^ (1 << FLD_SLEEP_ON_INACT)
+        MASK_ACT_THS        = ACT_THS_MASK ^ (BITS_ACT_THS << FLD_ACT_THS)
 
     ACT_DUR                 = $05
     INT_GEN_CFG_XL          = $06
