@@ -20,6 +20,12 @@ CON
 
 ' LSM9DS1 Register map
     ACT_THS                 = $04
+    ACT_THS_MASK            = $FF
+        FLD_SLEEP_ON_INACT  = 7
+        FLD_ACT_THS         = 0
+        BITS_ACT_THS        = %1111111
+        MASK_SLEEP_ON_INACT = ACT_THS_MASK ^ (1 << FLD_SLEEP_ON_INACT)
+
     ACT_DUR                 = $05
     INT_GEN_CFG_XL          = $06
     INT_GEN_THS_X_XL        = $07

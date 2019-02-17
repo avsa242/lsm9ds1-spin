@@ -267,6 +267,22 @@ PUB FIFO(enabled) | tmp
     tmp := (tmp | enabled) & core#CTRL_REG9_MASK
     WriteAGReg8 (core#CTRL_REG9, tmp)
 
+PUB GyroInactiveSleep(enabled) | tmp
+' Enable gyroscope sleep mode when inactive (see XXX ACTIVITY THR)
+'   Valid values: FALSE (0): Gyroscope powers down, TRUE (1 or -1) Gyroscope enters sleep mode
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#ACT_THS, @tmp, 1)
+    case ||enabled
+        0, 1:
+            enabled := ||enabled << core#FLD_SLEEP_ON_INACT
+        OTHER:
+            tmp := (tmp >> core#FLD_SLEEP_ON_INACT) & 1
+            return tmp
+
+    tmp &= core#MASK_SLEEP_ON_INACT
+    tmp := (tmp | enabled) & core#ACT_THS_MASK
+    WriteAGReg8 (core#ACT_THS, tmp)
+
 PUB GyroOutEnable(x, y, z) | tmp, bits
 ' Enable data output for Gyroscope - per axis
 '   Valid values: FALSE/0 or TRUE, 1, for each axis
@@ -542,19 +558,11 @@ PUB getAccelCalibration(axBias, ayBias, azBias) 'UNTESTED
     long[ayBias] := _aBiasRaw[Y_AXIS]
     long[azBias] := _aBiasRaw[Z_AXIS]
 
-PUB getAccelScale
-
-    return _settings_accel_scale
-
 PUB getGyroCalibration(gxBias, gyBias, gzBias) 'UNTESTED
 
     long[gxBias] := _gBiasRaw[X_AXIS]
     long[gyBias] := _gBiasRaw[Y_AXIS]
     long[gzBias] := _gBiasRaw[Z_AXIS]
-
-PUB getGyroScale
-
-    return _settings_gyro_scale
 
 PUB getMagCalibration(mxBias, myBias, mzBias) 'UNTESTED
 

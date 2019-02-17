@@ -62,7 +62,16 @@ PUB Main
     HR(1)
     SLEEP_G(1)
     FIFO_EN (1)
+    SLEEP_ON_INACT_EN (1)
     flash
+
+PUB SLEEP_ON_INACT_EN(reps) | tmp, read
+
+    repeat reps
+        repeat tmp from 0 to 1
+            imu.GyroInactiveSleep (tmp)
+            read := imu.GyroInactiveSleep (-2)
+            Message (string("SLEEP_ON_INACT_EN"), tmp, read)
 
 PUB FIFO_EN(reps) | tmp, read
 
