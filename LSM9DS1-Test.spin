@@ -38,12 +38,14 @@ OBJ
 
 VAR
 
-    byte  _ser_cog, _imu_cog
-    byte  _max_cols
+    byte _ser_cog, _imu_cog
+    byte _max_cols
+    byte _test_row
 
 PUB Main
 
     Setup
+    ser.Clear
 
     BLE(1)
     BDU(1)
@@ -64,10 +66,22 @@ PUB Main
     FIFO_EN (1)
     SLEEP_ON_INACT_EN (1)
     ACT_THS (1)
+    ACT_DUR (1)
     flash
+
+
+PUB ACT_DUR(reps) | tmp, read
+
+    _test_row := 20
+    repeat reps
+        repeat tmp from 0 to 255
+            imu.GyroActivityDur (tmp)
+            read := imu.GyroActivityDur (-2)
+            Message (string("ACT_DUR"), tmp, read)
 
 PUB ACT_THS(reps) | tmp, read
 
+    _test_row := 19
     repeat reps
         repeat tmp from 0 to 127
             imu.GyroActivityThr (tmp)
@@ -76,6 +90,7 @@ PUB ACT_THS(reps) | tmp, read
 
 PUB SLEEP_ON_INACT_EN(reps) | tmp, read
 
+    _test_row := 18
     repeat reps
         repeat tmp from 0 to 1
             imu.GyroInactiveSleep (tmp)
@@ -84,6 +99,7 @@ PUB SLEEP_ON_INACT_EN(reps) | tmp, read
 
 PUB FIFO_EN(reps) | tmp, read
 
+    _test_row := 17
     repeat reps
         repeat tmp from 0 to 1
             imu.FIFO (tmp)
@@ -92,6 +108,7 @@ PUB FIFO_EN(reps) | tmp, read
 
 PUB SLEEP_G(reps) | tmp, read
 
+    _test_row := 16
     repeat reps
         repeat tmp from 0 to 1
             imu.GyroSleep (tmp)
@@ -100,6 +117,7 @@ PUB SLEEP_G(reps) | tmp, read
 
 PUB HR(reps) | tmp, read
 
+    _test_row := 15
     repeat reps
         repeat tmp from 0 to 1
             imu.AccelHighRes (tmp)
@@ -108,6 +126,7 @@ PUB HR(reps) | tmp, read
 
 PUB FS_XL(reps) | tmp, read
 
+    _test_row := 14
     repeat reps
         repeat tmp from 1 to 4
             imu.AccelScale (lookup(tmp: 2, 16, 4, 8))
@@ -116,48 +135,56 @@ PUB FS_XL(reps) | tmp, read
 
 PUB XLDA(reps) | read
 ' XXX No verification
+    _test_row := 13
     repeat reps
         read := imu.AvailAccel
         Message (string("XLDA"), read, read)
 
 PUB GDA(reps) | read
 ' XXX No verification
+    _test_row := 12
     repeat reps
         read := imu.AvailGyro
         Message (string("GDA"), read, read)
 
 PUB TDA(reps) | read
 ' XXX No verification
+    _test_row := 11
     repeat reps
         read := imu.AvailTemp
         Message (string("TDA"), read, read)
 
 PUB IG_INACT (reps) | read
 ' XXX No verification
+    _test_row := 10
     repeat reps
         read := imu.IntInactivity
         Message (string("IG_INACT"), read, read)
 
 PUB IG_G (reps) | read
 ' XXX No verification
+    _test_row := 9
     repeat reps
         read := imu.IntGyro
         Message (string("IG_G"), read, read)
 
 PUB IG_XL (reps) | read
 ' XXX No verification
+    _test_row := 8
     repeat reps
         read := imu.IntAccel
         Message (string("IG_XL"), read, read)
 
 PUB OUT_TEMP(reps) | read
 ' XXX No verification
+    _test_row := 7
     repeat reps
         read := imu.Temperature
         Message (string("OUT_TEMP"), read, read)
 
 PUB LP_MODE(reps) | tmp, read
 
+    _test_row := 6
     repeat reps
         repeat tmp from 0 to 1
             imu.GyroLowPower (tmp)
@@ -166,6 +193,7 @@ PUB LP_MODE(reps) | tmp, read
 
 PUB FS(reps) | tmp, read
 
+    _test_row := 5
     repeat reps
         repeat tmp from 1 to 4
             if tmp == 3
@@ -176,6 +204,7 @@ PUB FS(reps) | tmp, read
 
 PUB ODR(reps) | tmp, read
 
+    _test_row := 4
     repeat reps
         repeat tmp from 1 to 7
             imu.AGDataRate (lookup(tmp: 0, 14{.9}, 59{.5}, 119, 238, 476, 952))
@@ -184,6 +213,7 @@ PUB ODR(reps) | tmp, read
 
 PUB H_LACTIVE(reps) | tmp, read
 
+    _test_row := 3
     repeat reps
         repeat tmp from 0 to 1
             imu.IntLevel (tmp)
@@ -192,6 +222,7 @@ PUB H_LACTIVE(reps) | tmp, read
 
 PUB BDU(reps) | tmp, read
 
+    _test_row := 2
     repeat reps
         repeat tmp from 0 to 1
             imu.BlockUpdate (tmp)
@@ -200,6 +231,7 @@ PUB BDU(reps) | tmp, read
 
 PUB BLE(reps) | tmp, read
 
+    _test_row := 1
     repeat reps
         repeat tmp from 0 to 1
             imu.Endian (tmp)
@@ -208,6 +240,7 @@ PUB BLE(reps) | tmp, read
 
 PUB SW_RESET(reps) | tmp    'XXX
 
+    _test_row := 0
     tmp := imu.SWReset
     ser.Str (string(ser#NL, "SW Reset sent to IMU", ser#NL))
     ser.Hex (tmp, 2)
@@ -240,6 +273,7 @@ PUB TrueFalse(num)
 
 PUB Message(field, arg1, arg2)
 
+    ser.PositionY (_test_row)
     ser.PositionX ( COL_REG)
     ser.Str (field)
 

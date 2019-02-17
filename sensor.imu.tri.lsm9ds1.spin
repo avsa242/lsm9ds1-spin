@@ -267,6 +267,18 @@ PUB FIFO(enabled) | tmp
     tmp := (tmp | enabled) & core#CTRL_REG9_MASK
     WriteAGReg8 (core#CTRL_REG9, tmp)
 
+PUB GyroActivityDur(duration) | tmp
+' Set gyroscope inactivity timer (use GyroInactiveSleep to define behavior on inactivity)
+'   Valid values: 0..255 (0 effectively disables the feature)
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#ACT_DUR, @tmp, 1)
+    case duration
+        0..255:
+        OTHER:
+            return tmp
+
+    WriteAGReg8 (core#ACT_DUR, duration)
+
 PUB GyroActivityThr(threshold) | tmp
 ' Set gyroscope inactivity threshold (use GyroInactiveSleep to define behavior on inactivity)
 '   Valid values: 0..127 (0 effectively disables the feature)
