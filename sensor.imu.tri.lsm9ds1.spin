@@ -5,7 +5,7 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2019
     Started Aug 12, 2017
-    Updated Feb 16, 2019
+    Updated Feb 17, 2019
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -430,47 +430,42 @@ PUB IntLevel(active_state) | tmp
     tmp := (tmp | active_state) & core#CTRL_REG8_MASK
     WriteAGReg8 (core#CTRL_REG8, tmp)
 
-PUB ReadAccel(ax, ay, az) | temp[2], tempX, tempY, tempZ
+PUB ReadAccel(ax, ay, az) | temp[2]
 'Reads the Accelerometer output registers
 ' We'll read six bytes from the accelerometer into temp
     ReadAGReg (core#OUT_X_L_XL, @temp, 6)'reg, ptr, count)
-    tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into ax
-    tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into ay
-    tempZ := (temp.byte[5] << 8) | temp.byte[4] ' Store z-axis values into az
-    long[ax] := ~~tempX
-    long[ay] := ~~tempY
-    long[az] := ~~tempZ
+
+    long[ax] := ~~temp.word[0]
+    long[ay] := ~~temp.word[1]
+    long[az] := ~~temp.word[2]
+
     if (_autoCalc)
         long[ax] -= _aBiasRaw[X_AXIS]
         long[ay] -= _aBiasRaw[Y_AXIS]
         long[az] -= _aBiasRaw[Z_AXIS]
 
-PUB ReadGyro(gx, gy, gz) | temp[2], tempX, tempY, tempZ
+PUB ReadGyro(gx, gy, gz) | temp[2]
 ' Reads the Gyroscope output registers.
 ' We'll read six bytes from the gyro into temp
     ReadAGReg (core#OUT_X_L_G, @temp, 6)
-    tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into gx
-    tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into gy
-    tempZ := (temp.byte[5] << 8) | temp.byte[4] ' Store z-axis values into gz
-    long[gx] := ~~tempX
-    long[gy] := ~~tempY
-    long[gz] := ~~tempZ
+
+    long[gx] := ~~temp.word[0]
+    long[gy] := ~~temp.word[1]
+    long[gz] := ~~temp.word[2]
+
     if (_autoCalc)
         long[gx] -= _gBiasRaw[X_AXIS]
         long[gy] -= _gBiasRaw[Y_AXIS]
         long[gz] -= _gBiasRaw[Z_AXIS]
 
-PUB ReadMag(mx, my, mz) | temp[2], tempX, tempY, tempZ
+PUB ReadMag(mx, my, mz) | temp[2]
 ' Reads the Magnetometer output registers.
 ' We'll read six bytes from the mag into temp
     ReadMReg (core#OUT_X_L_M, @temp, 6)
-    tempX := (temp.byte[1] << 8) | temp.byte[0] ' Store x-axis values into mx
-    tempY := (temp.byte[3] << 8) | temp.byte[2] ' Store y-axis values into my
-    tempZ := (temp.byte[5] << 8) | temp.byte[4] ' Store z-axis values into mz
 
-    long[mx] := ~~tempX
-    long[my] := ~~tempY
-    long[mz] := ~~tempZ
+    long[mx] := ~~temp.word[0]
+    long[my] := ~~temp.word[1]
+    long[mz] := ~~temp.word[2]
 
 PUB SWReset | tmp'XXX
 
