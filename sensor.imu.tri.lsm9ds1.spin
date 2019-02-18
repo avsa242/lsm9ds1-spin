@@ -5,28 +5,35 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2019
     Started Aug 12, 2017
-    Updated Feb 17, 2019
+    Updated Feb 18, 2019
     See end of file for terms of use.
     --------------------------------------------
 }
+
 CON
 
-    X_AXIS      = 0
-    Y_AXIS      = 1
-    Z_AXIS      = 2
-    ALL_AXIS    = 3
+    X_AXIS          = 0
+    Y_AXIS          = 1
+    Z_AXIS          = 2
+    ALL_AXIS        = 3
 
-    CELSIUS     = 0
-    FAHRENHEIT  = 1
-    KELVIN      = 2
+    CELSIUS         = 0
+    FAHRENHEIT      = 1
+    KELVIN          = 2
 
-    WHO_AM_I    = core#WHOAMI
+    WHO_AM_I        = core#WHOAMI
 
-    LITTLE      = 0
-    BIG         = 1
+    LITTLE          = 0
+    BIG             = 1
 
-    HIGH        = 0
-    LOW         = 1
+    HIGH            = 0
+    LOW             = 1
+
+    FIFO_OFF        = core#FIFO_OFF
+    FIFO_THS        = core#FIFO_THS
+    FIFO_CONT_TRIG  = core#FIFO_CONT_TRIG
+    FIFO_OFF_TRIG   = core#FIFO_OFF_TRIG
+    FIFO_CONT       = core#FIFO_CONT
 
 OBJ
 
@@ -235,6 +242,36 @@ PUB BlockUpdate(enabled) | tmp 'XXX Make PRI? Doesn't seem like user-facing func
     tmp := (tmp | enabled) & core#CTRL_REG8_MASK
     WriteAGReg8 (core#CTRL_REG8, tmp)
 
+PUB CalibrateAG | axis, ax, ay, az, gx, gy, gz, aBiasRawTemp[3], gBiasRawTemp[3], samples
+' Calibrates the Accelerometer and Gyroscope
+    samples := 32
+' Turn on FIFO and set threshold to 32 samples
+    FIFO(TRUE)
+    FIFOMode(FIFO_THS)
+    FIFOThreshold (31)
+    repeat until FIFOFull
+    repeat axis from 0 to samples-1
+' Read the gyro data stored in the FIFO
+        ReadGyro(@gx, @gy, @gz)
+        gBiasRawTemp[0] += gx
+        gBiasRawTemp[1] += gy
+        gBiasRawTemp[2] += gz
+
+        ReadAccel(@ax, @ay, @az)
+        aBiasRawTemp[0] += ax
+        aBiasRawTemp[1] += ay
+        aBiasRawTemp[2] += az - _aRes ' Assumes sensor facing up!
+
+    repeat axis from 0 to 2
+        _gBiasRaw[axis] := gBiasRawTemp[axis] / samples
+        _gBias[axis] := (_gBiasRaw[axis]) / _gRes
+        _aBiasRaw[axis] := aBiasRawTemp[axis] / samples
+        _aBias[axis] := _aBiasRaw[axis] / _aRes
+    _autoCalc := 1
+    FIFO(FALSE)
+    FIFOMode (FIFO_OFF)
+'    WriteAGReg8 (core#FIFO_CTRL, ((core#FIFO_OFF & $7) << 5))
+
 PUB Endian(endianness) | tmp
 ' Choose byte order of data
 '   Valid values: LITTLE (0) or BIG (1)
@@ -266,6 +303,51 @@ PUB FIFO(enabled) | tmp
     tmp &= core#MASK_FIFO_EN
     tmp := (tmp | enabled) & core#CTRL_REG9_MASK
     WriteAGReg8 (core#CTRL_REG9, tmp)
+
+PUB FIFOFull | tmp
+' FIFO Threshold status
+'   Returns: FALSE (0): lower than threshold level, TRUE(-1): at or higher than threshold level
+    ReadAGReg (core#FIFO_SRC, @result, 1)
+    result := ((result >> core#FLD_FTH_STAT) & %1) * TRUE
+
+PUB FIFOMode(mode) | tmp
+' Set FIFO behavior
+'   Valid values:
+'       FIFO_OFF        (%000) - Bypass mode - FIFO off
+'       FIFO_THS        (%001) - Stop collecting data when FIFO full
+'       FIFO_CONT_TRIG  (%011) - Continuous mode until trigger is deasserted, then FIFO mode
+'       FIFO_OFF_TRIG   (%100) - FIFO off until trigger is deasserted, then continuous mode
+'       FIFO_CONT       (%110) - Continuous mode. If FIFO full, new sample overwrites older sample
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#FIFO_CTRL, @tmp, 1)
+    case mode
+        FIFO_OFF, FIFO_THS, FIFO_CONT_TRIG, FIFO_OFF_TRIG, FIFO_CONT:
+            mode <<= core#FLD_FMODE
+        OTHER:
+            return (tmp >> core#FLD_FMODE) & core#BITS_FMODE
+    tmp &= core#MASK_FMODE
+    tmp := (tmp | mode) & core#FIFO_CTRL_MASK
+    WriteAGReg8 (core#FIFO_CTRL, tmp)
+
+PUB FIFOThreshold(level) | tmp
+' Set FIFO threshold level
+'   Valid values: 0..31
+'   Any other value polls the chip and returns the current setting
+    ReadAGReg (core#FIFO_CTRL, @tmp, 1)
+    case level
+        0..31:
+        OTHER:
+            return tmp & core#BITS_FTH
+
+    tmp &= core#MASK_FTH
+    tmp := (tmp | level) & core#FIFO_CTRL_MASK
+    WriteAGReg8 (core#FIFO_CTRL, tmp)
+
+PUB FIFOUnread
+' Number of unread samples stored in FIFO
+'   Returns: 0 (empty) .. 32
+    ReadAGReg (core#FIFO_SRC, @result, 1)
+    result &= core#BITS_FSS
 
 PUB GyroActivityDur(duration) | tmp
 ' Set gyroscope inactivity timer (use GyroInactiveSleep to define behavior on inactivity)
@@ -484,39 +566,6 @@ PUB Temperature
         result := result - 65536
 
 '--- OLD CODE BELOW ---
-
-PUB calibrateAG | data[2], samples, ii, ax, ay, az, gx, gy, gz, aBiasRawTemp[3], gBiasRawTemp[3], tempF, tempS
-' Calibrates the Accelerometer and Gyroscope on the LSM9DS1 IMU module.
-    samples := 32
-' Turn on FIFO and set threshold to 32 samples
-    ReadAGReg (core#CTRL_REG9, @tempF, 1)
-    tempF |= (1 << 1)
-    WriteAGReg8 (core#CTRL_REG9, tempF)
-    WriteAGReg8 (core#FIFO_CTRL, (((core#FIFO_THS & $7) << 5) | $1F))
-    repeat while samples < $1F
-        ReadAGReg (core#FIFO_SRC, @tempS, 1)
-        samples := tempS.byte[0] & $3F
-    repeat ii from 0 to samples-1
-' Read the gyro data stored in the FIFO
-        readGyro(@gx, @gy, @gz)
-        gBiasRawTemp[0] += gx
-        gBiasRawTemp[1] += gy
-        gBiasRawTemp[2] += gz
-        readAccel(@ax, @ay, @az)
-        aBiasRawTemp[0] += ax
-        aBiasRawTemp[1] += ay
-        aBiasRawTemp[2] += az - _aRes ' Assumes sensor facing up!
-    repeat ii from 0 to 2
-        _gBiasRaw[ii] := gBiasRawTemp[ii] / samples
-        _gBias[ii] := (_gBiasRaw[ii]) / _gRes
-        _aBiasRaw[ii] := aBiasRawTemp[ii] / samples
-        _aBias[ii] := _aBiasRaw[ii] / _aRes
-    _autoCalc := 1
-    'Disable FIFO
-    ReadAGReg (core#CTRL_REG9, @tempF, 1)
-    tempF &= !(1 << 1)
-    WriteAGReg8 (core#CTRL_REG9, tempF)
-    WriteAGReg8 (core#FIFO_CTRL, ((core#FIFO_OFF & $7) << 5))
 
 PUB calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], msb, lsb
 ' Calibrates the Magnetometer on the LSM9DS1 IMU module.

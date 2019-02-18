@@ -4,8 +4,8 @@
     Author: Jesse Burt
     Description: Test harness for LSM9DS1 driver
     Copyright (c) 2019
-    Started Aug 12, 2017
-    Updated Feb 17, 2019
+    Started Feb 9, 2019
+    Updated Feb 18, 2019
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -23,9 +23,9 @@ CON
     INT_M_PIN   = 10
 
     COL_REG     = 0
-    COL_SET     = 12
-    COL_READ    = 24
-    COL_PF      = 40
+    COL_SET     = COL_REG+20
+    COL_READ    = COL_REG+32
+    COL_PF      = COl_REG+48
     DEBUG_LED   = cfg#LED1
 
 OBJ
@@ -67,8 +67,21 @@ PUB Main
     SLEEP_ON_INACT_EN (1)
     ACT_THS (1)
     ACT_DUR (1)
+    FMODE(1)
     flash
 
+PUB FMODE(reps) | tmp, read
+
+    _test_row := 21
+    repeat reps
+        repeat tmp from 0 to 6
+            case tmp
+                2, 5:
+                    next
+                OTHER:
+            imu.FIFOMode (tmp)
+            read := imu.FIFOMode (-2)
+            Message (string("FMODE"), tmp, read)
 
 PUB ACT_DUR(reps) | tmp, read
 
@@ -274,20 +287,21 @@ PUB TrueFalse(num)
 PUB Message(field, arg1, arg2)
 
     ser.PositionY (_test_row)
-    ser.PositionX ( COL_REG)
+    ser.PositionX (COL_REG)
     ser.Str (field)
 
-    ser.PositionX ( COL_SET)
+    ser.PositionX (COL_SET)
     ser.Str (string("SET: "))
-    ser.Dec (arg1)
+    ser.Hex (arg1, 4)
 
-    ser.PositionX ( COL_READ)
+    ser.PositionX (COL_READ)
     ser.Str (string("   READ: "))
-    ser.Dec (arg2)
+    ser.Hex (arg2, 4)
 
     ser.PositionX (COL_PF)
     PassFail (arg1 == arg2)
-    ser.NewLine
+'    ser.Chars (32, (COL_READ+9)-COL_SET)
+'    ser.NewLine
 
 PUB PassFail(num)
 

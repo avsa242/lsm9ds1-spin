@@ -5,7 +5,7 @@
     Description: LSM9DS1 low-level constants
     Copyright (c) 2019
     Started Feb 9, 2019
-    Updated Feb 17, 2019
+    Updated Feb 18, 2019
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -204,8 +204,21 @@ CON
     OUT_Y_H_XL              = $2B
     OUT_Z_L_XL              = $2C
     OUT_Z_H_XL              = $2D
+
     FIFO_CTRL               = $2E
+    FIFO_CTRL_MASK          = $FF
+        FLD_FMODE           = 5
+        FLD_FTH             = 0
+        BITS_FMODE          = %111
+        BITS_FTH            = %11111
+        MASK_FMODE          = FIFO_CTRL_MASK ^ (BITS_FMODE << FLD_FMODE)
+        MASK_FTH            = FIFO_CTRL_MASK ^ (BITS_FTH << FLD_FTH)
+
     FIFO_SRC                = $2F
+        FLD_FTH_STAT        = 7
+        FLD_FSS             = 0
+        BITS_FSS            = %111111
+
     INT_GEN_CFG_G           = $30
     INT_GEN_THS_XH_G        = $31
     INT_GEN_THS_XL_G        = $32
@@ -242,9 +255,9 @@ CON
 
     FIFO_OFF                = 0
     FIFO_THS                = 1
-    FIFO_CONT_TRIGGER       = 3
-    FIFO_OFF_TRIGGER        = 4
-    FIFO_CONT               = 5
+    FIFO_CONT_TRIG          = 3
+    FIFO_OFF_TRIG           = 4
+    FIFO_CONT               = 6
 
 PUB Null
 '' This is not a top-level object
