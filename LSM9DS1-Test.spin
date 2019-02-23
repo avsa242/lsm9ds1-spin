@@ -68,7 +68,17 @@ PUB Main
     ACT_THS (1)
     ACT_DUR (1)
     FMODE(1)
+    FTH(1)
     flash
+
+PUB FTH(reps) | tmp, read
+
+    _test_row := 22
+    repeat reps
+        repeat tmp from 0 to 31
+            imu.FIFOThreshold (tmp)
+            read := imu.FIFOThreshold (-2)
+            Message (string("FTH"), tmp, read)
 
 PUB FMODE(reps) | tmp, read
 

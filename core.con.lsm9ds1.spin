@@ -82,12 +82,12 @@ CON
         FLD_GDA             = 1
         FLD_XLDA            = 0
 
-    OUT_X_L_G               = $18
-    OUT_X_H_G               = $19
-    OUT_Y_L_G               = $1A
-    OUT_Y_H_G               = $1B
-    OUT_Z_L_G               = $1C
-    OUT_Z_H_G               = $1D
+    OUT_X_G_L               = $18
+    OUT_X_G_H               = $19
+    OUT_Y_G_L               = $1A
+    OUT_Y_G_H               = $1B
+    OUT_Z_G_L               = $1C
+    OUT_Z_G_H               = $1D
 
     CTRL_REG4               = $1E
     CTRL_REG4_MASK          = $3B

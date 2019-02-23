@@ -45,17 +45,15 @@ VAR
 
     long _autoCalc
 
-    long _settings_gyro_scale, _gRes, _gBias[3], _gBiasRaw[3]
-    long _gx, _gy, _gz ' x, y, and z axis readings of the gyroscope
+    long _gRes, _gBias[3], _gBiasRaw[3]
     long _gyro_pre
 
-    long _settings_accel_scale, _aRes, _aBias[3], _aBiasRaw[3]
-    long _ax, _ay, _az ' x, y, and z axis readings of the accelerometer
+    long _aRes, _aBias[3], _aBiasRaw[3]
     long _accel_pre
 
-    long _settings_mag_scale, _mRes, _mBias[3], _mBiasRaw[3]
-    long _mx, _my, _mz ' x, y, and z axis readings of the magnetometer
+    long _mRes, _mBias[3], _mBiasRaw[3]
     long _mag_pre
+    long _settings_mag_scale
 
     long _scl_pin, _sdio_pin, _cs_ag_pin, _cs_m_pin, _int_ag_pin, _int_m_pin
 
@@ -163,9 +161,10 @@ PUB AccelScale(scale) | tmp
 '   Valid values: 2, 4, 8, 16
 '   Any other value polls the chip and returns the current setting
     ReadAGReg (core#CTRL_REG6_XL, @tmp, 1)
-    case scale := lookdown(scale: 2, 16, 4, 8)
-        1..4:
-            scale := (scale - 1) << core#FLD_FS_XL
+    case scale
+        2, 4, 8, 16:
+            _aRes := 32768/scale
+            scale := (lookdown(scale: 2, 16, 4, 8) - 1) << core#FLD_FS_XL
         OTHER:
             tmp := ((tmp >> core#FLD_FS_XL) & core#BITS_FS_XL) + 1
             return lookup(tmp: 2, 16, 4, 8)
@@ -173,25 +172,7 @@ PUB AccelScale(scale) | tmp
     tmp &= core#MASK_FS_XL
     tmp := (tmp | scale) & core#CTRL_REG6_XL_MASK
     WriteAGReg8 (core#CTRL_REG6_XL, tmp)
-{
-    if (aScl <> 2) and (aScl <> 4) and (aScl <> 8) and (aScl <> 16)
-        aScl := 2
-    _aRes := 32768/aScl
-    _settings_accel_scale := aScl
-    ' We need to preserve the other bytes in CTRL_REG6_XL. So, first read it:
-    ReadAGReg (core#CTRL_REG6_XL, @tempRegValue, 1)
-    ' Mask out accel scale bits:
-    tempRegValue &= $E7
-    case(aScl)
-        4:
-            tempRegValue |= ($2 << 3)
-        8:
-            tempRegValue |= ($3 << 3)
-        16:
-            tempRegValue |= ($1 << 3)
-        OTHER :
-    WriteAGReg8 (core#CTRL_REG6_XL, tempRegValue)
-}
+
 PUB AGDataRate(Hz) | tmp
 ' Set output data rate, in Hz, of accelerometer and gyroscope
 '   Valid values: 0 (power down), 14, 59, 119, 238, 476, 952
@@ -242,35 +223,40 @@ PUB BlockUpdate(enabled) | tmp 'XXX Make PRI? Doesn't seem like user-facing func
     tmp := (tmp | enabled) & core#CTRL_REG8_MASK
     WriteAGReg8 (core#CTRL_REG8, tmp)
 
-PUB CalibrateAG | axis, ax, ay, az, gx, gy, gz, aBiasRawTemp[3], gBiasRawTemp[3], samples
+PUB CalibrateAG | aBiasRawTemp[3], gBiasRawTemp[3], axis, ax, ay, az, gx, gy, gz, samples
 ' Calibrates the Accelerometer and Gyroscope
-    samples := 32
 ' Turn on FIFO and set threshold to 32 samples
     FIFO(TRUE)
     FIFOMode(FIFO_THS)
     FIFOThreshold (31)
+    samples := FIFOThreshold (-2)
     repeat until FIFOFull
-    repeat axis from 0 to samples-1
-' Read the gyro data stored in the FIFO
+    _autoCalc := FALSE
+    repeat axis from 0 to 2
+        gBiasRawTemp[axis] := 0
+        aBiasRawTemp[axis] := 0
+
+    repeat samples
+' Read the gyro and accel data stored in the FIFO
         ReadGyro(@gx, @gy, @gz)
-        gBiasRawTemp[0] += gx
-        gBiasRawTemp[1] += gy
-        gBiasRawTemp[2] += gz
+        gBiasRawTemp[X_AXIS] += gx
+        gBiasRawTemp[Y_AXIS] += gy
+        gBiasRawTemp[Z_AXIS] += gz
 
         ReadAccel(@ax, @ay, @az)
-        aBiasRawTemp[0] += ax
-        aBiasRawTemp[1] += ay
-        aBiasRawTemp[2] += az - _aRes ' Assumes sensor facing up!
+        aBiasRawTemp[X_AXIS] += ax
+        aBiasRawTemp[Y_AXIS] += ay
+        aBiasRawTemp[Z_AXIS] += az - _aRes ' Assumes sensor facing up!
 
     repeat axis from 0 to 2
         _gBiasRaw[axis] := gBiasRawTemp[axis] / samples
         _gBias[axis] := (_gBiasRaw[axis]) / _gRes
         _aBiasRaw[axis] := aBiasRawTemp[axis] / samples
         _aBias[axis] := _aBiasRaw[axis] / _aRes
-    _autoCalc := 1
+
+    _autoCalc := TRUE
     FIFO(FALSE)
     FIFOMode (FIFO_OFF)
-'    WriteAGReg8 (core#FIFO_CTRL, ((core#FIFO_OFF & $7) << 5))
 
 PUB Endian(endianness) | tmp
 ' Choose byte order of data
@@ -444,9 +430,10 @@ PUB GyroScale(scale) | tmp
 '   Valid values: 245, 500, 2000
 '   Any other value polls the chip and returns the current setting
     ReadAGReg (core#CTRL_REG1_G, @tmp, 1)
-    case scale := lookdown(scale: 245, 500, 0, 2000)
-        1, 2, 4:
-            scale := (scale - 1) << core#FLD_FS
+    case scale
+        245, 500, 2000:
+            _gRes := 32768/scale
+            scale := (lookdown(scale: 245, 500, 0, 2000) - 1) << core#FLD_FS
         OTHER:
             tmp := ((tmp >> core#FLD_FS) & core#BITS_FS) + 1
             return lookup(tmp: 245, 500, 0, 2000)
@@ -454,24 +441,7 @@ PUB GyroScale(scale) | tmp
     tmp &= core#MASK_FS
     tmp := (tmp | scale) & core#CTRL_REG1_G_MASK
     WriteAGReg8 (core#CTRL_REG1_G, tmp)
-{' Sets the full-scale range of the Gyroscope.
-    if ((gScl <> 245) and (gScl <> 500) and (gScl <> 2000))
-        gScl := 245
-    _settings_gyro_scale := gScl
-    _gRes := 32768/gScl
-' Read current value of CTRL_REG1_G:, ctrl1RegValue
 
-    ReadAGReg (core#CTRL_REG1_G, @ctrl1RegValue, 1)
-' Mask out scale bits (3 & 4):
-    ctrl1RegValue &= $E7
-    case(gScl)
-        500 :
-            ctrl1RegValue |= ($1 << 3)
-        2000 :
-            ctrl1RegValue |= ($3 << 3)
-        OTHER :
-    WriteAGReg8 (core#CTRL_REG1_G, ctrl1RegValue)
-}
 PUB Interrupt | tmp
 ' Interrupt active
 '   Returns TRUE if one or more interrupts asserted, FALSE if not
@@ -515,7 +485,7 @@ PUB IntLevel(active_state) | tmp
 PUB ReadAccel(ax, ay, az) | temp[2]
 'Reads the Accelerometer output registers
 ' We'll read six bytes from the accelerometer into temp
-    ReadAGReg (core#OUT_X_L_XL, @temp, 6)'reg, ptr, count)
+    ReadAGReg (core#OUT_X_L_XL, @temp, 6)
 
     long[ax] := ~~temp.word[0]
     long[ay] := ~~temp.word[1]
@@ -529,7 +499,7 @@ PUB ReadAccel(ax, ay, az) | temp[2]
 PUB ReadGyro(gx, gy, gz) | temp[2]
 ' Reads the Gyroscope output registers.
 ' We'll read six bytes from the gyro into temp
-    ReadAGReg (core#OUT_X_L_G, @temp, 6)
+    ReadAGReg (core#OUT_X_G_L, @temp, 6)
 
     long[gx] := ~~temp.word[0]
     long[gy] := ~~temp.word[1]

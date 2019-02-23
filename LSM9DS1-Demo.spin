@@ -39,15 +39,12 @@ OBJ
 VAR
 
     byte _ser_cog, _imu_cog
-    byte _max_cols
-    byte _test_row
 
 PUB Main
 
     Setup
     ser.Clear
 
-    imu.CalibrateAG
     repeat
         ser.Position (0, 0)
         AccelRaw
@@ -58,19 +55,18 @@ PUB Main
 PUB AccelRaw | ax, ay, az
 
     imu.ReadAccel (@ax, @ay, @az)
-    ax := (ax * 1000) / 16384
-    ay := (ay * 1000) / 16384
-    az := (az * 1000) / 16384
-    ser.Str (int.DecPadded (ax, 7))
-    ser.Str (int.DecPadded (ay, 7))
-    ser.Str (int.DecPadded (az, 7))
+    ser.Str (string("Accel: "))
+    ser.Str (int.DecPadded (ax, 10))
+    ser.Str (int.DecPadded (ay, 10))
+    ser.Str (int.DecPadded (az, 10))
 
 PUB GyroRaw | gx, gy, gz
 
     imu.ReadGyro (@gx, @gy, @gz)
-    ser.Str (int.DecPadded (gx, 7))
-    ser.Str (int.DecPadded (gy, 7))
-    ser.Str (int.DecPadded (gz, 7))
+    ser.Str (string("Gyro:  "))
+    ser.Str (int.DecPadded (gx, 10))
+    ser.Str (int.DecPadded (gy, 10))
+    ser.Str (int.DecPadded (gz, 10))
 
 PUB Setup
 
@@ -80,9 +76,9 @@ PUB Setup
 
     if _imu_cog := imu.Start (SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN)
         if imu.whoAmI == imu#WHO_AM_I
-            ser.Str (string("LSM9DS1 driver started", ser#NL))
-            _max_cols := 4
+            ser.Str (string("LSM9DS1 driver started", ser#NL, ser#NL, "Place sensor face up and press any key to calibrate", ser#NL))
             waitkey
+            imu.CalibrateAG
             return
     ser.Str (string("Unable to start LSM9DS1 driver", ser#NL))
     imu.Stop
