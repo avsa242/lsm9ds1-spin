@@ -16,8 +16,9 @@ CON
     CLK_DELAY               = 10
     MOSI_BITORDER           = 5             'MSBFIRST
     MISO_BITORDER           = 0             'MSBPRE
-    WHOAMI                  = $683D
-
+    WHOAMI_AG_RESP          = $68
+    WHOAMI_M_RESP           = $3D
+    WHOAMI_BOTH_RESP        = (WHOAMI_AG_RESP << 8) | WHOAMI_M_RESP
 ' LSM9DS1 Register map
     ACT_THS                 = $04
     ACT_THS_MASK            = $FF
@@ -34,7 +35,26 @@ CON
     INT_GEN_THS_Z_XL        = $09
     INT_GEN_DUR_XL          = $0A
     REFERENCE_G             = $0B
+
     INT1_CTRL               = $0C
+    INT1_CTRL_MASK          = $FF
+        FLD_INT1_IG_G       = 7
+        FLD_INT1_IG_XL      = 6
+        FLD_INT1_FSS5       = 5
+        FLD_INT1_OVR        = 4
+        FLD_INT1_FTH        = 3
+        FLD_INT1_BOOT       = 2
+        FLD_INT1_DRDY_G     = 1
+        FLD_INT1_DRDY_XL    = 0
+        MASK_INT1_IG_G      = INT1_CTRL_MASK ^ (1 << FLD_INT1_IG_G)
+        MASK_INT1_IG_XL     = INT1_CTRL_MASK ^ (1 << FLD_INT1_IG_XL)
+        MASK_INT1_FSS5      = INT1_CTRL_MASK ^ (1 << FLD_INT1_FSS5)
+        MASK_INT1_OVR       = INT1_CTRL_MASK ^ (1 << FLD_INT1_OVR)
+        MASK_INT1_FTH       = INT1_CTRL_MASK ^ (1 << FLD_INT1_FTH)
+        MASK_INT1_BOOT      = INT1_CTRL_MASK ^ (1 << FLD_INT1_BOOT)
+        MASK_INT1_DRDY_G    = INT1_CTRL_MASK ^ (1 << FLD_INT1_DRDY_G)
+        MASK_INT1_DRDY_XL   = INT1_CTRL_MASK ^ (1 << FLD_INT1_DRDY_XL)
+
     INT2_CTRL               = $0D
     WHO_AM_I_XG             = $0F
 

@@ -21,8 +21,6 @@ CON
     FAHRENHEIT      = 1
     KELVIN          = 2
 
-    WHO_AM_I        = core#WHOAMI
-
     LITTLE          = 0
     BIG             = 1
 
@@ -35,6 +33,10 @@ CON
     FIFO_OFF_TRIG   = core#FIFO_OFF_TRIG
     FIFO_CONT       = core#FIFO_CONT
 
+    AG              = 0
+    MAG             = 1
+    BOTH            = 2
+
 OBJ
 
     spi     : "SPI_Asm"
@@ -46,13 +48,10 @@ VAR
     long _autoCalc
 
     long _gRes, _gBias[3], _gBiasRaw[3]
-    long _gyro_pre
 
     long _aRes, _aBias[3], _aBiasRaw[3]
-    long _accel_pre
 
     long _mRes, _mBias[3], _mBiasRaw[3]
-    long _mag_pre
     long _settings_mag_scale
 
     long _scl_pin, _sdio_pin, _cs_ag_pin, _cs_m_pin, _int_ag_pin, _int_m_pin
@@ -88,11 +87,12 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
         WriteAGReg8 (core#CTRL_REG8, %0000_1100)
         WriteMReg8 (core#CTRL_REG3_M, %1000_0100)
 
-        Defaults
 ' Once everything is initialized, check the WHO_AM_I registers
-        ifnot whoAmI
-            Stop
-            return FALSE
+        if ID(BOTH) == core#WHOAMI_BOTH_RESP
+            Defaults
+            return okay
+        Stop
+        return FALSE
 
 PUB Stop
 
@@ -122,7 +122,25 @@ PUB Defaults
     AccelScale(2)
     setMagScale(8)
 
-    SetPrecision (3)
+PUB AccelAvail | tmp
+' Accelerometer sensor new data available
+'   Returns TRUE or FALSE
+    ReadAGReg (core#STATUS_REG, @tmp, 1)
+    result := ((tmp >> core#FLD_XLDA) & %1) * TRUE
+
+PUB AccelClearInt | temp, reg
+' Clears out any interrupts set up on the Accelerometer and
+' resets all Accelerometer interrupt registers to their default values.
+    repeat reg from core#INT_GEN_CFG_XL to core#INT_GEN_DUR_XL
+        WriteAGReg8 (reg, $00)
+'    WriteAGReg8 (core#INT_GEN_THS_X_XL, $00)
+'    WriteAGReg8 (core#INT_GEN_THS_Y_XL, $00)
+'    WriteAGReg8 (core#INT_GEN_THS_Z_XL, $00)
+'    WriteAGReg8 (core#INT_GEN_CFG_XL, $00)
+'    WriteAGReg8 (core#INT_GEN_DUR_XL, $00)
+    ReadAGReg (core#INT1_CTRL, @temp, 1)
+    temp &= core#MASK_INT1_IG_XL
+    WriteAGReg8 (core#INT1_CTRL, temp)
 
 PUB AccelHighRes(enabled) | tmp
 ' Enable high resolution mode for accelerometer
@@ -173,6 +191,12 @@ PUB AccelScale(scale) | tmp
     tmp := (tmp | scale) & core#CTRL_REG6_XL_MASK
     WriteAGReg8 (core#CTRL_REG6_XL, tmp)
 
+PUB AccelSetCal(axBias, ayBias, azBias)
+' Manually set accelerometer calibration offset values
+    _aBiasRaw[X_AXIS] := axBias
+    _aBiasRaw[Y_AXIS] := ayBias
+    _aBiasRaw[Z_AXIS] := azBias
+
 PUB AGDataRate(Hz) | tmp
 ' Set output data rate, in Hz, of accelerometer and gyroscope
 '   Valid values: 0 (power down), 14, 59, 119, 238, 476, 952
@@ -188,24 +212,6 @@ PUB AGDataRate(Hz) | tmp
     tmp &= core#MASK_ODR
     tmp := (tmp | Hz) & core#CTRL_REG1_G_MASK
     WriteAGReg8 (core#CTRL_REG1_G, tmp)
-
-PUB AvailAccel | tmp
-' Accelerometer sensor new data available
-'   Returns TRUE or FALSE
-    ReadAGReg (core#STATUS_REG, @tmp, 1)
-    result := ((tmp >> core#FLD_XLDA) & %1) * TRUE
-
-PUB AvailGyro | tmp
-' Gyroscope sensor new data available
-'   Returns TRUE or FALSE
-    ReadAGReg (core#STATUS_REG, @tmp, 1)
-    result := ((tmp >> core#FLD_GDA) & %1) * TRUE
-
-PUB AvailTemp | tmp
-' Temperature sensor new data available
-'   Returns TRUE or FALSE
-    ReadAGReg (core#STATUS_REG, @tmp, 1)
-    result := ((tmp >> core#FLD_TDA) & %1) * TRUE
 
 PUB BlockUpdate(enabled) | tmp 'XXX Make PRI? Doesn't seem like user-facing functionality
 ' Wait until both MSB and LSB of output registers are read before updating
@@ -361,6 +367,28 @@ PUB GyroActivityThr(threshold) | tmp
     tmp := (tmp | threshold) & core#ACT_THS_MASK
     WriteAGReg8 (core#ACT_THS, tmp)
 
+PUB GyroAvail | tmp
+' Gyroscope sensor new data available
+'   Returns TRUE or FALSE
+    ReadAGReg (core#STATUS_REG, @tmp, 1)
+    result := ((tmp >> core#FLD_GDA) & %1) * TRUE
+
+PUB GyroClearInt | temp, reg
+' Clears out any interrupts set up on the Gyroscope and resets all Gyroscope interrupt registers to their default values.
+    repeat reg from core#INT_GEN_CFG_G to core#INT_GEN_DUR_G
+        WriteAGReg8 (reg, $00)
+'    WriteAGReg8 (core#INT_GEN_THS_XH_G, $00)'XXX See if these are contiguous and if they are,
+'    WriteAGReg8 (core#INT_GEN_THS_XL_G, $00)' iterate through them instead
+'    WriteAGReg8 (core#INT_GEN_THS_YH_G, $00)
+'    WriteAGReg8 (core#INT_GEN_THS_YL_G, $00)
+'    WriteAGReg8 (core#INT_GEN_THS_ZH_G, $00)
+'    WriteAGReg8 (core#INT_GEN_THS_ZL_G, $00)
+'    WriteAGReg8 (core#INT_GEN_CFG_G, $00)
+'    WriteAGReg8 (core#INT_GEN_DUR_G, $00)
+    ReadAGReg (core#INT1_CTRL, @temp, 1)
+    temp &= core#MASK_INT1_IG_G
+    WriteAGReg8 (core#INT1_CTRL, temp)
+
 PUB GyroInactiveSleep(enabled) | tmp
 ' Enable gyroscope sleep mode when inactive (see GyroActivityThr)
 '   Valid values: FALSE (0): Gyroscope powers down, TRUE (1 or -1) Gyroscope enters sleep mode
@@ -409,6 +437,12 @@ PUB GyroLowPower(enabled) | tmp
     tmp := (tmp | enabled) & core#CTRL_REG3_G_MASK
     WriteAGReg8 (core#CTRL_REG3_G, tmp)
 
+PUB GyroSetCal(gxBias, gyBias, gzBias)
+' Manually set gyroscope calibration offset values
+    _gBiasRaw[X_AXIS] := gxBias
+    _gBiasRaw[Y_AXIS] := gyBias
+    _gBiasRaw[Z_AXIS] := gzBias
+
 PUB GyroSleep(enabled) | tmp
 ' Enable gyroscope sleep mode (last measured values frozen)
 '   Valid values: FALSE (0), TRUE (1 or -1)
@@ -441,6 +475,25 @@ PUB GyroScale(scale) | tmp
     tmp &= core#MASK_FS
     tmp := (tmp | scale) & core#CTRL_REG1_G_MASK
     WriteAGReg8 (core#CTRL_REG1_G, tmp)
+
+PUB ID(sensor) | tmp
+' Poll sensor for WHO_AM_I ID
+'   Valid values: AG (0) or MAG (1)
+'   Any other value returns both values OR'd together as a word (MSB=AG ID, LSB=M ID)
+'   Returns
+'       $68 if AG requested and response is valid
+'       $3D if Mag requested and response is valid
+'       $683D if both sensors requested and responses are valid
+    case sensor
+        AG:
+            ReadAGReg (core#WHO_AM_I_XG, @result, 1)
+        MAG:
+            ReadMReg (core#WHO_AM_I_M, @result, 1)
+        OTHER:
+            ReadAGReg (core#WHO_AM_I_XG, @result, 1)
+            ReadMReg (core#WHO_AM_I_M, @tmp, 1)
+            result <<= 8
+            result |= tmp
 
 PUB Interrupt | tmp
 ' Interrupt active
@@ -496,6 +549,13 @@ PUB ReadAccel(ax, ay, az) | temp[2]
         long[ay] -= _aBiasRaw[Y_AXIS]
         long[az] -= _aBiasRaw[Z_AXIS]
 
+PUB ReadAccelCalculated(ax, ay, az) | tempX, tempY, tempZ
+' Reads the Accelerometer output registers and scales the outputs to milli-g's (1 g = 9.8 m/s/s)
+    readAccel(@tempX, @tempY, @tempZ)
+    long[ax] := (tempX * 1000) / (_aRes)
+    long[ay] := (tempY * 1000) / (_aRes)
+    long[az] := (tempZ * 1000) / (_aRes)
+
 PUB ReadGyro(gx, gy, gz) | temp[2]
 ' Reads the Gyroscope output registers.
 ' We'll read six bytes from the gyro into temp
@@ -509,6 +569,13 @@ PUB ReadGyro(gx, gy, gz) | temp[2]
         long[gx] -= _gBiasRaw[X_AXIS]
         long[gy] -= _gBiasRaw[Y_AXIS]
         long[gz] -= _gBiasRaw[Z_AXIS]
+
+PUB ReadGyroCalculated(gx, gy, gz) | tempX, tempY, tempZ
+' Reads the Gyroscope output registers and scales the outputs to milli-degrees of rotation per second (DPS).
+    readGyro(@tempX, @tempY, @tempZ)
+    long[gx] := (tempX * 1000) / _gRes
+    long[gy] := (tempY * 1000) / _gRes
+    long[gz] := (tempZ * 1000) / _gRes
 
 PUB ReadMag(mx, my, mz) | temp[2]
 ' Reads the Magnetometer output registers.
@@ -532,8 +599,13 @@ PUB Temperature
 '   Result is two's-complement
     ReadAGReg (core#OUT_TEMP_L, @result, 2)
     result &= $FFFF
-    if result > 32767
-        result := result - 65536
+    ~~result
+
+PUB TempAvail | tmp
+' Temperature sensor new data available
+'   Returns TRUE or FALSE
+    ReadAGReg (core#STATUS_REG, @tmp, 1)
+    result := ((tmp >> core#FLD_TDA) & %1) * TRUE
 
 '--- OLD CODE BELOW ---
 
@@ -557,32 +629,6 @@ PUB calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], msb, l
         lsb := _mBiasRaw[k] & $00FF
         WriteMReg8 (core#OFFSET_X_REG_L_M + (2 * k), lsb)
         WriteMReg8 (core#OFFSET_X_REG_H_M + (2 * k), msb)
-
-PUB clearAccelInterrupt | tempRegValue
-' Clears out any interrupts set up on the Accelerometer and
-' resets all Accelerometer interrupt registers to their default values.
-    WriteAGReg8 (core#INT_GEN_THS_X_XL, $00)
-    WriteAGReg8 (core#INT_GEN_THS_Y_XL, $00)
-    WriteAGReg8 (core#INT_GEN_THS_Z_XL, $00)
-    WriteAGReg8 (core#INT_GEN_CFG_XL, $00)
-    WriteAGReg8 (core#INT_GEN_DUR_XL, $00)
-    ReadAGReg (core#INT1_CTRL, @tempRegValue, 1)
-    tempRegValue &= $BF
-    WriteAGReg8 (core#INT1_CTRL, tempRegValue)
-
-PUB clearGyroInterrupt | tempRegValue
-' Clears out any interrupts set up on the Gyroscope and resets all Gyroscope interrupt registers to their default values.
-    WriteAGReg8 (core#INT_GEN_THS_XH_G, $00)'XXX See if these are contiguous and if they are,
-    WriteAGReg8 (core#INT_GEN_THS_XL_G, $00)' iterate through them instead
-    WriteAGReg8 (core#INT_GEN_THS_YH_G, $00)
-    WriteAGReg8 (core#INT_GEN_THS_YL_G, $00)
-    WriteAGReg8 (core#INT_GEN_THS_ZH_G, $00)
-    WriteAGReg8 (core#INT_GEN_THS_ZL_G, $00)
-    WriteAGReg8 (core#INT_GEN_CFG_G, $00)
-    WriteAGReg8 (core#INT_GEN_DUR_G, $00)
-    ReadAGReg (core#INT1_CTRL, @tempRegValue, 1)
-    tempRegValue &= $7F
-    WriteAGReg8 (core#INT1_CTRL, tempRegValue)
 
 PUB clearMagInterrupt | tempRegValue 'UNTESTED
 ' Clears out any interrupts set up on the Magnetometer and
@@ -614,50 +660,17 @@ PUB getMagScale
 
     return _settings_mag_scale
 
-PUB whoAmI: whoAmICombined | mTest, xgTest
-
-    ReadMReg (core#WHO_AM_I_M, @mTest, 1)
-    ReadAGReg (core#WHO_AM_I_XG, @xgTest, 1)
-    mTest &= $FF
-    xgTest &= $FF
-    whoAmICombined := ((xgTest << 8) | mTest) & $FFFF
-
-PUB whoAmI_M: resp_m
-
-    ReadMReg (core#WHO_AM_I_M, @resp_m, 1)
-    resp_m &= $FF
-
-PUB whoAmI_AG: resp_ag
-
-    ReadAGReg (core#WHO_AM_I_XG, @resp_ag, 1)
-    resp_ag &= $FF
-
 PUB magAvailable | status
 ' Polls the Magnetometer status register to check if new data is available.
     ReadMReg (core#STATUS_REG_M, @status, 1)
     return ((status & (1 << 3)) >> 3)
 
-PUB readAccelCalculated(ax, ay, az) | tempX, tempY, tempZ, scale
-' Reads the Accelerometer output registers and scales the outputs to milli-g's (1 g = 9.8 m/s/s)
-    readAccel(@tempX, @tempY, @tempZ)
-    long[ax] := (tempX*_accel_pre)/(_aRes)
-    long[ay] := (tempY*_accel_pre)/(_aRes)
-    long[az] := (tempZ*_accel_pre)/(_aRes)
-
-PUB readGyroCalculated(gx, gy, gz) | tempX, tempY, tempZ
-' Reads the Gyroscope output registers and scales the outputs to degrees of rotation per second (DPS).
-' Return the gyro raw reading times our pre-calculated DPS / (ADC tick):, tempX, tempY, tempZ
-    readGyro(@tempX, @tempY, @tempZ)
-    long[gx] := (tempX*_gyro_pre)/_gRes
-    long[gy] := (tempY*_gyro_pre)/_gRes
-    long[gz] := (tempZ*_gyro_pre)/_gRes
-
 PUB readMagCalculated(mx, my, mz) | tempX, tempY, tempZ
-' Reads the Magnetometer output registers and scales the outputs to Gauss.
+' Reads the Magnetometer output registers and scales the outputs to milli-Gauss.
     readMag(@tempX, @tempY, @tempZ)
-    long[mx] := (tempX*_mag_pre)/_mRes
-    long[my] := (tempY*_mag_pre)/_mRes
-    long[mz] := (tempZ*_mag_pre)/_mRes
+    long[mx] := (tempX * 1000) / _mRes
+    long[my] := (tempY * 1000) / _mRes
+    long[mz] := (tempZ * 1000) / _mRes
     if (_autoCalc)
         long[mx] -= _mBiasRaw[X_AXIS]
         long[my] -= _mBiasRaw[Y_AXIS]
@@ -683,11 +696,6 @@ PUB readMagCalculated(mx, my, mz) | tempX, tempY, tempZ
         OTHER:
             long[temperature] := (tempTemp / 16) + 25 * 1000'(tempTemp / 16.0) + 25.0
 }
-PUB setAccelCalibration(axBias, ayBias, azBias)
-' Manually set accelerometer calibration offset values
-    _aBiasRaw[X_AXIS] := axBias
-    _aBiasRaw[Y_AXIS] := ayBias
-    _aBiasRaw[Z_AXIS] := azBias
 
 PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue, accelThs, accelThsH, tempThs
 'Configures the Accelerometer interrupt output to the INT_A/G pin.
@@ -733,12 +741,6 @@ PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValu
     ReadAGReg (core#INT1_CTRL, @tempRegValue, 1)
     tempRegValue |= $40
     WriteAGReg8 (core#INT1_CTRL, tempRegValue)
-
-PUB setGyroCalibration(gxBias, gyBias, gzBias)
-' Manually set gyroscope calibration offset values
-    _gBiasRaw[X_AXIS] := gxBias
-    _gBiasRaw[Y_AXIS] := gyBias
-    _gBiasRaw[Z_AXIS] := gzBias
 
 PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue, gyroThs, gyroThsH, gyroThsL
 ' Configures the Gyroscope interrupt output to the INT_A/G pin.
@@ -867,43 +869,6 @@ PUB setMagScale(mScl) | temp
             _settings_mag_scale := 4
             _mRes := 6896'.55
     WriteMReg8(core#CTRL_REG2_M, temp)
-
-PUB SetPrecision(digits)
-'Set fixed-point math precision
-'for ALL sensors
-    SetPrecisionAccel (digits)
-    SetPrecisionGyro (digits)
-    SetPrecisionMag (digits)
-
-PUB SetPrecisionAccel(digits) | scale_factor
-'Set fixed-point math precision
-    scale_factor := 1
-
-    if digits < 0 or digits > 4
-        digits := 3
-    repeat digits
-        scale_factor *= 10
-    _accel_pre := scale_factor
-
-PUB SetPrecisionGyro(digits) | scale_factor
-'Set fixed-point math precision
-    scale_factor := 1
-
-    if digits < 0 or digits > 4
-        digits := 3
-    repeat digits
-        scale_factor *= 10
-    _gyro_pre := scale_factor
-
-PUB SetPrecisionMag(digits) | scale_factor
-'Set fixed-point math precision
-    scale_factor := 1
-
-    if digits < 0 or digits > 4
-        digits := 3
-    repeat digits
-        scale_factor *= 10
-    _mag_pre := scale_factor
 
 PUB ReadAGReg(reg, ptr, count) | i
 'Validate register and read word from Accel/Gyro device
