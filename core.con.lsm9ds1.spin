@@ -255,11 +255,36 @@ CON
     OFFSET_Z_REG_H_M        = $0A
     WHO_AM_I_M              = $0F
     CTRL_REG1_M             = $20
+
     CTRL_REG2_M             = $21
+    CTRL_REG2_M_MASK        = $6C
+        FLD_FS_M            = 5
+        FLD_REBOOT          = 3
+        FLD_SOFT_RST        = 2
+        BITS_FS_M           = %11
+        BITS_REBOOT         = %1
+        BITS_SOFT_RST       = %1
+        MASK_FS_M           = CTRL_REG2_M_MASK ^ (BITS_FS_M << FLD_FS_M)
+        MASK_REBOOT         = CTRL_REG2_M_MASK ^ (BITS_REBOOT << FLD_REBOOT)
+        MASK_SOFT_RST       = CTRL_REG2_M_MASK ^ (BITS_SOFT_RST << FLD_SOFT_RST)
+
     CTRL_REG3_M             = $22
     CTRL_REG4_M             = $23
     CTRL_REG5_M             = $24
+
     STATUS_REG_M            = $27
+    STATUS_REG_M_MASK       = $FF
+        FLD_DA              = 0
+        FLD_ZYXDA           = 3
+        FLD_OR              = 4
+        FLD_ZYXOR           = 7
+        BITS_DA             = %111
+        BITS_OR             = %111
+        MASK_DA             = STATUS_REG_M_MASK ^ (BITS_DA << FLD_DA)
+        MASK_OR             = STATUS_REG_M_MASK ^ (BITS_OR << FLD_OR)
+        MASK_ZYXOR          = STATUS_REG_M_MASK ^ (1 << FLD_ZYXOR)
+        MASK_ZYXDA          = STATUS_REG_M_MASK ^ (1 << FLD_ZYXDA)
+
     OUT_X_L_M               = $28
     OUT_X_H_M               = $29
     OUT_Y_L_M               = $2A

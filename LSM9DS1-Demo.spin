@@ -43,6 +43,15 @@ VAR
 PUB Main
 
     Setup
+
+    waitkey(string("Press any key to calibrate Accelerometer & Gyroscope...", ser#NL))
+    ser.Str (string("Calibrating..."))
+    imu.CalibrateAG
+
+    waitkey(string("Press any key to calibrate Magnetometer", ser#NL))
+    ser.Str (string("Calibrating..."))
+    imu.CalibrateMag (512)
+
     ser.Clear
 
     repeat
@@ -51,7 +60,10 @@ PUB Main
         ser.Position (0, 1)
         GyroRaw
         ser.Position (0, 2)
+        MagRaw
+        ser.Position (0, 3)
         TempRaw
+
         time.MSleep (100)
 
 PUB AccelRaw | ax, ay, az
@@ -70,6 +82,14 @@ PUB GyroRaw | gx, gy, gz
     ser.Str (int.DecPadded (gy, 7))
     ser.Str (int.DecPadded (gz, 7))
 
+PUB MagRaw | mx, my, mz
+
+    imu.ReadMag (@mx, @my, @mz)
+    ser.Str (string("Mag:  "))
+    ser.Str (int.DecPadded (mx, 7))
+    ser.Str (int.DecPadded (my, 7))
+    ser.Str (int.DecPadded (mz, 7))
+
 PUB TempRaw
 
     ser.Str (string("Temperature: "))
@@ -82,27 +102,25 @@ PUB Setup
     ser.Str (string("Serial terminal started", ser#NL))
 
     if _imu_cog := imu.Start (SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN)
-        ser.Str (string("LSM9DS1 driver started", ser#NL, ser#NL, "Place sensor face up and press any key to calibrate", ser#NL))
-        waitkey
-        imu.CalibrateAG
+        ser.Str (string("LSM9DS1 driver started", ser#NL))
         return
     ser.Str (string("Unable to start LSM9DS1 driver", ser#NL))
     imu.Stop
     time.MSleep (1)
     ser.Stop
-    repeat
+    flash(500)
 
-PUB waitkey
+PUB waitkey(message)
 
-    ser.Str (string("Press any key", ser#NL))
+    ser.Str (message)
     ser.CharIn
 
-PUB flash
+PUB flash(delay_ms)
 
     dira[DEBUG_LED] := 1
     repeat
         !outa[DEBUG_LED]
-        time.MSleep (100)
+        time.MSleep (delay_ms)
 
 DAT
 {

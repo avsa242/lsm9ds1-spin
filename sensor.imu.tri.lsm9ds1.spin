@@ -37,6 +37,8 @@ CON
     MAG             = 1
     BOTH            = 2
 
+    FP_SCALE        = 1000
+
 OBJ
 
     spi     : "SPI_Asm"
@@ -46,14 +48,9 @@ OBJ
 VAR
 
     long _autoCalc
-
     long _gRes, _gBias[3], _gBiasRaw[3]
-
     long _aRes, _aBias[3], _aBiasRaw[3]
-
     long _mRes, _mBias[3], _mBiasRaw[3]
-    long _settings_mag_scale
-
     long _scl_pin, _sdio_pin, _cs_ag_pin, _cs_m_pin, _int_ag_pin, _int_m_pin
 
 PUB Null
@@ -120,7 +117,7 @@ PUB Defaults
 'Set Scales
     GyroScale(245)
     AccelScale(2)
-    setMagScale(8)
+    MagScale(4)
 
 PUB AccelAvail | tmp
 ' Accelerometer sensor new data available
@@ -263,6 +260,27 @@ PUB CalibrateAG | aBiasRawTemp[3], gBiasRawTemp[3], axis, ax, ay, az, gx, gy, gz
     _autoCalc := TRUE
     FIFO(FALSE)
     FIFOMode (FIFO_OFF)
+
+PUB CalibrateMag(samples) | magMin[3], magMax[3], magTemp[3], axis, mx, my, mz, msb, lsb
+' Calibrates the Magnetometer on the LSM9DS1 IMU module
+    repeat samples
+        repeat until MagAvail
+        readMag(@mx, @my, @mz)
+        magTemp[X_AXIS] := mx
+        magTemp[Y_AXIS] := my
+        magTemp[Z_AXIS] := mz
+        repeat axis from X_AXIS to Z_AXIS
+            if (magTemp[axis] > magMax[axis])
+                magMax[axis] := magTemp[axis]
+            if (magTemp[axis] < magMin[axis])
+                magMin[axis] := magTemp[axis]
+
+    repeat axis from X_AXIS to Z_AXIS
+        _mBiasRaw[axis] := (magMax[axis] + magMin[axis]) / 2
+        msb := (_mBiasRaw[axis] & $FF00) >> 8
+        lsb := _mBiasRaw[axis] & $00FF
+        WriteMReg8 (core#OFFSET_X_REG_L_M + (2 * axis), lsb)
+        WriteMReg8 (core#OFFSET_X_REG_H_M + (2 * axis), msb)
 
 PUB Endian(endianness) | tmp
 ' Choose byte order of data
@@ -535,6 +553,44 @@ PUB IntLevel(active_state) | tmp
     tmp := (tmp | active_state) & core#CTRL_REG8_MASK
     WriteAGReg8 (core#CTRL_REG8, tmp)
 
+PUB MagAvail
+' Polls the Magnetometer status register to check if new data is available.
+'   Returns TRUE if data available, FALSE if not
+    ReadMReg (core#STATUS_REG_M, @result, 1)
+    if result & core#BITS_DA
+        result := TRUE
+    else
+        result := FALSE
+
+PUB MagScale(scale) | tmp
+' Set full scale of Magnetometer, in Gauss
+'   Valid values: 4, 8, 12, 16
+'   Any other value polls the chip and returns the current setting
+    ReadMReg (core#CTRL_REG2_M, @tmp, 1)
+    case(scale)
+        4, 8, 12, 16:
+            _mRes := lookup(scale/4: 6896{.55}, 3448{.28}, 2298{.85}, 1724{.14})
+            scale := lookdownz(scale: 4, 8, 12, 16) << core#FLD_FS_M
+        OTHER:
+            return (tmp >> core#FLD_FS_M) & core#BITS_FS_M
+
+    tmp &= core#MASK_FS_M
+    tmp := (tmp | scale) & core#CTRL_REG2_M_MASK
+    WriteMReg8(core#CTRL_REG2_M, tmp)
+
+PUB MagSetCal(mxBias, myBias, mzBias) | axis, msb, lsb
+' Manually set magnetometer calibration offset values
+    _mBiasRaw[X_AXIS] := mxBias
+    _mBiasRaw[Y_AXIS] := myBias
+    _mBiasRaw[Z_AXIS] := mzBias
+
+    repeat axis from X_AXIS to Z_AXIS
+        msb := (_mBiasRaw[axis] & $FF00) >> 8
+        lsb := _mBiasRaw[axis] & $00FF
+
+        WriteMReg8(core#OFFSET_X_REG_L_M + (2 * axis), lsb)
+        WriteMReg8(core#OFFSET_X_REG_H_M + (2 * axis), msb)
+
 PUB ReadAccel(ax, ay, az) | temp[2]
 'Reads the Accelerometer output registers
 ' We'll read six bytes from the accelerometer into temp
@@ -552,9 +608,9 @@ PUB ReadAccel(ax, ay, az) | temp[2]
 PUB ReadAccelCalculated(ax, ay, az) | tempX, tempY, tempZ
 ' Reads the Accelerometer output registers and scales the outputs to milli-g's (1 g = 9.8 m/s/s)
     readAccel(@tempX, @tempY, @tempZ)
-    long[ax] := (tempX * 1000) / (_aRes)
-    long[ay] := (tempY * 1000) / (_aRes)
-    long[az] := (tempZ * 1000) / (_aRes)
+    long[ax] := (tempX * FP_SCALE) / (_aRes)
+    long[ay] := (tempY * FP_SCALE) / (_aRes)
+    long[az] := (tempZ * FP_SCALE) / (_aRes)
 
 PUB ReadGyro(gx, gy, gz) | temp[2]
 ' Reads the Gyroscope output registers.
@@ -573,9 +629,9 @@ PUB ReadGyro(gx, gy, gz) | temp[2]
 PUB ReadGyroCalculated(gx, gy, gz) | tempX, tempY, tempZ
 ' Reads the Gyroscope output registers and scales the outputs to milli-degrees of rotation per second (DPS).
     readGyro(@tempX, @tempY, @tempZ)
-    long[gx] := (tempX * 1000) / _gRes
-    long[gy] := (tempY * 1000) / _gRes
-    long[gz] := (tempZ * 1000) / _gRes
+    long[gx] := (tempX * FP_SCALE) / _gRes
+    long[gy] := (tempY * FP_SCALE) / _gRes
+    long[gz] := (tempZ * FP_SCALE) / _gRes
 
 PUB ReadMag(mx, my, mz) | temp[2]
 ' Reads the Magnetometer output registers.
@@ -585,6 +641,13 @@ PUB ReadMag(mx, my, mz) | temp[2]
     long[mx] := ~~temp.word[0]
     long[my] := ~~temp.word[1]
     long[mz] := ~~temp.word[2]
+
+PUB ReadMagCalculated(mx, my, mz) | tempX, tempY, tempZ
+' Reads the Magnetometer output registers and scales the outputs to milli-Gauss.
+    readMag(@tempX, @tempY, @tempZ)
+    long[mx] := (tempX * FP_SCALE) / _mRes
+    long[my] := (tempY * FP_SCALE) / _mRes
+    long[mz] := (tempZ * FP_SCALE) / _mRes
 
 PUB SWReset | tmp'XXX
 
@@ -608,27 +671,6 @@ PUB TempAvail | tmp
     result := ((tmp >> core#FLD_TDA) & %1) * TRUE
 
 '--- OLD CODE BELOW ---
-
-PUB calibrateMag | i, j, k, mx, my, mz, magMin[3], magMax[3], magTemp[3], msb, lsb
-' Calibrates the Magnetometer on the LSM9DS1 IMU module.
-    repeat i from 0 to 32
-        repeat while not magAvailable 'Wait until new data available
-        readMag(@mx, @my, @mz)
-        magTemp[0] := mx
-        magTemp[1] := my
-        magTemp[2] := mz
-        repeat j from 0 to 2
-            if (magTemp[j] > magMax[j])
-                magMax[j] := magTemp[j]
-            if (magTemp[j] < magMin[j])
-                magMin[j] := magTemp[j]
-    repeat j from 0 to 2
-        _mBiasRaw[j] := (magMax[j] + magMin[j])/2
-    repeat k from 0 to 2
-        msb := (_mBiasRaw[k] & $FF00) >> 8
-        lsb := _mBiasRaw[k] & $00FF
-        WriteMReg8 (core#OFFSET_X_REG_L_M + (2 * k), lsb)
-        WriteMReg8 (core#OFFSET_X_REG_H_M + (2 * k), msb)
 
 PUB clearMagInterrupt | tempRegValue 'UNTESTED
 ' Clears out any interrupts set up on the Magnetometer and
@@ -656,25 +698,6 @@ PUB getMagCalibration(mxBias, myBias, mzBias) 'UNTESTED
     long[myBias] := _mBiasRaw[Y_AXIS]
     long[mzBias] := _mBiasRaw[Z_AXIS]
 
-PUB getMagScale
-
-    return _settings_mag_scale
-
-PUB magAvailable | status
-' Polls the Magnetometer status register to check if new data is available.
-    ReadMReg (core#STATUS_REG_M, @status, 1)
-    return ((status & (1 << 3)) >> 3)
-
-PUB readMagCalculated(mx, my, mz) | tempX, tempY, tempZ
-' Reads the Magnetometer output registers and scales the outputs to milli-Gauss.
-    readMag(@tempX, @tempY, @tempZ)
-    long[mx] := (tempX * 1000) / _mRes
-    long[my] := (tempY * 1000) / _mRes
-    long[mz] := (tempZ * 1000) / _mRes
-    if (_autoCalc)
-        long[mx] -= _mBiasRaw[X_AXIS]
-        long[my] -= _mBiasRaw[Y_AXIS]
-        long[mz] -= _mBiasRaw[Z_AXIS]
 
 {PUB readTemp(temperature) | temp[1], tempT
 ' We'll read two bytes from the temperature sensor into temp
@@ -798,20 +821,6 @@ PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue
     tempRegValue |= $80
     WriteAGReg8 (core#INT1_CTRL, tempRegValue)
 
-PUB setMagCalibration(mxBias, myBias, mzBias) | k, msb, lsb
-' Manually set magnetometer calibration offset values
-' (non-volatile)
-    _mBiasRaw[X_AXIS] := mxBias
-    _mBiasRaw[Y_AXIS] := myBias
-    _mBiasRaw[Z_AXIS] := mzBias
-
-  repeat k from 0 to 2
-    msb := (_mBiasRaw[k] & $FF00) >> 8
-    lsb := _mBiasRaw[k] & $00FF
-
-    WriteMReg8(core#OFFSET_X_REG_L_M + (2 * k), lsb)
-    WriteMReg8(core#OFFSET_X_REG_H_M + (2 * k), msb)
-
 PUB setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magThs, magThsL, magThsH 'PARTIAL
 
     lowHigh &= $01
@@ -842,33 +851,6 @@ PUB setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magT
         OTHER :
             tempCfgValue |= (%11100010)
     WriteMReg8(core#INT_CFG_M, tempCfgValue)
-
-PUB setMagScale(mScl) | temp
-' Set the full-scale range of the magnetometer
-'  if (mScl <> 4) and (mScl <> 8) and (mScl <> 12) and (mScl <> 16)
-'    mScl := 4      ' Don't think this IF is needed...
-'                   ...seems it's validated by the CASE block below
-' We need to preserve the other bytes in CTRL_REG6_XM. So, first read it:, temp
-    ReadMReg (core#CTRL_REG2_M, @temp, 1)
-' Then mask out the mag scale bits:
-    temp &= $FF ^($3 << 5)
-    case(mScl)
-        8:
-            temp |= ($1 << 5)
-            _settings_mag_scale := 8
-            _mRes := 3448'.28
-        12:
-            temp |= ($2 << 5)
-            _settings_mag_scale := 12
-            _mRes := 2298'.85
-        16:
-            temp |= ($3 << 5)
-            _settings_mag_scale := 16
-            _mRes := 1724'.14
-        OTHER :
-            _settings_mag_scale := 4
-            _mRes := 6896'.55
-    WriteMReg8(core#CTRL_REG2_M, temp)
 
 PUB ReadAGReg(reg, ptr, count) | i
 'Validate register and read word from Accel/Gyro device
