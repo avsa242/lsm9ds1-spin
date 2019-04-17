@@ -51,35 +51,37 @@ VAR
     long _gRes, _gBias[3], _gBiasRaw[3]
     long _aRes, _aBias[3], _aBiasRaw[3]
     long _mRes, _mBias[3], _mBiasRaw[3]
-    long _scl_pin, _sdio_pin, _cs_ag_pin, _cs_m_pin, _int_ag_pin, _int_m_pin
+    long _SCL, _SDIO, _CS_AG, _CS_M, _INT_AG, _INT_M
 
 PUB Null
 'This is not a top-level object  
 
-PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
+PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay | tmp
 
     if lookdown(SCL_PIN: 0..31) and lookdown(SDIO_PIN: 0..31) and lookdown(CS_AG_PIN: 0..31) and lookdown(CS_M_PIN: 0..31) and lookdown(INT_AG_PIN: 0..31) and lookdown(INT_M_PIN: 0..31)
         okay := spi.start (core#CLK_DELAY, core#CPOL)
-        _scl_pin := SCL_PIN
-        _sdio_pin := SDIO_PIN
-        _cs_ag_pin := CS_AG_PIN
-        _cs_m_pin := CS_M_PIN
-        _int_ag_pin := INT_AG_PIN
-        _int_m_pin := INT_M_PIN
+        _SCL := SCL_PIN
+        _SDIO := SDIO_PIN
+        _CS_AG := CS_AG_PIN
+        _CS_M := CS_M_PIN
+        _INT_AG := INT_AG_PIN
+        _INT_M := INT_M_PIN
 
-        io.Output (_cs_ag_pin)
-        io.Output (_cs_m_pin)
-        io.Input (_int_ag_pin)
-        io.Input (_int_m_pin)
+        io.Output (_CS_AG)
+        io.Output (_CS_M)
+        io.Input (_INT_AG)
+        io.Input (_INT_M)
 
 ' Initialize the IMU
-        io.High (_cs_ag_pin)
-        io.High (_cs_m_pin)
-        io.Low (_scl_pin)
+        io.High (_CS_AG)
+        io.High (_CS_M)
+        io.Low (_SCL)
         waitcnt(cnt + clkfreq / 1000)
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
-        WriteAGReg8 (core#CTRL_REG8, %0000_1100)
-        WriteMReg8 (core#CTRL_REG3_M, %1000_0100)
+        tmp := %0000_1100
+        writeRegX (AG, core#CTRL_REG8, 1, @tmp)
+        tmp := %1000_0100
+        writeRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
 
 ' Once everything is initialized, check the WHO_AM_I registers
         if ID(BOTH) == core#WHOAMI_BOTH_RESP
@@ -92,24 +94,35 @@ PUB Stop
 
     spi.stop
 
-PUB Defaults
+PUB Defaults | tmp
 
 'Init Gyro
-    WriteAGReg8 (core#CTRL_REG1_G, $C0)
-    WriteAGReg8 (core#CTRL_REG2_G, $00)
-    WriteAGReg8 (core#CTRL_REG3_G, $00)
-    WriteAGReg8 (core#CTRL_REG4, $38)
-    WriteAGReg8 (core#ORIENT_CFG_G, $00)
+    tmp := $C0
+    writeRegX(AG, core#CTRL_REG1_G, 1, @tmp)
+    tmp := $00
+    writeRegX(AG, core#CTRL_REG2_G, 1, @tmp)
+    tmp := $00
+    writeRegX(AG, core#CTRL_REG3_G, 1, @tmp)
+    tmp := $38
+    writeRegX(AG, core#CTRL_REG4, 1, @tmp)
+    tmp := $00
+    writeRegX(AG, core#ORIENT_CFG_G, 1, @tmp)
 
 'Init Accel
-    WriteAGReg8 (core#CTRL_REG5_XL, $38)
-    WriteAGReg8 (core#CTRL_REG6_XL, $C0)
-    WriteAGReg8 (core#CTRL_REG7_XL, $00)
+    tmp := $38
+    writeRegX(AG, core#CTRL_REG5_XL, 1, @tmp)
+    tmp := $C0
+    writeRegX(AG, core#CTRL_REG6_XL, 1, @tmp)
+    tmp := $00
+    writeRegX(AG, core#CTRL_REG7_XL, 1, @tmp)
 
 'Init Mag
-    WriteMReg8 (core#CTRL_REG2_M, $00)
-    WriteMReg8 (core#CTRL_REG4_M, $0C)
-    WriteMReg8 (core#CTRL_REG5_M, $00)
+    tmp := $00
+    writeRegX(MAG, core#CTRL_REG2_M, 1, @tmp)
+    tmp := $0c
+    writeRegX(MAG, core#CTRL_REG4_M, 1, @tmp)
+    tmp := $00
+    writeRegX(MAG, core#CTRL_REG5_M, 1, @tmp)
 
 'Set Scales
     GyroScale(245)
@@ -122,19 +135,15 @@ PUB AccelAvail | tmp
     ReadAGReg (core#STATUS_REG, @tmp, 1)
     result := ((tmp >> core#FLD_XLDA) & %1) * TRUE
 
-PUB AccelClearInt | temp, reg
+PUB AccelClearInt | tmp, reg
 ' Clears out any interrupts set up on the Accelerometer and
 ' resets all Accelerometer interrupt registers to their default values.
+    tmp := $00
     repeat reg from core#INT_GEN_CFG_XL to core#INT_GEN_DUR_XL
-        WriteAGReg8 (reg, $00)
-'    WriteAGReg8 (core#INT_GEN_THS_X_XL, $00)
-'    WriteAGReg8 (core#INT_GEN_THS_Y_XL, $00)
-'    WriteAGReg8 (core#INT_GEN_THS_Z_XL, $00)
-'    WriteAGReg8 (core#INT_GEN_CFG_XL, $00)
-'    WriteAGReg8 (core#INT_GEN_DUR_XL, $00)
-    ReadAGReg (core#INT1_CTRL, @temp, 1)
-    temp &= core#MASK_INT1_IG_XL
-    WriteAGReg8 (core#INT1_CTRL, temp)
+        writeRegX(AG, reg, 1, @tmp)
+    ReadAGReg (core#INT1_CTRL, @tmp, 1)
+    tmp &= core#MASK_INT1_IG_XL
+    writeRegX(AG, core#INT1_CTRL, 1, @tmp)
 
 PUB AccelHighRes(enabled) | tmp
 ' Enable high resolution mode for accelerometer
@@ -150,7 +159,7 @@ PUB AccelHighRes(enabled) | tmp
 
     tmp &= core#MASK_HR
     tmp := (tmp | enabled) & core#CTRL_REG7_XL_MASK
-    WriteAGReg8 (core#CTRL_REG7_XL, tmp)
+    writeRegX(AG, core#CTRL_REG7_XL, 1, @tmp)
 
 PUB AccelOutEnable(x, y, z) | tmp, bits
 ' Enable data output for Accelerometer - per axis
@@ -166,7 +175,7 @@ PUB AccelOutEnable(x, y, z) | tmp, bits
 
     tmp &= core#MASK_EN_XL
     tmp := (tmp | bits) & core#CTRL_REG5_XL_MASK
-    WriteAGReg8 (core#CTRL_REG5_XL, tmp)
+    writeRegX(AG, core#CTRL_REG5_XL, 1, @tmp)
 
 PUB AccelScale(scale) | tmp
 ' Sets the full-scale range of the Accelerometer, in g's
@@ -183,7 +192,7 @@ PUB AccelScale(scale) | tmp
 
     tmp &= core#MASK_FS_XL
     tmp := (tmp | scale) & core#CTRL_REG6_XL_MASK
-    WriteAGReg8 (core#CTRL_REG6_XL, tmp)
+    writeRegX(AG, core#CTRL_REG6_XL, 1, @tmp)
 
 PUB AccelSetCal(axBias, ayBias, azBias)
 ' Manually set accelerometer calibration offset values
@@ -205,7 +214,7 @@ PUB AGDataRate(Hz) | tmp
 
     tmp &= core#MASK_ODR
     tmp := (tmp | Hz) & core#CTRL_REG1_G_MASK
-    WriteAGReg8 (core#CTRL_REG1_G, tmp)
+    writeRegX(AG, core#CTRL_REG1_G, 1, @tmp)
 
 PUB BlockUpdate(enabled) | tmp 'XXX Make PRI? Doesn't seem like user-facing functionality
 ' Wait until both MSB and LSB of output registers are read before updating
@@ -221,7 +230,7 @@ PUB BlockUpdate(enabled) | tmp 'XXX Make PRI? Doesn't seem like user-facing func
 
     tmp &= core#MASK_BDU
     tmp := (tmp | enabled) & core#CTRL_REG8_MASK
-    WriteAGReg8 (core#CTRL_REG8, tmp)
+    writeRegX(AG, core#CTRL_REG8, 1, @tmp)
 
 PUB CalibrateAG | aBiasRawTemp[3], gBiasRawTemp[3], axis, ax, ay, az, gx, gy, gz, samples
 ' Calibrates the Accelerometer and Gyroscope
@@ -276,8 +285,8 @@ PUB CalibrateMag(samples) | magMin[3], magMax[3], magTemp[3], axis, mx, my, mz, 
         _mBiasRaw[axis] := (magMax[axis] + magMin[axis]) / 2
         msb := (_mBiasRaw[axis] & $FF00) >> 8
         lsb := _mBiasRaw[axis] & $00FF
-        WriteMReg8 (core#OFFSET_X_REG_L_M + (2 * axis), lsb)
-        WriteMReg8 (core#OFFSET_X_REG_H_M + (2 * axis), msb)
+        writeRegX(MAG, core#OFFSET_X_REG_L_M + (2 * axis), 1, @lsb)
+        writeRegX(MAG, core#OFFSET_X_REG_H_M + (2 * axis), 1, @msb)
 
 PUB Endian(endianness) | tmp
 ' Choose byte order of data
@@ -293,7 +302,7 @@ PUB Endian(endianness) | tmp
 
     tmp &= core#MASK_BLE
     tmp := (tmp | endianness) & core#CTRL_REG8_MASK
-    WriteAGReg8 (core#CTRL_REG8, tmp)
+    writeRegX(AG, core#CTRL_REG8, 1, @tmp)
 
 PUB FIFO(enabled) | tmp
 ' Enable FIFO memory
@@ -309,7 +318,7 @@ PUB FIFO(enabled) | tmp
 
     tmp &= core#MASK_FIFO_EN
     tmp := (tmp | enabled) & core#CTRL_REG9_MASK
-    WriteAGReg8 (core#CTRL_REG9, tmp)
+    writeRegX(AG, core#CTRL_REG9, 1, @tmp)
 
 PUB FIFOFull | tmp
 ' FIFO Threshold status
@@ -334,7 +343,7 @@ PUB FIFOMode(mode) | tmp
             return (tmp >> core#FLD_FMODE) & core#BITS_FMODE
     tmp &= core#MASK_FMODE
     tmp := (tmp | mode) & core#FIFO_CTRL_MASK
-    WriteAGReg8 (core#FIFO_CTRL, tmp)
+    writeRegX(AG, core#FIFO_CTRL, 1, @tmp)
 
 PUB FIFOThreshold(level) | tmp
 ' Set FIFO threshold level
@@ -348,7 +357,7 @@ PUB FIFOThreshold(level) | tmp
 
     tmp &= core#MASK_FTH
     tmp := (tmp | level) & core#FIFO_CTRL_MASK
-    WriteAGReg8 (core#FIFO_CTRL, tmp)
+    writeRegX(AG, core#FIFO_CTRL, 1, @tmp)
 
 PUB FIFOUnread
 ' Number of unread samples stored in FIFO
@@ -366,7 +375,7 @@ PUB GyroActivityDur(duration) | tmp
         OTHER:
             return tmp
 
-    WriteAGReg8 (core#ACT_DUR, duration)
+    writeRegX(AG, core#ACT_DUR, 1, @duration)
 
 PUB GyroActivityThr(threshold) | tmp
 ' Set gyroscope inactivity threshold (use GyroInactiveSleep to define behavior on inactivity)
@@ -380,7 +389,7 @@ PUB GyroActivityThr(threshold) | tmp
 
     tmp &= core#MASK_ACT_THS
     tmp := (tmp | threshold) & core#ACT_THS_MASK
-    WriteAGReg8 (core#ACT_THS, tmp)
+    writeRegX(AG, core#ACT_THS, 1, @tmp)
 
 PUB GyroAvail | tmp
 ' Gyroscope sensor new data available
@@ -388,21 +397,14 @@ PUB GyroAvail | tmp
     ReadAGReg (core#STATUS_REG, @tmp, 1)
     result := ((tmp >> core#FLD_GDA) & %1) * TRUE
 
-PUB GyroClearInt | temp, reg
+PUB GyroClearInt | tmp, reg
 ' Clears out any interrupts set up on the Gyroscope and resets all Gyroscope interrupt registers to their default values.
+    tmp := $00
     repeat reg from core#INT_GEN_CFG_G to core#INT_GEN_DUR_G
-        WriteAGReg8 (reg, $00)
-'    WriteAGReg8 (core#INT_GEN_THS_XH_G, $00)'XXX See if these are contiguous and if they are,
-'    WriteAGReg8 (core#INT_GEN_THS_XL_G, $00)' iterate through them instead
-'    WriteAGReg8 (core#INT_GEN_THS_YH_G, $00)
-'    WriteAGReg8 (core#INT_GEN_THS_YL_G, $00)
-'    WriteAGReg8 (core#INT_GEN_THS_ZH_G, $00)
-'    WriteAGReg8 (core#INT_GEN_THS_ZL_G, $00)
-'    WriteAGReg8 (core#INT_GEN_CFG_G, $00)
-'    WriteAGReg8 (core#INT_GEN_DUR_G, $00)
-    ReadAGReg (core#INT1_CTRL, @temp, 1)
-    temp &= core#MASK_INT1_IG_G
-    WriteAGReg8 (core#INT1_CTRL, temp)
+        writeRegX(AG, reg, 1, @tmp)
+    ReadAGReg (core#INT1_CTRL, @tmp, 1)
+    tmp &= core#MASK_INT1_IG_G
+    writeRegX(AG, core#INT1_CTRL, 1, @tmp)
 
 PUB GyroInactiveSleep(enabled) | tmp
 ' Enable gyroscope sleep mode when inactive (see GyroActivityThr)
@@ -418,7 +420,7 @@ PUB GyroInactiveSleep(enabled) | tmp
 
     tmp &= core#MASK_SLEEP_ON_INACT
     tmp := (tmp | enabled) & core#ACT_THS_MASK
-    WriteAGReg8 (core#ACT_THS, tmp)
+    writeRegX(AG, core#ACT_THS, 1, @tmp)
 
 PUB GyroOutEnable(x, y, z) | tmp, bits
 ' Enable data output for Gyroscope - per axis
@@ -434,7 +436,7 @@ PUB GyroOutEnable(x, y, z) | tmp, bits
 
     tmp &= core#MASK_EN_G
     tmp := (tmp | bits) & core#CTRL_REG4_MASK
-    WriteAGReg8 (core#CTRL_REG4, tmp)
+    writeRegX(AG, core#CTRL_REG4, 1, @tmp)
 
 PUB GyroLowPower(enabled) | tmp
 ' Enable low-power mode
@@ -450,7 +452,7 @@ PUB GyroLowPower(enabled) | tmp
 
     tmp &= core#MASK_LP_MODE
     tmp := (tmp | enabled) & core#CTRL_REG3_G_MASK
-    WriteAGReg8 (core#CTRL_REG3_G, tmp)
+    writeRegX(AG, core#CTRL_REG3_G, 1, @tmp)
 
 PUB GyroSetCal(gxBias, gyBias, gzBias)
 ' Manually set gyroscope calibration offset values
@@ -472,7 +474,7 @@ PUB GyroSleep(enabled) | tmp
 
     tmp &= core#MASK_SLEEP_G
     tmp := (tmp | enabled) & core#CTRL_REG9_MASK
-    WriteAGReg8 (core#CTRL_REG9, tmp)
+    writeRegX(AG, core#CTRL_REG9, 1, @tmp)
 
 PUB GyroScale(scale) | tmp
 ' Set full scale of gyroscope output, in degrees per second (dps)
@@ -489,7 +491,7 @@ PUB GyroScale(scale) | tmp
 
     tmp &= core#MASK_FS
     tmp := (tmp | scale) & core#CTRL_REG1_G_MASK
-    WriteAGReg8 (core#CTRL_REG1_G, tmp)
+    writeRegX(AG, core#CTRL_REG1_G, 1, @tmp)
 
 PUB ID(sensor) | tmp
 ' Poll sensor for WHO_AM_I ID
@@ -548,7 +550,7 @@ PUB IntLevel(active_state) | tmp
 
     tmp &= core#MASK_H_LACTIVE
     tmp := (tmp | active_state) & core#CTRL_REG8_MASK
-    WriteAGReg8 (core#CTRL_REG8, tmp)
+    writeRegX(AG, core#CTRL_REG8, 1, @tmp)
 
 PUB MagAvail
 ' Polls the Magnetometer status register to check if new data is available.
@@ -573,7 +575,7 @@ PUB MagScale(scale) | tmp
 
     tmp &= core#MASK_FS_M
     tmp := (tmp | scale) & core#CTRL_REG2_M_MASK
-    WriteMReg8(core#CTRL_REG2_M, tmp)
+    writeRegX(MAG, core#CTRL_REG2_M, 1, @tmp)
 
 PUB MagSetCal(mxBias, myBias, mzBias) | axis, msb, lsb
 ' Manually set magnetometer calibration offset values
@@ -585,8 +587,8 @@ PUB MagSetCal(mxBias, myBias, mzBias) | axis, msb, lsb
         msb := (_mBiasRaw[axis] & $FF00) >> 8
         lsb := _mBiasRaw[axis] & $00FF
 
-        WriteMReg8(core#OFFSET_X_REG_L_M + (2 * axis), lsb)
-        WriteMReg8(core#OFFSET_X_REG_H_M + (2 * axis), msb)
+        writeRegX(MAG, core#OFFSET_X_REG_L_M + (2 * axis), 1, @lsb)
+        writeRegX(MAG, core#OFFSET_X_REG_H_M + (2 * axis), 1, @msb)
 
 PUB ReadAccel(ax, ay, az) | temp[2]
 'Reads the Accelerometer output registers
@@ -651,7 +653,7 @@ PUB SWReset | tmp'XXX
     ReadAGReg (core#CTRL_REG8, @tmp, 1)
     tmp &= core#MASK_SW_RESET
     tmp := (tmp | %1) & core#CTRL_REG8_MASK
-    WriteAGReg8 (core#CTRL_REG8, tmp)
+    writeRegX(AG, core#CTRL_REG8, 1, @tmp)
     return tmp
 
 PUB Temperature
@@ -669,13 +671,14 @@ PUB TempAvail | tmp
 
 '--- OLD CODE BELOW ---
 
-PUB clearMagInterrupt | tempRegValue 'UNTESTED
+PUB clearMagInterrupt | tmp 'UNTESTED
 ' Clears out any interrupts set up on the Magnetometer and
 ' resets all Magnetometer interrupt registers to their default values
-    WriteMReg8 (core#INT_THS_L_M, $00)
-    WriteMReg8 (core#INT_THS_H_M, $00)
-    WriteMReg8 (core#INT_SRC_M, $00)
-    WriteMReg8 (core#INT_CFG_M, $00)
+    tmp := $00
+    writeRegX(MAG, core#INT_THS_L_M, 1, @tmp)
+    writeRegX(MAG, core#INT_THS_H_M, 1, @tmp)
+    writeRegX(MAG, core#INT_SRC_M, 1, @tmp)
+    writeRegX(MAG, core#INT_CFG_M, 1, @tmp)
 
 PUB getAccelCalibration(axBias, ayBias, azBias) 'UNTESTED
 
@@ -724,7 +727,7 @@ PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValu
     tempRegValue := 0
     ReadAGReg (core#CTRL_REG4, @tempRegValue, 1)
     tempRegValue &= $FD
-    WriteAGReg8 (core#CTRL_REG4, tempRegValue)
+    writeRegX(AG, core#CTRL_REG4, 1, @tempRegValue)
     ReadAGReg (core#INT_GEN_CFG_XL, @tempRegValue, 1)
     if andOr
         tempRegValue |= $80
@@ -740,27 +743,27 @@ PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValu
     case(axis)
         X_AXIS:
             tempRegValue |= (1 <<(0 + overUnder))
-            WriteAGReg8 (core#INT_GEN_THS_X_XL, accelThs)
+            writeRegX(AG, core#INT_GEN_THS_X_XL, 1, @accelThs)
         Y_AXIS:
             tempRegValue |= (1 <<(2 + overUnder))
-            WriteAGReg8 (core#INT_GEN_THS_Y_XL, accelThs)
+            writeRegX(AG, core#INT_GEN_THS_Y_XL, 1, @accelThs)
         Z_AXIS:
             tempRegValue |= (1 <<(4 + overUnder))
-            WriteAGReg8 (core#INT_GEN_THS_Z_XL, accelThs)
+            writeRegX(AG, core#INT_GEN_THS_Z_XL, 1, @accelThs)
         OTHER:
-            WriteAGReg8 (core#INT_GEN_THS_X_XL, accelThs)
-            WriteAGReg8 (core#INT_GEN_THS_Y_XL, accelThs)
-            WriteAGReg8 (core#INT_GEN_THS_Z_XL, accelThs)
+            writeRegX(AG, core#INT_GEN_THS_X_XL, 1, @accelThs)
+            writeRegX(AG, core#INT_GEN_THS_Y_XL, 1, @accelThs)
+            writeRegX(AG, core#INT_GEN_THS_Z_XL, 1, @accelThs)
             tempRegValue |= (%00010101 << overUnder)
-    WriteAGReg8 (core#INT_GEN_CFG_XL, tempRegValue)
+    writeRegX(AG, core#INT_GEN_CFG_XL, 1, @tempRegValue)
     if (duration > 0)
         duration := $80 | (duration & $7F)
     else
         duration := $00
-    WriteAGReg8 (core#INT_GEN_DUR_XL, duration)
+    writeRegX(AG, core#INT_GEN_DUR_XL, 1, @duration)
     ReadAGReg (core#INT1_CTRL, @tempRegValue, 1)
     tempRegValue |= $40
-    WriteAGReg8 (core#INT1_CTRL, tempRegValue)
+    writeRegX(AG, core#INT1_CTRL, 1, @tempRegValue)
 
 PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue, gyroThs, gyroThsH, gyroThsL
 ' Configures the Gyroscope interrupt output to the INT_A/G pin.
@@ -768,8 +771,8 @@ PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue
     tempRegValue := 0
     ReadAGReg (core#CTRL_REG4, @tempRegValue, 1)
     tempRegValue &= $FD
-    WriteAGReg8 (core#CTRL_REG4, tempRegValue)
-    WriteAGReg8 (core#CTRL_REG4, tempRegValue)
+    writeRegX(AG, core#CTRL_REG4, 1, @tempRegValue)
+    writeRegX(AG, core#CTRL_REG4, 1, @tempRegValue)
     ReadAGReg (core#INT_GEN_CFG_G, @tempRegValue, 1)
     if andOr
         tempRegValue |= $80
@@ -790,33 +793,33 @@ PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue
     case(axis)
         X_AXIS :
             tempRegValue |= (1 <<(0 + overUnder))
-            WriteAGReg8 (core#INT_GEN_THS_XH_G, gyroThsH)
-            WriteAGReg8 (core#INT_GEN_THS_XL_G, gyroThsL)
+            writeRegX(AG, core#INT_GEN_THS_XH_G, 1, @gyroThsH)
+            writeRegX(AG, core#INT_GEN_THS_XL_G, 1, @gyroThsL)
         Y_AXIS :
             tempRegValue |= (1 <<(2 + overUnder))
-            WriteAGReg8 (core#INT_GEN_THS_YH_G, gyroThsH)
-            WriteAGReg8 (core#INT_GEN_THS_YL_G, gyroThsL)
+            writeRegX(AG, core#INT_GEN_THS_YH_G, 1, @gyroThsH)
+            writeRegX(AG, core#INT_GEN_THS_YL_G, 1, @gyroThsL)
         Z_AXIS :
             tempRegValue |= (1 <<(4 + overUnder))
-            WriteAGReg8 (core#INT_GEN_THS_ZH_G, gyroThsH)
-            WriteAGReg8 (core#INT_GEN_THS_ZL_G, gyroThsL)
+            writeRegX(AG, core#INT_GEN_THS_ZH_G, 1, @gyroThsH)
+            writeRegX(AG, core#INT_GEN_THS_ZL_G, 1, @gyroThsL)
         OTHER :
-            WriteAGReg8 (core#INT_GEN_THS_XH_G, gyroThsH)
-            WriteAGReg8 (core#INT_GEN_THS_XL_G, gyroThsL)
-            WriteAGReg8 (core#INT_GEN_THS_YH_G, gyroThsH)
-            WriteAGReg8 (core#INT_GEN_THS_YL_G, gyroThsL)
-            WriteAGReg8 (core#INT_GEN_THS_ZH_G, gyroThsH)
-            WriteAGReg8 (core#INT_GEN_THS_ZL_G, gyroThsL)
+            writeRegX(AG, core#INT_GEN_THS_XH_G, 1, @gyroThsH)
+            writeRegX(AG, core#INT_GEN_THS_XL_G, 1, @gyroThsL)
+            writeRegX(AG, core#INT_GEN_THS_YH_G, 1, @gyroThsH)
+            writeRegX(AG, core#INT_GEN_THS_YL_G, 1, @gyroThsL)
+            writeRegX(AG, core#INT_GEN_THS_ZH_G, 1, @gyroThsH)
+            writeRegX(AG, core#INT_GEN_THS_ZL_G, 1, @gyroThsL)
             tempRegValue |= (%00010101 << overUnder)
-    WriteAGReg8 (core#INT_GEN_CFG_G, tempRegValue)
+    writeRegX(AG, core#INT_GEN_CFG_G, 1, @tempRegValue)
     if (duration > 0)
         duration := $80 | (duration & $7F)
     else
         duration := $00
-    WriteAGReg8 (core#INT_GEN_DUR_G, duration)
+    writeRegX(AG, core#INT_GEN_DUR_G, 1, @duration)
     ReadAGReg (core#INT1_CTRL, @tempRegValue, 1)
     tempRegValue |= $80
-    WriteAGReg8 (core#INT1_CTRL, tempRegValue)
+    writeRegX(AG, core#INT1_CTRL, 1, @tempRegValue)
 
 PUB setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magThs, magThsL, magThsH 'PARTIAL
 
@@ -836,8 +839,8 @@ PUB setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magT
         magThs := 32767
     magThsL := magThs & $FF
     magThsH := (magThs >> 8) & $7F
-    WriteMReg8(core#INT_THS_L_M, magThsL)
-    WriteMReg8(core#INT_THS_H_M, magThsH)
+    writeRegX(MAG, core#INT_THS_L_M, 1, @magThsL)
+    writeRegX(MAG, core#INT_THS_H_M, 1, @magThsH)
     case axis
         X_AXIS :
             tempCfgValue |= ((1 << 7) | 2)
@@ -847,7 +850,7 @@ PUB setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magT
             tempCfgValue |= ((1 << 5) | 2)
         OTHER :
             tempCfgValue |= (%11100010)
-    WriteMReg8(core#INT_CFG_M, tempCfgValue)
+    writeRegX(MAG, core#INT_CFG_M, 1, @tempCfgValue)
 
 PUB ReadAGReg(reg, ptr, count) | i
 'Validate register and read word from Accel/Gyro device
@@ -858,11 +861,11 @@ PUB ReadAGReg(reg, ptr, count) | i
         case reg
             $04..$0D, $0F..$24, $26..$37:
                 reg |= $80
-                io.Low(_cs_ag_pin)
-                spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, reg)
+                io.Low(_CS_AG)
+                spi.shiftout(_SDIO, _SCL, spi#MSBFIRST, 8, reg)
                 repeat i from 0 to count-1
-                    byte[ptr][i] := spi.shiftin(_sdio_pin, _scl_pin, spi#MSBPRE, 8)
-                io.High(_cs_ag_pin)
+                    byte[ptr][i] := spi.shiftin(_SDIO, _SCL, spi#MSBPRE, 8)
+                io.High(_CS_AG)
                 return ptr
             OTHER:
                 return 0
@@ -879,50 +882,49 @@ PUB ReadMReg(reg, ptr, count) | i
             $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
                 reg |= $80
                 reg |= $40
-                io.Low(_cs_m_pin)
-                spi.shiftout(_sdio_pin, _scl_pin, spi#MSBFIRST, 8, reg)
+                io.Low(_CS_M)
+                spi.shiftout(_SDIO, _SCL, spi#MSBFIRST, 8, reg)
                 repeat i from 0 to count-1
-                    byte[ptr][i] := spi.shiftin(_sdio_pin, _scl_pin, spi#MSBPRE, 8)
-                io.High(_cs_m_pin)
+                    byte[ptr][i] := spi.shiftin(_SDIO, _SCL, spi#MSBPRE, 8)
+                io.High(_CS_M)
                 return ptr
             OTHER:
                 return 0
     else
         return 0
 
-PUB WriteAGReg8(reg, writebyte)
-'Validate register and write byte to Accel/Gyro device
-'Allow only registers that are
-'1. Writeable
-'2. Not 'reserved' (ST claims writing to these can
-' permanently damage the device)
-    writebyte &= $FF
-    case reg
-        $04..$0D, $10..$13, $1E..$24, $2E, $30..$37:
-            SPIwriteBytes(_cs_ag_pin, reg, writebyte, 1)
-        OTHER:
-            return 0
-
-PUB WriteMReg8(reg, writebyte)
+PUB writeRegX(device, reg, nr_bytes, buf_addr) | tmp
 'Validate register and write byte to Magnetometer device
 'Allow only registers that are
 '1. Writeable
 '2. Not 'reserved' (ST claims writing to these can
 ' permanently damage the device)
-    writebyte &= $FF
-    case reg
-        $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
-            SPIwriteBytes(_cs_m_pin, reg, writebyte, 1)
-        OTHER:
-            return 0
+    case device
+        AG:
+            case reg
+                $04..$0D, $10..$13, $1E..$24, $2E, $30..$37:
+                    io.Low (_CS_AG)
+                    spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
+                    repeat tmp from 0 to nr_bytes-1
+                        spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[buf_addr][tmp])
+                    io.High (_cs_ag)
 
-PRI SPIwriteBytes(csPin, subAddress, data, count) | bytecnt
-' SPI: Write byte _data_ to SPI device at _subAddress_ on Propeller I/O pin _csPin_
-    io.Low (csPin)
-    spi.shiftout(_sdio_pin, _scl_pin, core#MOSI_BITORDER, 8, subAddress & $3F)
-    repeat bytecnt from 0 to count-1
-        spi.shiftout(_sdio_pin, _scl_pin, core#MOSI_BITORDER, 8, data.byte[bytecnt])
-    io.High (csPin)
+                OTHER:
+                    return FALSE
+
+        MAG:
+            case reg
+                $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
+                    io.Low (_CS_M)
+                    spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
+                    repeat tmp from 0 to nr_bytes-1
+                        spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[buf_addr][tmp])
+                    io.High (_CS_M)
+                OTHER:
+                    return 0
+        OTHER:
+            return FALSE
+
 
 PRI SPIreadBytes(csPin, subAddress, dest, count) | rAddress, i
 ' SPI: Read _count_ bytes from SPI device at _subAddress_ on Propeller I/O pin _csPin_ into pointer _dest_
@@ -930,12 +932,12 @@ PRI SPIreadBytes(csPin, subAddress, dest, count) | rAddress, i
     rAddress := $80 | (subAddress & $3F)
 ' Mag SPI port is different. If we're reading multiple bytes,
 ' set bit 1 to 1. The remaining six bytes are the address to be read
-    if (csPin == _cs_m_pin) and count > 1
+    if (csPin == _CS_M) and count > 1
         rAddress |= $40
     io.Low (csPin)
-    spi.shiftout(_sdio_pin, _scl_pin, core#MOSI_BITORDER, 8, rAddress)
+    spi.shiftout(_SDIO, _SCL, core#MOSI_BITORDER, 8, rAddress)
     repeat i from 0 to count-1
-        byte[dest][i] := spi.shiftin(_sdio_pin, _scl_pin, core#MISO_BITORDER, 8)
+        byte[dest][i] := spi.shiftin(_SDIO, _SCL, core#MISO_BITORDER, 8)
     io.High(csPin)
 
 {*
