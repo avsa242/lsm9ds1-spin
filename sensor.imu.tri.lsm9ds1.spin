@@ -98,10 +98,12 @@ PUB Defaults | tmp
 
 'Init Gyro
     GyroDataRate (952)
+
     tmp := $00
     writeRegX(AG, core#CTRL_REG2_G, 1, @tmp)
-    tmp := $00
-    writeRegX(AG, core#CTRL_REG3_G, 1, @tmp)
+
+    GyroHighPass(0)
+
     tmp := $38
     writeRegX(AG, core#CTRL_REG4, 1, @tmp)
     tmp := $00
@@ -422,6 +424,22 @@ PUB GyroDataRate(Hz) | tmp
     tmp &= core#MASK_ODR
     tmp := (tmp | Hz)
     writeRegX (AG, core#CTRL_REG1_G, 1, @tmp)
+
+PUB GyroHighPass(cutoff) | tmp
+' Set Gyroscope high-pass filter cutoff frequency
+'   Valid values: 0..9
+'   Any other value polls the chip and returns the current setting
+    readRegX (AG, core#CTRL_REG3_G, 1, @tmp)
+    case cutoff
+        0..9:
+            cutoff := cutoff << core#FLD_HPCF_G
+        OTHER:
+            result := (tmp >> core#FLD_HPCF_G) & core#BITS_HPCF_G
+            return result
+
+    tmp &= core#MASK_HPCF_G
+    tmp := (tmp | cutoff) & core#CTRL_REG3_G_MASK
+    writeRegX (AG, core#CTRL_REG3_G, 1, @tmp)
 
 PUB GyroInactiveSleep(enabled) | tmp
 ' Enable gyroscope sleep mode when inactive (see GyroActivityThr)

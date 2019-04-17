@@ -87,6 +87,8 @@ CON
         BITS_HPCF_G         = %1111
         BITS_LP_MODE        = %1
         MASK_LP_MODE        = CTRL_REG3_G_MASK ^ (BITS_LP_MODE << FLD_LP_MODE)
+        MASK_HP_EN          = CTRL_REG3_G_MASK ^ (1 << FLD_HP_EN)
+        MASK_HPCF_G         = CTRL_REG3_G_MASK ^ (BITS_HPCF_G << FLD_HPCF_G)
 
     ORIENT_CFG_G            = $13
     INT_GEN_SRC_G           = $14
