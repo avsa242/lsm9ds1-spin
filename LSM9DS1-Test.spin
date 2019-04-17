@@ -160,21 +160,21 @@ PUB XLDA(reps) | read
 ' XXX No verification
     _test_row := 13
     repeat reps
-        read := imu.AvailAccel
+        read := imu.AccelAvail
         Message (string("XLDA"), read, read)
 
 PUB GDA(reps) | read
 ' XXX No verification
     _test_row := 12
     repeat reps
-        read := imu.AvailGyro
+        read := imu.GyroAvail
         Message (string("GDA"), read, read)
 
 PUB TDA(reps) | read
 ' XXX No verification
     _test_row := 11
     repeat reps
-        read := imu.AvailTemp
+        read := imu.TempAvail
         Message (string("TDA"), read, read)
 
 PUB IG_INACT (reps) | read
@@ -275,17 +275,15 @@ PUB Setup
     ser.Str (string("Serial terminal started", ser#NL))
 
     if _imu_cog := imu.Start (SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN)
-        if imu.whoAmI == imu#WHO_AM_I
-            ser.Str (string("LSM9DS1 driver started", ser#NL))
-            _max_cols := 4
-            waitkey
-            return
-    ser.Str (string("Unable to start LSM9DS1 driver", ser#NL))
+        ser.Str (string("LSM9DS1 driver started", ser#NL))
+        _max_cols := 4
+        waitkey
+        return
+    ser.Str (string("Failed to start LSM9DS1 driver - halting", ser#NL))
     imu.Stop
-    time.MSleep (1)
+    time.MSleep (5)
     ser.Stop
     repeat
-
 
 PUB TrueFalse(num)
 
