@@ -97,8 +97,7 @@ PUB Stop
 PUB Defaults | tmp
 
 'Init Gyro
-    tmp := $C0
-    writeRegX(AG, core#CTRL_REG1_G, 1, @tmp)
+    GyroDataRate (952)
     tmp := $00
     writeRegX(AG, core#CTRL_REG2_G, 1, @tmp)
     tmp := $00
@@ -405,6 +404,24 @@ PUB GyroClearInt | tmp, reg
     readRegX(AG, core#INT1_CTRL, 1, @tmp)
     tmp &= core#MASK_INT1_IG_G
     writeRegX(AG, core#INT1_CTRL, 1, @tmp)
+
+PUB GyroDataRate(Hz) | tmp
+' Set Gyroscope Output Data Rate, in Hz
+'   Valid values: 0, 15, 60, 119, 238, 476, 952
+'   Any other value polls the chip and returns the current setting
+'   NOTE: 0 powers down the Gyroscope
+'   NOTE: 15 and 60 are rounded up from the datasheet specifications of 14.9 and 59.5, respectively
+    readRegX (AG, core#CTRL_REG1_G, 1, @tmp)
+    case Hz := lookdown(Hz: 0, 15, 60, 119, 238, 476, 952)
+        1..6:
+            Hz := Hz << core#FLD_ODR
+        OTHER:
+            result := ((tmp >> core#FLD_ODR) & core#BITS_ODR) + 1
+            return lookup(result: 0, 15, 60, 119, 238, 476, 952)
+
+    tmp &= core#MASK_ODR
+    tmp := (tmp | Hz)
+    writeRegX (AG, core#CTRL_REG1_G, 1, @tmp)
 
 PUB GyroInactiveSleep(enabled) | tmp
 ' Enable gyroscope sleep mode when inactive (see GyroActivityThr)
