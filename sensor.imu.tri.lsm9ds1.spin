@@ -232,7 +232,7 @@ PUB BlockUpdate(enabled) | tmp 'XXX Make PRI? Doesn't seem like user-facing func
     tmp := (tmp | enabled) & core#CTRL_REG8_MASK
     writeRegX(AG, core#CTRL_REG8, 1, @tmp)
 
-PUB CalibrateAG | aBiasRawTemp[3], gBiasRawTemp[3], axis, ax, ay, az, gx, gy, gz, samples
+PUB CalibrateAG | aBiasRawtmp[3], gBiasRawtmp[3], axis, ax, ay, az, gx, gy, gz, samples
 ' Calibrates the Accelerometer and Gyroscope
 ' Turn on FIFO and set threshold to 32 samples
     FIFO(TRUE)
@@ -242,44 +242,44 @@ PUB CalibrateAG | aBiasRawTemp[3], gBiasRawTemp[3], axis, ax, ay, az, gx, gy, gz
     repeat until FIFOFull
     _autoCalc := FALSE
     repeat axis from 0 to 2
-        gBiasRawTemp[axis] := 0
-        aBiasRawTemp[axis] := 0
+        gBiasRawtmp[axis] := 0
+        aBiasRawtmp[axis] := 0
 
     repeat samples
 ' Read the gyro and accel data stored in the FIFO
         ReadGyro(@gx, @gy, @gz)
-        gBiasRawTemp[X_AXIS] += gx
-        gBiasRawTemp[Y_AXIS] += gy
-        gBiasRawTemp[Z_AXIS] += gz
+        gBiasRawtmp[X_AXIS] += gx
+        gBiasRawtmp[Y_AXIS] += gy
+        gBiasRawtmp[Z_AXIS] += gz
 
         ReadAccel(@ax, @ay, @az)
-        aBiasRawTemp[X_AXIS] += ax
-        aBiasRawTemp[Y_AXIS] += ay
-        aBiasRawTemp[Z_AXIS] += az - _aRes ' Assumes sensor facing up!
+        aBiasRawtmp[X_AXIS] += ax
+        aBiasRawtmp[Y_AXIS] += ay
+        aBiasRawtmp[Z_AXIS] += az - _aRes ' Assumes sensor facing up!
 
     repeat axis from 0 to 2
-        _gBiasRaw[axis] := gBiasRawTemp[axis] / samples
+        _gBiasRaw[axis] := gBiasRawtmp[axis] / samples
         _gBias[axis] := (_gBiasRaw[axis]) / _gRes
-        _aBiasRaw[axis] := aBiasRawTemp[axis] / samples
+        _aBiasRaw[axis] := aBiasRawtmp[axis] / samples
         _aBias[axis] := _aBiasRaw[axis] / _aRes
 
     _autoCalc := TRUE
     FIFO(FALSE)
     FIFOMode (FIFO_OFF)
 
-PUB CalibrateMag(samples) | magMin[3], magMax[3], magTemp[3], axis, mx, my, mz, msb, lsb
+PUB CalibrateMag(samples) | magMin[3], magMax[3], magtmp[3], axis, mx, my, mz, msb, lsb
 ' Calibrates the Magnetometer on the LSM9DS1 IMU module
     repeat samples
         repeat until MagAvail
         readMag(@mx, @my, @mz)
-        magTemp[X_AXIS] := mx
-        magTemp[Y_AXIS] := my
-        magTemp[Z_AXIS] := mz
+        magtmp[X_AXIS] := mx
+        magtmp[Y_AXIS] := my
+        magtmp[Z_AXIS] := mz
         repeat axis from X_AXIS to Z_AXIS
-            if (magTemp[axis] > magMax[axis])
-                magMax[axis] := magTemp[axis]
-            if (magTemp[axis] < magMin[axis])
-                magMin[axis] := magTemp[axis]
+            if (magtmp[axis] > magMax[axis])
+                magMax[axis] := magtmp[axis]
+            if (magtmp[axis] < magMin[axis])
+                magMin[axis] := magtmp[axis]
 
     repeat axis from X_AXIS to Z_AXIS
         _mBiasRaw[axis] := (magMax[axis] + magMin[axis]) / 2
@@ -590,63 +590,59 @@ PUB MagSetCal(mxBias, myBias, mzBias) | axis, msb, lsb
         writeRegX(MAG, core#OFFSET_X_REG_L_M + (2 * axis), 1, @lsb)
         writeRegX(MAG, core#OFFSET_X_REG_H_M + (2 * axis), 1, @msb)
 
-PUB ReadAccel(ax, ay, az) | temp[2]
+PUB ReadAccel(ax, ay, az) | tmp[2]
 'Reads the Accelerometer output registers
-' We'll read six bytes from the accelerometer into temp
-    readRegX(AG, core#OUT_X_L_XL, 6, @temp)
+' We'll read six bytes from the accelerometer into tmp
+    readRegX(AG, core#OUT_X_L_XL, 6, @tmp)
 
-    long[ax] := ~~temp.word[0]
-    long[ay] := ~~temp.word[1]
-    long[az] := ~~temp.word[2]
+    long[ax] := ~~tmp.word[0]
+    long[ay] := ~~tmp.word[1]
+    long[az] := ~~tmp.word[2]
 
     if (_autoCalc)
         long[ax] -= _aBiasRaw[X_AXIS]
         long[ay] -= _aBiasRaw[Y_AXIS]
         long[az] -= _aBiasRaw[Z_AXIS]
 
-PUB ReadAccelCalculated(ax, ay, az) | tempX, tempY, tempZ
+PUB ReadAccelCalculated(ax, ay, az) | tmpX, tmpY, tmpZ
 ' Reads the Accelerometer output registers and scales the outputs to milli-g's (1 g = 9.8 m/s/s)
-    readAccel(@tempX, @tempY, @tempZ)
-    long[ax] := (tempX * FP_SCALE) / (_aRes)
-    long[ay] := (tempY * FP_SCALE) / (_aRes)
-    long[az] := (tempZ * FP_SCALE) / (_aRes)
+    readAccel(@tmpX, @tmpY, @tmpZ)
+    long[ax] := (tmpX * FP_SCALE) / (_aRes)
+    long[ay] := (tmpY * FP_SCALE) / (_aRes)
+    long[az] := (tmpZ * FP_SCALE) / (_aRes)
 
-PUB ReadGyro(gx, gy, gz) | temp[2]
-' Reads the Gyroscope output registers.
-' We'll read six bytes from the gyro into temp
-    readRegX(AG, core#OUT_X_G_L, 6, @temp)
-
-    long[gx] := ~~temp.word[0]
-    long[gy] := ~~temp.word[1]
-    long[gz] := ~~temp.word[2]
+PUB ReadGyro(gx, gy, gz) | tmp[2]
+' Reads the Gyroscope output registers
+    readRegX(AG, core#OUT_X_G_L, 6, @tmp)
+    long[gx] := ~~tmp.word[0]
+    long[gy] := ~~tmp.word[1]
+    long[gz] := ~~tmp.word[2]
 
     if (_autoCalc)
         long[gx] -= _gBiasRaw[X_AXIS]
         long[gy] -= _gBiasRaw[Y_AXIS]
         long[gz] -= _gBiasRaw[Z_AXIS]
 
-PUB ReadGyroCalculated(gx, gy, gz) | tempX, tempY, tempZ
-' Reads the Gyroscope output registers and scales the outputs to milli-degrees of rotation per second (DPS).
-    readGyro(@tempX, @tempY, @tempZ)
-    long[gx] := (tempX * FP_SCALE) / _gRes
-    long[gy] := (tempY * FP_SCALE) / _gRes
-    long[gz] := (tempZ * FP_SCALE) / _gRes
+PUB ReadGyroCalculated(gx, gy, gz) | tmpX, tmpY, tmpZ
+' Read the Gyroscope output registers and scale the outputs to milli-degrees of rotation per second (DPS)
+    readGyro(@tmpX, @tmpY, @tmpZ)
+    long[gx] := (tmpX * FP_SCALE) / _gRes
+    long[gy] := (tmpY * FP_SCALE) / _gRes
+    long[gz] := (tmpZ * FP_SCALE) / _gRes
 
-PUB ReadMag(mx, my, mz) | temp[2]
-' Reads the Magnetometer output registers.
-' We'll read six bytes from the mag into temp
-    readRegX(MAG, core#OUT_X_L_M, 6, @temp)
+PUB ReadMag(mx, my, mz) | tmp[2]
+' Read the Magnetometer output registers
+    readRegX(MAG, core#OUT_X_L_M, 6, @tmp)
+    long[mx] := ~~tmp.word[0]
+    long[my] := ~~tmp.word[1]
+    long[mz] := ~~tmp.word[2]
 
-    long[mx] := ~~temp.word[0]
-    long[my] := ~~temp.word[1]
-    long[mz] := ~~temp.word[2]
-
-PUB ReadMagCalculated(mx, my, mz) | tempX, tempY, tempZ
-' Reads the Magnetometer output registers and scales the outputs to milli-Gauss.
-    readMag(@tempX, @tempY, @tempZ)
-    long[mx] := (tempX * FP_SCALE) / _mRes
-    long[my] := (tempY * FP_SCALE) / _mRes
-    long[mz] := (tempZ * FP_SCALE) / _mRes
+PUB ReadMagCalculated(mx, my, mz) | tmpX, tmpY, tmpZ
+' Read the Magnetometer output registers and scale the outputs to milli-Gauss
+    readMag(@tmpX, @tmpY, @tmpZ)
+    long[mx] := (tmpX * FP_SCALE) / _mRes
+    long[my] := (tmpY * FP_SCALE) / _mRes
+    long[mz] := (tmpZ * FP_SCALE) / _mRes
 
 PUB SWReset | tmp'XXX
 
@@ -720,64 +716,64 @@ PUB getMagCalibration(mxBias, myBias, mzBias) 'UNTESTED
             long[temperature] := (tempTemp / 16) + 25 * 1000'(tempTemp / 16.0) + 25.0
 }
 
-PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue, accelThs, accelThsH, tempThs
+PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tmpRegValue, accelThs, accelThsH, tmpThs
 'Configures the Accelerometer interrupt output to the INT_A/G pin.
     overUnder &= $01
     andOr &= $01
-    tempRegValue := 0
-    readRegX(AG, core#CTRL_REG4, 1, @tempRegValue)
-    tempRegValue &= $FD
-    writeRegX(AG, core#CTRL_REG4, 1, @tempRegValue)
-    readRegX(AG, core#INT_GEN_CFG_XL, 1, @tempRegValue)
+    tmpRegValue := 0
+    readRegX(AG, core#CTRL_REG4, 1, @tmpRegValue)
+    tmpRegValue &= $FD
+    writeRegX(AG, core#CTRL_REG4, 1, @tmpRegValue)
+    readRegX(AG, core#INT_GEN_CFG_XL, 1, @tmpRegValue)
     if andOr
-        tempRegValue |= $80
+        tmpRegValue |= $80
     else
-        tempRegValue &= $7F
+        tmpRegValue &= $7F
     if (threshold < 0)
         threshold := -1 * threshold
     accelThs := 0
-    tempThs := 0
-    tempThs := (_aRes * threshold) >> 7
-    accelThs := tempThs & $FF
+    tmpThs := 0
+    tmpThs := (_aRes * threshold) >> 7
+    accelThs := tmpThs & $FF
 
     case(axis)
         X_AXIS:
-            tempRegValue |= (1 <<(0 + overUnder))
+            tmpRegValue |= (1 <<(0 + overUnder))
             writeRegX(AG, core#INT_GEN_THS_X_XL, 1, @accelThs)
         Y_AXIS:
-            tempRegValue |= (1 <<(2 + overUnder))
+            tmpRegValue |= (1 <<(2 + overUnder))
             writeRegX(AG, core#INT_GEN_THS_Y_XL, 1, @accelThs)
         Z_AXIS:
-            tempRegValue |= (1 <<(4 + overUnder))
+            tmpRegValue |= (1 <<(4 + overUnder))
             writeRegX(AG, core#INT_GEN_THS_Z_XL, 1, @accelThs)
         OTHER:
             writeRegX(AG, core#INT_GEN_THS_X_XL, 1, @accelThs)
             writeRegX(AG, core#INT_GEN_THS_Y_XL, 1, @accelThs)
             writeRegX(AG, core#INT_GEN_THS_Z_XL, 1, @accelThs)
-            tempRegValue |= (%00010101 << overUnder)
-    writeRegX(AG, core#INT_GEN_CFG_XL, 1, @tempRegValue)
+            tmpRegValue |= (%00010101 << overUnder)
+    writeRegX(AG, core#INT_GEN_CFG_XL, 1, @tmpRegValue)
     if (duration > 0)
         duration := $80 | (duration & $7F)
     else
         duration := $00
     writeRegX(AG, core#INT_GEN_DUR_XL, 1, @duration)
-    readRegX(AG, core#INT1_CTRL, 1, @tempRegValue)
-    tempRegValue |= $40
-    writeRegX(AG, core#INT1_CTRL, 1, @tempRegValue)
+    readRegX(AG, core#INT1_CTRL, 1, @tmpRegValue)
+    tmpRegValue |= $40
+    writeRegX(AG, core#INT1_CTRL, 1, @tmpRegValue)
 
-PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue, gyroThs, gyroThsH, gyroThsL
+PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tmpRegValue, gyroThs, gyroThsH, gyroThsL
 ' Configures the Gyroscope interrupt output to the INT_A/G pin.
     overUnder &= $01
-    tempRegValue := 0
-    readRegX(AG, core#CTRL_REG4, 1, @tempRegValue)
-    tempRegValue &= $FD
-    writeRegX(AG, core#CTRL_REG4, 1, @tempRegValue)
-    writeRegX(AG, core#CTRL_REG4, 1, @tempRegValue)
-    readRegX(AG, core#INT_GEN_CFG_G, 1, @tempRegValue)
+    tmpRegValue := 0
+    readRegX(AG, core#CTRL_REG4, 1, @tmpRegValue)
+    tmpRegValue &= $FD
+    writeRegX(AG, core#CTRL_REG4, 1, @tmpRegValue)
+    writeRegX(AG, core#CTRL_REG4, 1, @tmpRegValue)
+    readRegX(AG, core#INT_GEN_CFG_G, 1, @tmpRegValue)
     if andOr
-        tempRegValue |= $80
+        tmpRegValue |= $80
     else
-        tempRegValue &= $7F
+        tmpRegValue &= $7F
     gyroThs := 0
     gyroThsH := 0
     gyroThsL := 0
@@ -792,15 +788,15 @@ PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue
 
     case(axis)
         X_AXIS :
-            tempRegValue |= (1 <<(0 + overUnder))
+            tmpRegValue |= (1 <<(0 + overUnder))
             writeRegX(AG, core#INT_GEN_THS_XH_G, 1, @gyroThsH)
             writeRegX(AG, core#INT_GEN_THS_XL_G, 1, @gyroThsL)
         Y_AXIS :
-            tempRegValue |= (1 <<(2 + overUnder))
+            tmpRegValue |= (1 <<(2 + overUnder))
             writeRegX(AG, core#INT_GEN_THS_YH_G, 1, @gyroThsH)
             writeRegX(AG, core#INT_GEN_THS_YL_G, 1, @gyroThsL)
         Z_AXIS :
-            tempRegValue |= (1 <<(4 + overUnder))
+            tmpRegValue |= (1 <<(4 + overUnder))
             writeRegX(AG, core#INT_GEN_THS_ZH_G, 1, @gyroThsH)
             writeRegX(AG, core#INT_GEN_THS_ZL_G, 1, @gyroThsL)
         OTHER :
@@ -810,24 +806,24 @@ PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tempRegValue
             writeRegX(AG, core#INT_GEN_THS_YL_G, 1, @gyroThsL)
             writeRegX(AG, core#INT_GEN_THS_ZH_G, 1, @gyroThsH)
             writeRegX(AG, core#INT_GEN_THS_ZL_G, 1, @gyroThsL)
-            tempRegValue |= (%00010101 << overUnder)
-    writeRegX(AG, core#INT_GEN_CFG_G, 1, @tempRegValue)
+            tmpRegValue |= (%00010101 << overUnder)
+    writeRegX(AG, core#INT_GEN_CFG_G, 1, @tmpRegValue)
     if (duration > 0)
         duration := $80 | (duration & $7F)
     else
         duration := $00
     writeRegX(AG, core#INT_GEN_DUR_G, 1, @duration)
-    readRegX(AG, core#INT1_CTRL, 1, @tempRegValue)
-    tempRegValue |= $80
-    writeRegX(AG, core#INT1_CTRL, 1, @tempRegValue)
+    readRegX(AG, core#INT1_CTRL, 1, @tmpRegValue)
+    tmpRegValue |= $80
+    writeRegX(AG, core#INT1_CTRL, 1, @tmpRegValue)
 
-PUB setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magThs, magThsL, magThsH 'PARTIAL
+PUB setMagInterrupt(axis, threshold, lowHigh) | tmpCfgValue, tmpSrcValue, magThs, magThsL, magThsH 'PARTIAL
 
     lowHigh &= $01
-    tempCfgValue := $00
-    tempCfgValue |= (lowHigh << 2)
-    tempCfgValue |= $03
-    tempSrcValue := $00
+    tmpCfgValue := $00
+    tmpCfgValue |= (lowHigh << 2)
+    tmpCfgValue |= $03
+    tmpSrcValue := $00
     magThs := 0
     magThsL := 0
     magThsH := 0
@@ -843,16 +839,16 @@ PUB setMagInterrupt(axis, threshold, lowHigh) | tempCfgValue, tempSrcValue, magT
     writeRegX(MAG, core#INT_THS_H_M, 1, @magThsH)
     case axis
         X_AXIS :
-            tempCfgValue |= ((1 << 7) | 2)
+            tmpCfgValue |= ((1 << 7) | 2)
         Y_AXIS :
-            tempCfgValue |= ((1 << 6) | 2)
+            tmpCfgValue |= ((1 << 6) | 2)
         Z_AXIS :
-            tempCfgValue |= ((1 << 5) | 2)
+            tmpCfgValue |= ((1 << 5) | 2)
         OTHER :
-            tempCfgValue |= (%11100010)
-    writeRegX(MAG, core#INT_CFG_M, 1, @tempCfgValue)
+            tmpCfgValue |= (%11100010)
+    writeRegX(MAG, core#INT_CFG_M, 1, @tmpCfgValue)
 
-PUB readRegX(device, reg, nr_bytes, buf_addr) | tmp
+PRI readRegX(device, reg, nr_bytes, buf_addr) | tmp
 ' Read from device
 ' Validate register - allow only registers that are
 '   not 'reserved' (ST states reading should only be performed on registers listed in
@@ -885,7 +881,7 @@ PUB readRegX(device, reg, nr_bytes, buf_addr) | tmp
         OTHER:
             return FALSE
 
-PUB writeRegX(device, reg, nr_bytes, buf_addr) | tmp
+PRI writeRegX(device, reg, nr_bytes, buf_addr) | tmp
 ' Write byte to device
 '   Validate register - allow only registers that are
 '       writeable, and not 'reserved' (ST claims writing to these can
