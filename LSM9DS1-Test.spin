@@ -5,7 +5,7 @@
     Description: Test harness for LSM9DS1 driver
     Copyright (c) 2019
     Started Feb 9, 2019
-    Updated Feb 18, 2019
+    Updated Apr 17, 2019
     See end of file for terms of use.
     --------------------------------------------
 }

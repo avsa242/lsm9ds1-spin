@@ -5,7 +5,7 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2019
     Started Aug 12, 2017
-    Updated Feb 18, 2019
+    Updated Apr 17, 2019
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -103,9 +103,7 @@ PUB Defaults | tmp
     writeRegX(AG, core#CTRL_REG2_G, 1, @tmp)
 
     GyroHighPass(0)
-
-    tmp := $38
-    writeRegX(AG, core#CTRL_REG4, 1, @tmp)
+    GyroOutEnable (TRUE, TRUE, TRUE)
     tmp := $00
     writeRegX(AG, core#ORIENT_CFG_G, 1, @tmp)
 
