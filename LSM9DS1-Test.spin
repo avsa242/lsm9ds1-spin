@@ -15,12 +15,12 @@ CON
     _clkmode    = cfg#_clkmode
     _xinfreq    = cfg#_xinfreq
 
-    SCL_PIN     = 5
-    SDIO_PIN    = 6
-    CS_AG_PIN   = 7
-    CS_M_PIN    = 8
-    INT_AG_PIN  = 9
-    INT_M_PIN   = 10
+    SCL_PIN     = 0
+    SDIO_PIN    = 1
+    CS_AG_PIN   = 2
+    CS_M_PIN    = 3
+    INT_AG_PIN  = 4
+    INT_M_PIN   = 5
 
     COL_REG     = 0
     COL_SET     = COL_REG+20

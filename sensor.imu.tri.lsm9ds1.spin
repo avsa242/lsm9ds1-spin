@@ -58,9 +58,8 @@ PUB Null
 
 PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
 
-    if lookup(SCL_PIN: 0..31) and lookup(SDIO_PIN: 0..31) and lookup(CS_AG_PIN: 0..31) and lookup(CS_M_PIN: 0..31) and lookup(INT_AG_PIN: 0..31) and lookup(INT_M_PIN: 0..31)
+    if lookdown(SCL_PIN: 0..31) and lookdown(SDIO_PIN: 0..31) and lookdown(CS_AG_PIN: 0..31) and lookdown(CS_M_PIN: 0..31) and lookdown(INT_AG_PIN: 0..31) and lookdown(INT_M_PIN: 0..31)
         okay := spi.start (core#CLK_DELAY, core#CPOL)
-
         _scl_pin := SCL_PIN
         _sdio_pin := SDIO_PIN
         _cs_ag_pin := CS_AG_PIN
@@ -68,8 +67,6 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
         _int_ag_pin := INT_AG_PIN
         _int_m_pin := INT_M_PIN
 
-        io.Input (_scl_pin)
-        io.Input (_sdio_pin)
         io.Output (_cs_ag_pin)
         io.Output (_cs_m_pin)
         io.Input (_int_ag_pin)
@@ -89,7 +86,7 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay
             Defaults
             return okay
         Stop
-        return FALSE
+    return FALSE
 
 PUB Stop
 
