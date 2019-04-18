@@ -101,11 +101,10 @@ PUB Defaults | tmp
 'Init Gyro
     GyroDataRate (952)
 
-    tmp := $00
-    writeRegX(AG, core#CTRL_REG2_G, 1, @tmp)
-
+    GyroIntSelect (%00)
     GyroHighPass(0)
     GyroOutEnable (TRUE, TRUE, TRUE)
+
     tmp := $00
     writeRegX(AG, core#ORIENT_CFG_G, 1, @tmp)
 
@@ -456,6 +455,22 @@ PUB GyroInactiveSleep(enabled) | tmp
     tmp &= core#MASK_SLEEP_ON_INACT
     tmp := (tmp | enabled) & core#ACT_THS_MASK
     writeRegX(AG, core#ACT_THS, 1, @tmp)
+
+PUB GyroIntSelect(mode) | tmp
+' Set gyroscope interrupt generator selection
+'   Valid values:
+'       *%00..%11
+'   Any other value polls the chip and returns the current setting
+    readRegX (AG, core#CTRL_REG2_G, 1, @tmp)
+    case mode
+        %00..%11:
+            mode := mode << core#FLD_INT_SEL
+        OTHER:
+            return (tmp >> core#FLD_INT_SEL) & core#BITS_INT_SEL
+
+    tmp &= core#MASK_INT_SEL
+    tmp := (tmp | mode) & core#CTRL_REG2_G_MASK
+    writeRegX (AG, core#CTRL_REG2_G, 1, @tmp)
 
 PUB GyroOutEnable(x, y, z) | tmp, bits
 ' Enable data output for Gyroscope - per axis
