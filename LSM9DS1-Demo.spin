@@ -15,12 +15,12 @@ CON
     _clkmode    = cfg#_clkmode
     _xinfreq    = cfg#_xinfreq
 
-    SCL_PIN     = 5
-    SDIO_PIN    = 6
-    CS_AG_PIN   = 7
-    CS_M_PIN    = 8
-    INT_AG_PIN  = 9
-    INT_M_PIN   = 10
+    SCL_PIN     = 0
+    SDIO_PIN    = 1
+    CS_AG_PIN   = 2
+    CS_M_PIN    = 3
+    INT_AG_PIN  = 4
+    INT_M_PIN   = 5
 
     COL_REG     = 0
     COL_SET     = 12
@@ -104,9 +104,9 @@ PUB Setup
     if _imu_cog := imu.Start (SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN)
         ser.Str (string("LSM9DS1 driver started", ser#NL))
         return
-    ser.Str (string("Unable to start LSM9DS1 driver", ser#NL))
+    ser.Str (string("Failed to start LSM9DS1 driver - halting", ser#NL))
     imu.Stop
-    time.MSleep (1)
+    time.MSleep (5)
     ser.Stop
     flash(500)
 

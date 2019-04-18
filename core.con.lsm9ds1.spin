@@ -281,11 +281,10 @@ CON
         FLD_M_SIM           = 2
         FLD_MD              = 0
         BITS_MD             = %11
-        MASK_M_I2C_DISABLE  = CTRL_REG3_M_MASK ^ (1 << FLD_I2C_DISABLE)
+        MASK_M_I2C_DISABLE  = CTRL_REG3_M_MASK ^ (1 << FLD_M_I2C_DISABLE)
         MASK_LP             = CTRL_REG3_M_MASK ^ (1 << FLD_LP)
         MASK_M_SIM          = CTRL_REG3_M_MASK ^ (1 << FLD_M_SIM)
-        MASK_MD             = CTRL_REG3_M_MASK ^ (BITS_MD << FLD_I2C_DISABLE)
-
+        MASK_MD             = CTRL_REG3_M_MASK ^ (BITS_MD << FLD_MD)
 
     CTRL_REG4_M             = $23
     CTRL_REG5_M             = $24

@@ -103,14 +103,12 @@ PUB Defaults | tmp
 
     GyroIntSelect (%00)
     GyroHighPass(0)
+
     GyroOutEnable (TRUE, TRUE, TRUE)
 
-    tmp := $00
-    writeRegX(AG, core#ORIENT_CFG_G, 1, @tmp)
-
 'Init Accel
-    tmp := $38
-    writeRegX(AG, core#CTRL_REG5_XL, 1, @tmp)
+    AccelOutEnable (TRUE, TRUE, TRUE)
+
     tmp := $C0
     writeRegX(AG, core#CTRL_REG6_XL, 1, @tmp)
     tmp := $00
@@ -654,7 +652,7 @@ PUB MagI2C(enabled) | tmp
 
     tmp &= core#MASK_M_I2C_DISABLE
     tmp := (tmp | enabled) & core#CTRL_REG3_M_MASK
-    writeRegX (MAG, core#CTRL_REG3_M_MASK, 1, @tmp)
+    writeRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
 
 PUB MagSPI(mode) | tmp
 ' Set Magnetometer SPI interface mode
