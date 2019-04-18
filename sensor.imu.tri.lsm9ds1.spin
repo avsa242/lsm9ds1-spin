@@ -78,8 +78,7 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay |
         io.Low (_SCL)
         waitcnt(cnt + clkfreq / 1000)
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
-        tmp := %0000_1100
-        writeRegX (AG, core#CTRL_REG8, 1, @tmp)
+        SPIMode (3)
         tmp := %1000_0100
         writeRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
 
@@ -676,6 +675,24 @@ PUB ReadMagCalculated(mx, my, mz) | tmpX, tmpY, tmpZ
     long[mx] := (tmpX * FP_SCALE) / _mRes
     long[my] := (tmpY * FP_SCALE) / _mRes
     long[mz] := (tmpZ * FP_SCALE) / _mRes
+
+PUB SPIMode(mode) | tmp
+' Set SPI interface mode to 3-wire or 4-wire
+'   Valid values:
+'       3
+'      *4
+'   Any other value polls the chip and returns the current setting
+    readRegX (AG, core#CTRL_REG8, 1, @tmp)
+    case mode := lookdown(mode: 4, 3)
+        1, 2:
+            mode := (mode-1) << core#FLD_SIM
+        OTHER:
+            result := (tmp >> core#FLD_SIM) & %1
+            return lookupz(result: 4, 3)
+
+    tmp &= core#MASK_SIM
+    tmp := (tmp | mode) & core#CTRL_REG8_MASK
+    writeRegX (AG, core#CTRL_REG8, 1, @tmp)
 
 PUB SWReset | tmp'XXX
 

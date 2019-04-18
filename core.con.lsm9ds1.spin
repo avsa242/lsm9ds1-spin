@@ -181,8 +181,12 @@ CON
         FLD_IF_ADD_INC      = 2
         FLD_BLE             = 1
         FLD_SW_RESET        = 0
-        MASK_H_LACTIVE      = CTRL_REG8_MASK ^ (1 << FLD_H_LACTIVE)
+        MASK_BOOT           = CTRL_REG8_MASK ^ (1 << FLD_BOOT)
         MASK_BDU            = CTRL_REG8_MASK ^ (1 << FLD_BDU)
+        MASK_H_LACTIVE      = CTRL_REG8_MASK ^ (1 << FLD_H_LACTIVE)
+        MASK_PP_OD          = CTRL_REG8_MASK ^ (1 << FLD_PP_OD)
+        MASK_SIM            = CTRL_REG8_MASK ^ (1 << FLD_SIM)
+        MASK_IF_ADD_INC     = CTRL_REG8_MASK ^ (1 << FLD_IF_ADD_INC)
         MASK_BLE            = CTRL_REG8_MASK ^ (1 << FLD_BLE)
         MASK_SW_RESET       = CTRL_REG8_MASK ^ (1 << FLD_SW_RESET)
 
