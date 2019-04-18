@@ -37,6 +37,9 @@ CON
     MAG             = 1
     BOTH            = 2
 
+    SPI_W           = 0
+    SPI_RW          = 1
+
     FP_SCALE        = 1000
 
 OBJ
@@ -78,7 +81,7 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay |
         io.Low (_SCL)
         waitcnt(cnt + clkfreq / 1000)
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
-        SPIMode (3)
+        XLGSPIMode (3)
         tmp := %1000_0100
         writeRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
 
@@ -622,6 +625,23 @@ PUB MagSetCal(mxBias, myBias, mzBias) | axis, msb, lsb
         writeRegX(MAG, core#OFFSET_X_REG_L_M + (2 * axis), 1, @lsb)
         writeRegX(MAG, core#OFFSET_X_REG_H_M + (2 * axis), 1, @msb)
 
+PUB MagSPI(mode) | tmp
+' Set Magnetometer SPI interface mode
+'   Valid values:
+'       SPI_W (0): SPI interface write-only
+'       SPI_RW(1): SPI interface read/write
+'   Any other value polls the chip and returns the current setting
+    readRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
+    case mode
+        SPI_W, SPI_RW:
+            mode := mode << core#FLD_M_SIM
+        OTHER:
+            return (tmp >> core#FLD_M_SIM) & %1
+
+    tmp &= core#MASK_M_SIM
+    tmp := (tmp | mode) & core#CTRL_REG3_M_MASK
+    writeRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
+
 PUB ReadAccel(ax, ay, az) | tmp[2]
 'Reads the Accelerometer output registers
 ' We'll read six bytes from the accelerometer into tmp
@@ -676,8 +696,8 @@ PUB ReadMagCalculated(mx, my, mz) | tmpX, tmpY, tmpZ
     long[my] := (tmpY * FP_SCALE) / _mRes
     long[mz] := (tmpZ * FP_SCALE) / _mRes
 
-PUB SPIMode(mode) | tmp
-' Set SPI interface mode to 3-wire or 4-wire
+PUB XLGSPIMode(mode) | tmp
+' Set Accelerometer/Gyroscope SPI interface mode to 3-wire or 4-wire
 '   Valid values:
 '       3
 '      *4
