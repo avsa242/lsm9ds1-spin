@@ -82,8 +82,8 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay |
         waitcnt(cnt + clkfreq / 1000)
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
         XLGSPIMode (3)
-        tmp := %1000_0100
-        writeRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
+        MagSPI (SPI_RW)
+        MagI2C (FALSE)
 
 ' Once everything is initialized, check the WHO_AM_I registers
         if ID(BOTH) == core#WHOAMI_BOTH_RESP
@@ -625,10 +625,26 @@ PUB MagSetCal(mxBias, myBias, mzBias) | axis, msb, lsb
         writeRegX(MAG, core#OFFSET_X_REG_L_M + (2 * axis), 1, @lsb)
         writeRegX(MAG, core#OFFSET_X_REG_H_M + (2 * axis), 1, @msb)
 
+PUB MagI2C(enabled) | tmp
+' Enable Magnetometer I2C interface
+'   Valid values: *TRUE (-1 or 1), FALSE (0)
+'   Any other value polls the chip and returns the current setting
+    readRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
+    case ||enabled
+        0, 1:
+            enabled := ||(!enabled) << core#FLD_M_I2C_DISABLE
+        OTHER:
+            result := (!(tmp >> core#FLD_M_I2C_DISABLE) & %1) * TRUE
+            return result
+
+    tmp &= core#MASK_M_I2C_DISABLE
+    tmp := (tmp | enabled) & core#CTRL_REG3_M_MASK
+    writeRegX (MAG, core#CTRL_REG3_M_MASK, 1, @tmp)
+
 PUB MagSPI(mode) | tmp
 ' Set Magnetometer SPI interface mode
 '   Valid values:
-'       SPI_W (0): SPI interface write-only
+'      *SPI_W (0): SPI interface write-only
 '       SPI_RW(1): SPI interface read/write
 '   Any other value polls the chip and returns the current setting
     readRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
