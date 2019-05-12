@@ -279,11 +279,20 @@ PUB Setup
         _max_cols := 4
         waitkey
         return
-    ser.Str (string("Failed to start LSM9DS1 driver - halting", ser#NL))
-    imu.Stop
-    time.MSleep (5)
-    ser.Stop
-    repeat
+    else
+        ser.Str (string("Failed to start LSM9DS1 driver - halting", ser#NL))
+        imu.Stop
+        time.MSleep (5)
+        ser.Stop
+        repeat
+{    _imu_cog := imu.Start (SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN)
+    ser.Dec (_imu_cog)
+    ser.NewLine
+    repeat 5
+        ser.Dec ( imu.XLGSPIMode (-2))
+        ser.NewLine
+        time.MSleep (100)
+    ser.NewLine}
 
 PUB TrueFalse(num)
 

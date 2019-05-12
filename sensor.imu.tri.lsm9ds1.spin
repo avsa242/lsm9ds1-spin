@@ -70,8 +70,10 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay |
         _INT_AG := INT_AG_PIN
         _INT_M := INT_M_PIN
 
-        io.Output (_CS_AG)
-        io.Output (_CS_M)
+        io.Input (_CS_AG)
+        io.Input (_CS_M)
+        io.Input (_SCL)
+        io.Input (_SDIO)
         io.Input (_INT_AG)
         io.Input (_INT_M)
 
@@ -81,15 +83,28 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay |
         io.Low (_SCL)
         waitcnt(cnt + clkfreq / 1000)
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
+'        tmp := $0C
+'        writeRegX(AG, core#CTRL_REG8, 1, @tmp)
+'        waitcnt(cnt+clkfreq/1000)
         XLGSPIMode (3)
+        addressAutoInc(TRUE)
         MagSPI (SPI_RW)
         MagI2C (FALSE)
+'        return XLGSPIMode(-2)
+'        tmp := %0000_1100
+'        writeRegX(AG, core#CTRL_REG8, 1, @tmp)
+
+'        tmp := %1000_0100
+'        writeRegX(MAG, core#CTRL_REG3_M, 1, @tmp)
+
+'       imu_SPIwriteByte(pinAG, CTRL_REG8, %00001100)
+'       imu_SPIwriteByte(pinM, CTRL_REG3_M, %10000100)
 
 ' Once everything is initialized, check the WHO_AM_I registers
         if ID(BOTH) == core#WHOAMI_BOTH_RESP
             Defaults
             return okay
-        Stop
+    Stop
     return FALSE
 
 PUB Stop
@@ -731,10 +746,14 @@ PUB XLGSPIMode(mode) | tmp
 '       3
 '      *4
 '   Any other value polls the chip and returns the current setting
-    readRegX (AG, core#CTRL_REG8, 1, @tmp)
-    case mode := lookdown(mode: 4, 3)
-        1, 2:
-            mode := (mode-1) << core#FLD_SIM
+    tmp := $00
+'    readRegX (AG, core#CTRL_REG8, 1, @tmp)
+    case mode' := lookdown(mode: 4, 3)
+        3:
+            mode := 1 << core#FLD_SIM
+        4:
+            mode := 0 << core#FLD_SIM
+
         OTHER:
             result := (tmp >> core#FLD_SIM) & %1
             return lookupz(result: 4, 3)
@@ -947,6 +966,22 @@ PUB setMagInterrupt(axis, threshold, lowHigh) | tmpCfgValue, tmpSrcValue, magThs
             tmpCfgValue |= (%11100010)
     writeRegX(MAG, core#INT_CFG_M, 1, @tmpCfgValue)
 
+PRI addressAutoInc(enabled) | tmp
+' Enable automatic address increment, for multibyte transfers (SPI and I2C)
+'   Valid values: TRUE (-1 or 1), FALSE (0)
+'   Any other value polls the chip and returns the current setting
+    readRegX (AG, core#CTRL_REG8, 1, @tmp)
+    case ||enabled
+        0, 1:
+            enabled := (||enabled) << core#FLD_IF_ADD_INC
+        OTHER:
+            result := ((tmp >> core#FLD_IF_ADD_INC) & %1) * TRUE
+            return result
+
+    tmp &= core#MASK_IF_ADD_INC
+    tmp := (tmp | enabled) & core#CTRL_REG8_MASK
+    writeRegX (AG, core#CTRL_REG8, 1, @tmp)
+
 PRI readRegX(device, reg, nr_bytes, buf_addr) | tmp
 ' Read from device
 ' Validate register - allow only registers that are
@@ -993,7 +1028,7 @@ PRI writeRegX(device, reg, nr_bytes, buf_addr) | tmp
                     spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
                     repeat tmp from 0 to nr_bytes-1
                         spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[buf_addr][tmp])
-                    io.High (_cs_ag)
+                    io.High (_CS_AG)
 
                 OTHER:
                     return FALSE
@@ -1007,7 +1042,7 @@ PRI writeRegX(device, reg, nr_bytes, buf_addr) | tmp
                         spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[buf_addr][tmp])
                     io.High (_CS_M)
                 OTHER:
-                    return 0
+                    return FALSE
         OTHER:
             return FALSE
 
