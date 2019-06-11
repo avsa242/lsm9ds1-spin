@@ -162,17 +162,7 @@ PUB AccelHighRes(enabled) | tmp
 ' Enable high resolution mode for accelerometer
 '   Valid values: FALSE (0) or TRUE (1 or -1)
 '   Any other value polls the chip and returns the current setting
-    readRegX(AG, core#CTRL_REG7_XL, 1, @tmp)
-    case ||enabled
-        0, 1:
-            enabled := enabled << core#FLD_HR
-        OTHER:
-            tmp := (tmp >> core#FLD_HR) & core#BITS_HR
-            return tmp
-
-    tmp &= core#MASK_HR
-    tmp := (tmp | enabled) & core#CTRL_REG7_XL_MASK
-    writeRegX(AG, core#CTRL_REG7_XL, 1, @tmp)
+    result := booleanChoice (AG, core#CTRL_REG7_XL, core#FLD_HR, core#MASK_HR, core#CTRL_REG7_XL_MASK, enabled, 1)
 
 PUB AccelOutEnable(x, y, z) | tmp, bits
 ' Enable data output for Accelerometer - per axis
@@ -233,17 +223,7 @@ PUB BlockUpdate(enabled) | tmp 'XXX Make PRI? Doesn't seem like user-facing func
 ' Wait until both MSB and LSB of output registers are read before updating
 '   Valid values: FALSE (0): Continuous update, TRUE (1 or -1): Do not update until both MSB and LSB are read
 '   Any other value polls the chip and returns the current setting
-    readRegX(AG, core#CTRL_REG8, 1, @tmp)
-    case ||enabled
-        0, 1:
-            enabled := ||enabled << core#FLD_BDU
-        OTHER:
-            tmp := (tmp >> core#FLD_BDU) & %1
-            return tmp
-
-    tmp &= core#MASK_BDU
-    tmp := (tmp | enabled) & core#CTRL_REG8_MASK
-    writeRegX(AG, core#CTRL_REG8, 1, @tmp)
+    result := booleanChoice (AG, core#CTRL_REG8, core#FLD_BDU, core#MASK_BDU, core#CTRL_REG8_MASK, enabled, 1)
 
 PUB CalibrateAG | aBiasRawtmp[3], gBiasRawtmp[3], axis, ax, ay, az, gx, gy, gz, samples
 ' Calibrates the Accelerometer and Gyroscope
@@ -321,17 +301,7 @@ PUB FIFO(enabled) | tmp
 ' Enable FIFO memory
 '   Valid values: FALSE (0), TRUE(1 or -1)
 '   Any other value polls the chip and returns the current setting
-    readRegX(AG, core#CTRL_REG9, 1, @tmp)
-    case ||enabled
-        0, 1:
-            enabled := ||enabled << core#FLD_FIFO_EN
-        OTHER:
-            tmp := (tmp >> core#FLD_FIFO_EN) & core#BITS_FIFO_EN
-            return tmp
-
-    tmp &= core#MASK_FIFO_EN
-    tmp := (tmp | enabled) & core#CTRL_REG9_MASK
-    writeRegX(AG, core#CTRL_REG9, 1, @tmp)
+    result := booleanChoice (AG, core#CTRL_REG9, core#FLD_FIFO_EN, core#MASK_FIFO_EN, core#CTRL_REG9_MASK, enabled, 1)
 
 PUB FIFOFull | tmp
 ' FIFO Threshold status
@@ -457,17 +427,7 @@ PUB GyroInactiveSleep(enabled) | tmp
 ' Enable gyroscope sleep mode when inactive (see GyroActivityThr)
 '   Valid values: FALSE (0): Gyroscope powers down, TRUE (1 or -1) Gyroscope enters sleep mode
 '   Any other value polls the chip and returns the current setting
-    readRegX(AG, core#ACT_THS, 1, @tmp)
-    case ||enabled
-        0, 1:
-            enabled := ||enabled << core#FLD_SLEEP_ON_INACT
-        OTHER:
-            tmp := (tmp >> core#FLD_SLEEP_ON_INACT) & 1
-            return tmp
-
-    tmp &= core#MASK_SLEEP_ON_INACT
-    tmp := (tmp | enabled) & core#ACT_THS_MASK
-    writeRegX(AG, core#ACT_THS, 1, @tmp)
+    result := booleanChoice (AG, core#ACT_THS, core#FLD_SLEEP_ON_INACT, core#MASK_SLEEP_ON_INACT, core#ACT_THS_MASK, enabled, 1)
 
 PUB GyroIntSelect(mode) | tmp
 ' Set gyroscope interrupt generator selection
@@ -505,17 +465,7 @@ PUB GyroLowPower(enabled) | tmp
 ' Enable low-power mode
 '   Valid values: FALSE (0), TRUE (1 or -1)
 '   Any other value polls the chip and returns the current setting
-    readRegX(AG, core#CTRL_REG3_G, 1, @tmp)
-    case ||enabled
-        0, 1:
-            enabled := ||enabled << core#FLD_LP_MODE
-        OTHER:
-            tmp := (tmp >> core#FLD_LP_MODE) & %1
-            return tmp
-
-    tmp &= core#MASK_LP_MODE
-    tmp := (tmp | enabled) & core#CTRL_REG3_G_MASK
-    writeRegX(AG, core#CTRL_REG3_G, 1, @tmp)
+    result := booleanChoice(AG, core#CTRL_REG3_G, core#FLD_LP_MODE, core#MASK_LP_MODE, core#CTRL_REG3_G_MASK, enabled, 1)
 
 PUB GyroSetCal(gxBias, gyBias, gzBias)
 ' Manually set gyroscope calibration offset values
@@ -527,17 +477,7 @@ PUB GyroSleep(enabled) | tmp
 ' Enable gyroscope sleep mode (last measured values frozen)
 '   Valid values: FALSE (0), TRUE (1 or -1)
 '   Any other value polls the chip and returns the current setting
-    readRegX(AG, core#CTRL_REG9, 1, @tmp)
-    case ||enabled
-        0, 1:
-            enabled := ||enabled << core#FLD_SLEEP_G
-        OTHER:
-            tmp := (tmp >> core#FLD_SLEEP_G) & core#BITS_SLEEP_G
-            return tmp
-
-    tmp &= core#MASK_SLEEP_G
-    tmp := (tmp | enabled) & core#CTRL_REG9_MASK
-    writeRegX(AG, core#CTRL_REG9, 1, @tmp)
+    result := booleanChoice(AG, core#CTRL_REG9, core#FLD_SLEEP_G, core#MASK_SLEEP_G, core#CTRL_REG9_MASK, enabled, 1)
 
 PUB GyroScale(scale) | tmp
 ' Set full scale of gyroscope output, in degrees per second (dps)
@@ -657,17 +597,7 @@ PUB MagI2C(enabled) | tmp
 ' Enable Magnetometer I2C interface
 '   Valid values: *TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
-    readRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
-    case ||enabled
-        0, 1:
-            enabled := ||(!enabled) << core#FLD_M_I2C_DISABLE
-        OTHER:
-            result := (!(tmp >> core#FLD_M_I2C_DISABLE) & %1) * TRUE
-            return result
-
-    tmp &= core#MASK_M_I2C_DISABLE
-    tmp := (tmp | enabled) & core#CTRL_REG3_M_MASK
-    writeRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
+    result := booleanChoice(MAG, core#CTRL_REG3_M, core#FLD_M_I2C_DISABLE, core#MASK_M_I2C_DISABLE, core#CTRL_REG3_M_MASK, enabled, -1)
 
 PUB MagSPI(mode) | tmp
 ' Set Magnetometer SPI interface mode
@@ -966,6 +896,7 @@ PUB setMagInterrupt(axis, threshold, lowHigh) | tmpCfgValue, tmpSrcValue, magThs
             tmpCfgValue |= (%11100010)
     writeRegX(MAG, core#INT_CFG_M, 1, @tmpCfgValue)
 
+
 PRI addressAutoInc(enabled) | tmp
 ' Enable automatic address increment, for multibyte transfers (SPI and I2C)
 '   Valid values: TRUE (-1 or 1), FALSE (0)
@@ -981,6 +912,19 @@ PRI addressAutoInc(enabled) | tmp
     tmp &= core#MASK_IF_ADD_INC
     tmp := (tmp | enabled) & core#CTRL_REG8_MASK
     writeRegX (AG, core#CTRL_REG8, 1, @tmp)
+
+PRI booleanChoice(device, reg, field, fieldmask, regmask, choice, invertchoice) | tmp
+
+    readRegX (device, reg, 1, @tmp)
+    case ||choice
+        0, 1:
+            choice := ||(choice * invertchoice) << field
+        OTHER:
+            return (((tmp >> field) & %1) * TRUE) * invertchoice
+
+    tmp &= fieldmask
+    tmp := (tmp | choice) & regmask
+    writeRegX (device, reg, 1, @tmp)
 
 PRI readRegX(device, reg, nr_bytes, buf_addr) | tmp
 ' Read from device
