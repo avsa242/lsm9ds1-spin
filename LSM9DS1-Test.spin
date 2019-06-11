@@ -209,7 +209,7 @@ PUB LP_MODE(reps) | tmp, read
 
     _test_row := 6
     repeat reps
-        repeat tmp from 0 to 1
+        repeat tmp from 0 to -1
             imu.GyroLowPower (tmp)
             read := imu.GyroLowPower (-2)
             Message (string("LP_MODE"), tmp, read)
