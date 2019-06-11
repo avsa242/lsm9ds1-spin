@@ -26,7 +26,8 @@ CON
     COL_SET     = COL_REG+20
     COL_READ    = COL_REG+32
     COL_PF      = COl_REG+48
-    DEBUG_LED   = cfg#LED1
+
+    LED         = cfg#LED1
 
 OBJ
 
@@ -69,7 +70,8 @@ PUB Main
     ACT_DUR (1)
     FMODE(1)
     FTH(1)
-    flash
+    ser.Str (string(ser#NL, ser#NL, "Completed"))
+    Flash(LED, 100)
 
 PUB FTH(reps) | tmp, read
 
@@ -115,7 +117,7 @@ PUB SLEEP_ON_INACT_EN(reps) | tmp, read
 
     _test_row := 18
     repeat reps
-        repeat tmp from 0 to 1
+        repeat tmp from 0 to -1
             imu.GyroInactiveSleep (tmp)
             read := imu.GyroInactiveSleep (-2)
             Message (string("SLEEP_ON_INACT_EN"), tmp, read)
@@ -124,7 +126,7 @@ PUB FIFO_EN(reps) | tmp, read
 
     _test_row := 17
     repeat reps
-        repeat tmp from 0 to 1
+        repeat tmp from 0 to -1
             imu.FIFO (tmp)
             read := imu.FIFO (-2)
             Message (string("FIFO_EN"), tmp, read)
@@ -133,7 +135,7 @@ PUB SLEEP_G(reps) | tmp, read
 
     _test_row := 16
     repeat reps
-        repeat tmp from 0 to 1
+        repeat tmp from 0 to -1
             imu.GyroSleep (tmp)
             read := imu.GyroSleep (-2)
             Message (string("SLEEP_G"), tmp, read)
@@ -142,7 +144,7 @@ PUB HR(reps) | tmp, read
 
     _test_row := 15
     repeat reps
-        repeat tmp from 0 to 1
+        repeat tmp from 0 to -1
             imu.AccelHighRes (tmp)
             read := imu.AccelHighRes (-2)
             Message (string("HR"), tmp, read)
@@ -247,7 +249,7 @@ PUB BDU(reps) | tmp, read
 
     _test_row := 2
     repeat reps
-        repeat tmp from 0 to 1
+        repeat tmp from 0 to -1
             imu.BlockUpdate (tmp)
             read := imu.BlockUpdate (-2)
             Message (string("BDU"), tmp, read)
@@ -285,14 +287,6 @@ PUB Setup
         time.MSleep (5)
         ser.Stop
         repeat
-{    _imu_cog := imu.Start (SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN)
-    ser.Dec (_imu_cog)
-    ser.NewLine
-    repeat 5
-        ser.Dec ( imu.XLGSPIMode (-2))
-        ser.NewLine
-        time.MSleep (100)
-    ser.NewLine}
 
 PUB TrueFalse(num)
 
@@ -332,11 +326,11 @@ PUB waitkey
     ser.Str (string("Press any key", ser#NL))
     ser.CharIn
 
-PUB flash
+PUB Flash(led_pin, delay_ms)
 
-    dira[DEBUG_LED] := 1
+    dira[led_pin] := 1
     repeat
-        !outa[DEBUG_LED]
+        !outa[led_pin]
         time.MSleep (100)
 
 DAT
