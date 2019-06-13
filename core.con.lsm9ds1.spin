@@ -309,7 +309,7 @@ CON
     OUT_Z_L_M               = $2C
     OUT_Z_H_M               = $2D
     INT_CFG_M               = $30
-    INT_SRC_M               = $30
+    INT_SRC_M               = $31
     INT_THS_L_M             = $32
     INT_THS_H_M             = $33
     WHO_AM_I_AG_RSP         = $68

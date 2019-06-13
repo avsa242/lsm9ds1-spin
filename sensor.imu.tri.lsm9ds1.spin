@@ -12,6 +12,9 @@
 
 CON
 
+    READ            = 0
+    WRITE           = 1
+
     X_AXIS          = 0
     Y_AXIS          = 1
     Z_AXIS          = 2
@@ -112,13 +115,10 @@ PUB Stop
     spi.stop
 
 PUB Defaults | tmp
-
 'Init Gyro
     GyroDataRate (952)
-
     GyroIntSelect (%00)
     GyroHighPass(0)
-
     GyroOutEnable (TRUE, TRUE, TRUE)
 
 'Init Accel
@@ -149,8 +149,8 @@ PUB AccelAvail | tmp
     result := ((tmp >> core#FLD_XLDA) & %1) * TRUE
 
 PUB AccelClearInt | tmp, reg
-' Clears out any interrupts set up on the Accelerometer and
-' resets all Accelerometer interrupt registers to their default values.
+' Clears out any interrupts set up on the Accelerometer
+'   and resets all Accelerometer interrupt registers to their default values.
     tmp := $00
     repeat reg from core#INT_GEN_CFG_XL to core#INT_GEN_DUR_XL
         writeRegX(AG, reg, 1, @tmp)
@@ -197,11 +197,36 @@ PUB AccelScale(scale) | tmp
     tmp := (tmp | scale) & core#CTRL_REG6_XL_MASK
     writeRegX(AG, core#CTRL_REG6_XL, 1, @tmp)
 
-PUB AccelSetCal(axBias, ayBias, azBias)
-' Manually set accelerometer calibration offset values
-    _aBiasRaw[X_AXIS] := axBias
-    _aBiasRaw[Y_AXIS] := ayBias
-    _aBiasRaw[Z_AXIS] := azBias
+PUB AccelCal(rw, axBias, ayBias, azBias)
+' Read or write/manually set accelerometer calibration offset values
+'   Valid values:
+'       rw:
+'           READ (0), WRITE (1)
+'       axBias, ayBias, azBias:
+'           -32768..32767
+'   NOTE: When rw is set to READ, axBias, ayBias and azBias must be addresses of respective variables to hold the returned
+'       calibration offset values.
+    case rw
+        READ:
+            long[axBias] := _aBiasRaw[X_AXIS]
+            long[ayBias] := _aBiasRaw[Y_AXIS]
+            long[azBias] := _aBiasRaw[Z_AXIS]
+
+        WRITE:
+            case axBias
+                -32768..32767:
+                    _aBiasRaw[X_AXIS] := axBias
+                OTHER:
+
+            case ayBias
+                -32768..32767:
+                    _aBiasRaw[Y_AXIS] := ayBias
+                OTHER:
+
+            case azBias
+                -32768..32767:
+                    _aBiasRaw[Z_AXIS] := azBias
+                OTHER:
 
 PUB AGDataRate(Hz) | tmp
 ' Set output data rate, in Hz, of accelerometer and gyroscope
@@ -212,7 +237,7 @@ PUB AGDataRate(Hz) | tmp
         1..7:
             Hz := (Hz - 1) << core#FLD_ODR
         OTHER:
-            tmp := ((tmp >> core#FLD_ODR) & core#BITS_ODR) +1
+            tmp := ((tmp >> core#FLD_ODR) & core#BITS_ODR) + 1
             return lookup(tmp: 0, 14{.9}, 59{.5}, 119, 238, 476, 952)
 
     tmp &= core#MASK_ODR
@@ -263,7 +288,7 @@ PUB CalibrateAG | aBiasRawtmp[3], gBiasRawtmp[3], axis, ax, ay, az, gx, gy, gz, 
 PUB CalibrateMag(samples) | magMin[3], magMax[3], magtmp[3], axis, mx, my, mz, msb, lsb
 ' Calibrates the Magnetometer on the LSM9DS1 IMU module
     repeat samples
-        repeat until MagAvail
+        repeat until MagNewData
         readMag(@mx, @my, @mz)
         magtmp[X_AXIS] := mx
         magtmp[Y_AXIS] := my
@@ -348,37 +373,36 @@ PUB FIFOUnread
     readRegX(AG, core#FIFO_SRC, 1, @result)
     result &= core#BITS_FSS
 
-PUB GyroActivityDur(duration) | tmp
-' Set gyroscope inactivity timer (use GyroInactiveSleep to define behavior on inactivity)
-'   Valid values: 0..255 (0 effectively disables the feature)
-'   Any other value polls the chip and returns the current setting
-    readRegX(AG, core#ACT_DUR, 1, @tmp)
-    case duration
-        0..255:
-        OTHER:
-            return tmp
+PUB GyroCal(rw, gxBias, gyBias, gzBias)
+' Read or write/manually set Gyroscope calibration offset values
+'   Valid values:
+'       rw:
+'           READ (0), WRITE (1)
+'       gxBias, gyBias, gzBias:
+'           -32768..32767
+'   NOTE: When rw is set to READ, gxBias, gyBias and gzBias must be addresses of respective variables to hold the returned
+'       calibration offset values.
+    case rw
+        READ:
+            long[gxBias] := _gBiasRaw[X_AXIS]
+            long[gyBias] := _gBiasRaw[Y_AXIS]
+            long[gzBias] := _gBiasRaw[Z_AXIS]
 
-    writeRegX(AG, core#ACT_DUR, 1, @duration)
+        WRITE:
+            case gxBias
+                -32768..32767:
+                    _gBiasRaw[X_AXIS] := gxBias
+                OTHER:
 
-PUB GyroActivityThr(threshold) | tmp
-' Set gyroscope inactivity threshold (use GyroInactiveSleep to define behavior on inactivity)
-'   Valid values: 0..127 (0 effectively disables the feature)
-'   Any other value polls the chip and returns the current setting
-    readRegX(AG, core#ACT_THS, 1, @tmp)
-    case threshold
-        0..127:
-        OTHER:
-            return tmp & core#BITS_ACT_THS
+            case gyBias
+                -32768..32767:
+                    _gBiasRaw[Y_AXIS] := gyBias
+                OTHER:
 
-    tmp &= core#MASK_ACT_THS
-    tmp := (tmp | threshold) & core#ACT_THS_MASK
-    writeRegX(AG, core#ACT_THS, 1, @tmp)
-
-PUB GyroAvail | tmp
-' Gyroscope sensor new data available
-'   Returns TRUE or FALSE
-    readRegX(AG, core#STATUS_REG, 1, @tmp)
-    result := ((tmp >> core#FLD_GDA) & %1) * TRUE
+            case gzBias
+                -32768..32767:
+                    _gBiasRaw[Z_AXIS] := gzBias
+                OTHER:
 
 PUB GyroClearInt | tmp, reg
 ' Clears out any interrupts set up on the Gyroscope and resets all Gyroscope interrupt registers to their default values.
@@ -423,6 +447,32 @@ PUB GyroHighPass(cutoff) | tmp
     tmp := (tmp | cutoff) & core#CTRL_REG3_G_MASK
     writeRegX (AG, core#CTRL_REG3_G, 1, @tmp)
 
+PUB GyroInactiveDur(duration) | tmp
+' Set gyroscope inactivity timer (use GyroInactiveSleep to define behavior on inactivity)
+'   Valid values: 0..255 (0 effectively disables the feature)
+'   Any other value polls the chip and returns the current setting
+    readRegX(AG, core#ACT_DUR, 1, @tmp)
+    case duration
+        0..255:
+        OTHER:
+            return tmp
+
+    writeRegX(AG, core#ACT_DUR, 1, @duration)
+
+PUB GyroInactiveThr(threshold) | tmp
+' Set gyroscope inactivity threshold (use GyroInactiveSleep to define behavior on inactivity)
+'   Valid values: 0..127 (0 effectively disables the feature)
+'   Any other value polls the chip and returns the current setting
+    readRegX(AG, core#ACT_THS, 1, @tmp)
+    case threshold
+        0..127:
+        OTHER:
+            return tmp & core#BITS_ACT_THS
+
+    tmp &= core#MASK_ACT_THS
+    tmp := (tmp | threshold) & core#ACT_THS_MASK
+    writeRegX(AG, core#ACT_THS, 1, @tmp)
+
 PUB GyroInactiveSleep(enabled) | tmp
 ' Enable gyroscope sleep mode when inactive (see GyroActivityThr)
 '   Valid values: FALSE (0): Gyroscope powers down, TRUE (1 or -1) Gyroscope enters sleep mode
@@ -444,6 +494,12 @@ PUB GyroIntSelect(mode) | tmp
     tmp &= core#MASK_INT_SEL
     tmp := (tmp | mode) & core#CTRL_REG2_G_MASK
     writeRegX (AG, core#CTRL_REG2_G, 1, @tmp)
+
+PUB GyroNewData | tmp
+' Gyroscope sensor new data available
+'   Returns TRUE or FALSE
+    readRegX(AG, core#STATUS_REG, 1, @tmp)
+    result := ((tmp >> core#FLD_GDA) & %1) * TRUE
 
 PUB GyroOutEnable(x, y, z) | tmp, bits
 ' Enable data output for Gyroscope - per axis
@@ -467,16 +523,11 @@ PUB GyroLowPower(enabled) | tmp
 '   Any other value polls the chip and returns the current setting
     result := booleanChoice(AG, core#CTRL_REG3_G, core#FLD_LP_MODE, core#MASK_LP_MODE, core#CTRL_REG3_G_MASK, enabled, 1)
 
-PUB GyroSetCal(gxBias, gyBias, gzBias)
-' Manually set gyroscope calibration offset values
-    _gBiasRaw[X_AXIS] := gxBias
-    _gBiasRaw[Y_AXIS] := gyBias
-    _gBiasRaw[Z_AXIS] := gzBias
-
 PUB GyroSleep(enabled) | tmp
-' Enable gyroscope sleep mode (last measured values frozen)
+' Enable gyroscope sleep mode
 '   Valid values: FALSE (0), TRUE (1 or -1)
 '   Any other value polls the chip and returns the current setting
+'   NOTE: If enabled, the gyro output will contain the last measured values
     result := booleanChoice(AG, core#CTRL_REG9, core#FLD_SLEEP_G, core#MASK_SLEEP_G, core#CTRL_REG9_MASK, enabled, 1)
 
 PUB GyroScale(scale) | tmp
@@ -502,7 +553,7 @@ PUB ID(sensor) | tmp
 '   Any other value returns both values OR'd together as a word (MSB=AG ID, LSB=M ID)
 '   Returns
 '       $68 if AG requested and response is valid
-'       $3D if Mag requested and response is valid
+'       $3D if MAG requested and response is valid
 '       $683D if both sensors requested and responses are valid
     case sensor
         AG:
@@ -555,7 +606,55 @@ PUB IntLevel(active_state) | tmp
     tmp := (tmp | active_state) & core#CTRL_REG8_MASK
     writeRegX(AG, core#CTRL_REG8, 1, @tmp)
 
-PUB MagAvail
+PUB MagCal(rw, mxBias, myBias, mzBias) | axis, msb, lsb
+' Read or write/manually set Magnetometer calibration offset values
+'   Valid values:
+'       rw:
+'           READ (0), WRITE (1)
+'       mxBias, myBias, mzBias:
+'           -32768..32767
+'   NOTE: When rw is set to READ, mxBias, myBias and mzBias must be addresses of respective variables to hold the returned
+'       calibration offset values.
+
+    case rw
+        READ:
+            long[mxBias] := _mBiasRaw[X_AXIS]
+            long[myBias] := _mBiasRaw[Y_AXIS]
+            long[mzBias] := _mBiasRaw[Z_AXIS]
+
+        WRITE:
+            case mxBias
+                -32768..32767:
+                    _mBiasRaw[X_AXIS] := mxBias
+                OTHER:
+
+            case myBias
+                -32768..32767:
+                    _mBiasRaw[Y_AXIS] := myBias
+                OTHER:
+
+            case mzBias
+                -32768..32767:
+                    _mBiasRaw[Z_AXIS] := mzBias
+                OTHER:
+
+            repeat axis from X_AXIS to Z_AXIS
+                msb := (_mBiasRaw[axis] & $FF00) >> 8
+                lsb := _mBiasRaw[axis] & $00FF
+
+                writeRegX(MAG, core#OFFSET_X_REG_L_M + (2 * axis), 1, @lsb)
+                writeRegX(MAG, core#OFFSET_X_REG_H_M + (2 * axis), 1, @msb)
+
+PUB MagClearInt | tmp
+' Clears out any interrupts set up on the Magnetometer and
+'   resets all Magnetometer interrupt registers to their default values
+    tmp := $00
+    writeRegX(MAG, core#INT_THS_L_M, 4, @tmp)
+'    writeRegX(MAG, core#INT_THS_H_M, 1, @tmp)
+'    writeRegX(MAG, core#INT_SRC_M, 1, @tmp)
+'    writeRegX(MAG, core#INT_CFG_M, 1, @tmp)
+
+PUB MagNewData
 ' Polls the Magnetometer status register to check if new data is available.
 '   Returns TRUE if data available, FALSE if not
     readRegX(MAG, core#STATUS_REG_M, 1, @result)
@@ -579,19 +678,6 @@ PUB MagScale(scale) | tmp
     tmp &= core#MASK_FS_M
     tmp := (tmp | scale) & core#CTRL_REG2_M_MASK
     writeRegX(MAG, core#CTRL_REG2_M, 1, @tmp)
-
-PUB MagSetCal(mxBias, myBias, mzBias) | axis, msb, lsb
-' Manually set magnetometer calibration offset values
-    _mBiasRaw[X_AXIS] := mxBias
-    _mBiasRaw[Y_AXIS] := myBias
-    _mBiasRaw[Z_AXIS] := mzBias
-
-    repeat axis from X_AXIS to Z_AXIS
-        msb := (_mBiasRaw[axis] & $FF00) >> 8
-        lsb := _mBiasRaw[axis] & $00FF
-
-        writeRegX(MAG, core#OFFSET_X_REG_L_M + (2 * axis), 1, @lsb)
-        writeRegX(MAG, core#OFFSET_X_REG_H_M + (2 * axis), 1, @msb)
 
 PUB MagI2C(enabled) | tmp
 ' Enable Magnetometer I2C interface
@@ -617,8 +703,7 @@ PUB MagSPI(mode) | tmp
     writeRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
 
 PUB ReadAccel(ax, ay, az) | tmp[2]
-'Reads the Accelerometer output registers
-' We'll read six bytes from the accelerometer into tmp
+' Reads the Accelerometer output registers
     readRegX(AG, core#OUT_X_L_XL, 6, @tmp)
 
     long[ax] := ~~tmp.word[0]
@@ -632,7 +717,7 @@ PUB ReadAccel(ax, ay, az) | tmp[2]
 
 PUB ReadAccelCalculated(ax, ay, az) | tmpX, tmpY, tmpZ
 ' Reads the Accelerometer output registers and scales the outputs to milli-g's (1 g = 9.8 m/s/s)
-    readAccel(@tmpX, @tmpY, @tmpZ)
+    ReadAccel(@tmpX, @tmpY, @tmpZ)
     long[ax] := (tmpX * FP_SCALE) / (_aRes)
     long[ay] := (tmpY * FP_SCALE) / (_aRes)
     long[az] := (tmpZ * FP_SCALE) / (_aRes)
@@ -707,7 +792,7 @@ PUB Temperature
     result &= $FFFF
     ~~result
 
-PUB TempAvail | tmp
+PUB TempNewData | tmp
 ' Temperature sensor new data available
 '   Returns TRUE or FALSE
     readRegX(AG, core#STATUS_REG, 1, @tmp)
@@ -715,32 +800,8 @@ PUB TempAvail | tmp
 
 '--- OLD CODE BELOW ---
 
-PUB clearMagInterrupt | tmp 'UNTESTED
-' Clears out any interrupts set up on the Magnetometer and
-' resets all Magnetometer interrupt registers to their default values
-    tmp := $00
-    writeRegX(MAG, core#INT_THS_L_M, 1, @tmp)
-    writeRegX(MAG, core#INT_THS_H_M, 1, @tmp)
-    writeRegX(MAG, core#INT_SRC_M, 1, @tmp)
-    writeRegX(MAG, core#INT_CFG_M, 1, @tmp)
 
-PUB getAccelCalibration(axBias, ayBias, azBias) 'UNTESTED
 
-    long[axBias] := _aBiasRaw[X_AXIS]
-    long[ayBias] := _aBiasRaw[Y_AXIS]
-    long[azBias] := _aBiasRaw[Z_AXIS]
-
-PUB getGyroCalibration(gxBias, gyBias, gzBias) 'UNTESTED
-
-    long[gxBias] := _gBiasRaw[X_AXIS]
-    long[gyBias] := _gBiasRaw[Y_AXIS]
-    long[gzBias] := _gBiasRaw[Z_AXIS]
-
-PUB getMagCalibration(mxBias, myBias, mzBias) 'UNTESTED
-
-    long[mxBias] := _mBiasRaw[X_AXIS]
-    long[myBias] := _mBiasRaw[Y_AXIS]
-    long[mzBias] := _mBiasRaw[Z_AXIS]
 
 
 {PUB readTemp(temperature) | temp[1], tempT
