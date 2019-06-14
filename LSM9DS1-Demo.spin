@@ -22,11 +22,7 @@ CON
     INT_AG_PIN  = 4
     INT_M_PIN   = 5
 
-    COL_REG     = 0
-    COL_SET     = 12
-    COL_READ    = 24
-    COL_PF      = 40
-    DEBUG_LED   = cfg#LED1
+    LED         = cfg#LED1
 
 OBJ
 
@@ -100,26 +96,25 @@ PUB Setup
     repeat until _ser_cog := ser.Start (115_200)
     ser.Clear
     ser.Str (string("Serial terminal started", ser#NL))
-
     if _imu_cog := imu.Start (SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN)
         ser.Str (string("LSM9DS1 driver started", ser#NL))
-        return
-    ser.Str (string("Failed to start LSM9DS1 driver - halting", ser#NL))
-    imu.Stop
-    time.MSleep (5)
-    ser.Stop
-    flash(500)
+    else
+        ser.Str (string("LSM9DS1 driver failed to start- halting", ser#NL))
+        imu.Stop
+        time.MSleep (5)
+        ser.Stop
+        Flash(LED, 500)
 
 PUB waitkey(message)
 
     ser.Str (message)
     ser.CharIn
 
-PUB flash(delay_ms)
+PUB Flash(led_pin, delay_ms)
 
-    dira[DEBUG_LED] := 1
+    dira[led_pin] := 1
     repeat
-        !outa[DEBUG_LED]
+        !outa[led_pin]
         time.MSleep (delay_ms)
 
 DAT

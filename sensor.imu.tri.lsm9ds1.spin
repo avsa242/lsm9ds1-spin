@@ -47,9 +47,10 @@ CON
 
 OBJ
 
-    spi     : "SPI_Asm"
+    spi     : "com.spi.4w"
     core    : "core.con.lsm9ds1"
     io      : "io"
+    time    : "time"
 
 VAR
 
@@ -84,7 +85,7 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay |
         io.High (_CS_AG)
         io.High (_CS_M)
         io.Low (_SCL)
-        waitcnt(cnt + clkfreq / 1000)
+        time.MSleep (1)
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
 '        tmp := $0C
 '        writeRegX(AG, core#CTRL_REG8, 1, @tmp)
@@ -799,17 +800,6 @@ PUB TempNewData | tmp
     result := ((tmp >> core#FLD_TDA) & %1) * TRUE
 
 '--- OLD CODE BELOW ---
-
-
-
-
-
-{PUB readTemp(temperature) | temp[1], tempT
-' We'll read two bytes from the temperature sensor into temp
-' Read 2 bytes, beginning at OUT_TEMP_L
-    readRegX(AG, core#OUT_TEMP_L, @temp, 2)
-    tempT := (temp.byte[1] << 8) | temp.byte[0]
-    long[temperature] := ~~tempT}
 
 {PUB readTempCalculated(temperature, tempUnit) | tempTemp 'TODO: REVIEW (remove CELSIUS case - OTHER covers it)
 
