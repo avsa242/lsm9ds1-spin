@@ -799,22 +799,6 @@ PUB TempNewData | tmp
     readRegX(AG, core#STATUS_REG, 1, @tmp)
     result := ((tmp >> core#FLD_TDA) & %1) * TRUE
 
-'--- OLD CODE BELOW ---
-
-{PUB readTempCalculated(temperature, tempUnit) | tempTemp 'TODO: REVIEW (remove CELSIUS case - OTHER covers it)
-
-    readTemp(@tempTemp)
-    case tempUnit
-        FAHRENHEIT:
-            long[temperature] := ((tempTemp / 16) + 25) * 1800 + 32000
-        CELSIUS:
-            long[temperature] := ((tempTemp / 16) + 25) * 1000 '(tempTemp / 16.0) + 25.0
-        KELVIN:
-            long[temperature] := (((tempTemp/ 16) + 25) * 1000) + 273150'16) + 25) + 273.15
-        OTHER:
-            long[temperature] := (tempTemp / 16) + 25 * 1000'(tempTemp / 16.0) + 25.0
-}
-
 PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tmpRegValue, accelThs, accelThsH, tmpThs
 'Configures the Accelerometer interrupt output to the INT_A/G pin.
     overUnder &= $01
@@ -946,7 +930,6 @@ PUB setMagInterrupt(axis, threshold, lowHigh) | tmpCfgValue, tmpSrcValue, magThs
         OTHER :
             tmpCfgValue |= (%11100010)
     writeRegX(MAG, core#INT_CFG_M, 1, @tmpCfgValue)
-
 
 PRI addressAutoInc(enabled) | tmp
 ' Enable automatic address increment, for multibyte transfers (SPI and I2C)
