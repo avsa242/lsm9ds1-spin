@@ -540,10 +540,11 @@ PUB ID(sensor) | tmp
 ' Poll sensor for WHO_AM_I ID
 '   Valid values: AG (0) or MAG (1)
 '   Any other value returns both values OR'd together as a word (MSB=AG ID, LSB=M ID)
-'   Returns
-'       $68 if AG requested and response is valid
-'       $3D if MAG requested and response is valid
-'       $683D if both sensors requested and responses are valid
+'   Returns:
+'       $68 if AG requested
+'       $3D if MAG requested
+'       $683D in any other case
+    result := tmp := 0
     case sensor
         AG:
             readRegX(AG, core#WHO_AM_I_XG, 1, @result)
@@ -554,6 +555,7 @@ PUB ID(sensor) | tmp
             readRegX(MAG, core#WHO_AM_I_M, 1, @tmp)
             result <<= 8
             result |= tmp
+    return
 
 PUB Interrupt | tmp
 ' Interrupt active
