@@ -888,6 +888,13 @@ PUB MagSelfTest(enabled) | tmp
 '   Any other value polls the chip and returns the current setting
     result := booleanChoice (MAG, core#CTRL_REG1_M, core#FLD_ST, core#MASK_ST, core#CTRL_REG1_M_MASK, enabled, 1)
 
+PUB MagSoftReset
+' Perform soft-test of magnetometer
+    result := $00
+    result := (1 << core#FLD_REBOOT) | (1 << core#FLD_SOFT_RST)
+    writeRegX (MAG, core#CTRL_REG2_M, 1, @result)
+    time.MSleep (10)
+
 PUB MagI2C(enabled) | tmp
 ' Enable Magnetometer I2C interface
 '   Valid values: *TRUE (-1 or 1), FALSE (0)
