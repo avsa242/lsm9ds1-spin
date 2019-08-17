@@ -904,12 +904,12 @@ PUB MagI2C(enabled) | tmp
 PUB MagSPI(mode) | tmp
 ' Set Magnetometer SPI interface mode
 '   Valid values:
-'      *SPI_W (0): SPI interface write-only
-'       SPI_RW(1): SPI interface read/write
+'      *SPI_4W (0): SPI interface 4-wire mode
+'       SPI_3W (1): SPI interface 3-wire mode
 '   Any other value polls the chip and returns the current setting
     readRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
     case mode
-        SPI_W, SPI_RW:
+        SPI_3W, SPI_4W:
             mode := mode << core#FLD_M_SIM
         OTHER:
             return (tmp >> core#FLD_M_SIM) & %1
