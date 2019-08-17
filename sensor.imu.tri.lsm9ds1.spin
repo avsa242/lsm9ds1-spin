@@ -84,22 +84,10 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay |
 ' Initialize the IMU
         time.MSleep (1)
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
-'        tmp := $0C
-'        writeRegX(AG, core#CTRL_REG8, 1, @tmp)
-'        waitcnt(cnt+clkfreq/1000)
         XLGSPIMode (3)
         addressAutoInc(TRUE)
         MagSPI (SPI_RW)
         MagI2C (FALSE)
-'        return XLGSPIMode(-2)
-'        tmp := %0000_1100
-'        writeRegX(AG, core#CTRL_REG8, 1, @tmp)
-
-'        tmp := %1000_0100
-'        writeRegX(MAG, core#CTRL_REG3_M, 1, @tmp)
-
-'       imu_SPIwriteByte(pinAG, CTRL_REG8, %00001100)
-'       imu_SPIwriteByte(pinM, CTRL_REG3_M, %10000100)
 
 ' Once everything is initialized, check the WHO_AM_I registers
         if ID(BOTH) == core#WHOAMI_BOTH_RESP
