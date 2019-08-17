@@ -54,6 +54,12 @@ CON
     MAG_OPMODE_SINGLE       = %01
     MAG_OPMODE_POWERDOWN    = %10
 
+' Magnetometer performance setting
+    MAG_PERF_LOW            = %00
+    MAG_PERF_MED            = %01
+    MAG_PERF_HIGH           = %10
+    MAG_PERF_ULTRA          = %11
+
 OBJ
 
     spi     : "com.spi.4w"
@@ -834,6 +840,31 @@ PUB MagOverrun
 '   NOTE: Overrun status indicates new data for axis has overwritten the previous data.
     readRegX (MAG, core#STATUS_REG_M, 1, @result)
     result := (result >> core#FLD_OR) & core#BITS_OR
+
+PUB MagPerf(mode) | tmpxy, tmpz
+' Set magnetometer performance mode
+'   Valid values:
+'       MAG_PERF_LOW (0)
+'       MAG_PERF_MED (1)
+'       MAG_PERF_HIGH (2)
+'       MAG_PERF_ULTRA (3)
+'   Any other value polls the chip and returns the current setting
+    readRegX(MAG, core#CTRL_REG1_M, 1, @tmpxy)
+    readRegX(MAG, core#CTRL_REG4_M, 1, @tmpz)
+
+    case mode
+        MAG_PERF_LOW, MAG_PERF_MED, MAG_PERF_HIGH, MAG_PERF_ULTRA:
+        OTHER:
+            result := (tmpxy >> core#FLD_OM) & core#BITS_OM
+            return
+
+    tmpxy &= core#MASK_OM
+    tmpxy := (tmpxy | (mode << core#FLD_OM))
+    tmpz &= core#MASK_OMZ
+    tmpz := (tmpz | (mode << core#FLD_OMZ))
+
+    writeRegX (MAG, core#CTRL_REG1_M, 1, @tmpxy)
+    writeRegX (MAG, core#CTRL_REG4_M, 1, @tmpz)
 
 PUB MagScale(scale) | tmp
 ' Set full scale of Magnetometer, in Gauss
