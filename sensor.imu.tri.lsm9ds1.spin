@@ -753,6 +753,23 @@ PUB MagIntLevel(level) | tmp
     tmp := (tmp | level) & core#INT_CFG_M_MASK
     writeRegX(MAG, core#INT_CFG_M, 1, @tmp)
 
+PUB MagIntThresh(level) | tmp   'XXX rewrite to take gauss as a param
+' Set magnetometer interrupt threshold
+'   Valid values: 0..32767
+'   Any other value polls the chip and returns the current setting
+'   NOTE: The set level is an absolute value and is compared to positive and negative measurements alike
+    tmp := $00
+    readRegX(MAG, core#INT_THS_L_M, 2, @tmp)
+    case level
+        0..32767:
+            swap(@level)
+        OTHER:
+            swap(@tmp)
+            return tmp
+
+    tmp := level & $7FFF
+    writeRegX(MAG, core#INT_THS_L_M, 2, @tmp)
+
 PUB MagNewData
 ' Polls the Magnetometer status register to check if new data is available.
 '   Returns TRUE if data available, FALSE if not
@@ -1044,6 +1061,13 @@ PRI addressAutoInc(enabled) | tmp
     tmp &= core#MASK_IF_ADD_INC
     tmp := (tmp | enabled) & core#CTRL_REG8_MASK
     writeRegX (AG, core#CTRL_REG8, 1, @tmp)
+
+PRI swap(word_addr)
+
+    byte[word_addr][3] := byte[word_addr][0]
+    byte[word_addr][0] := byte[word_addr][1]
+    byte[word_addr][1] := byte[word_addr][3]
+    byte[word_addr][3] := 0
 
 PRI booleanChoice(device, reg, field, fieldmask, regmask, choice, invertchoice) | tmp
 
