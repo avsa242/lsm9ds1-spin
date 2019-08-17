@@ -732,6 +732,23 @@ PUB MagInt
 '   0: Interrupt asserted
     readRegX(MAG, core#INT_SRC_M, 1, @result)
 
+PUB MagIntLevel(level) | tmp
+' Set active state of INT_MAG pin when magnetometer interrupt asserted
+'   Valid values: MAG_INTLVL_LOW (0), MAG_INTLVL_HI (1)
+'   Any other value polls the chip and returns the current setting
+    tmp := $00
+    readRegX(MAG, core#INT_CFG_M, 1, @tmp)
+    case level
+        MAG_INTLVL_LOW, MAG_INTLVL_HI:
+            level <<= core#FLD_IEA
+        OTHER:
+            tmp := (tmp >> core#FLD_IEA) & %1
+            return tmp
+
+    tmp &= core#MASK_IEA
+    tmp := (tmp | level) & core#INT_CFG_M_MASK
+    writeRegX(MAG, core#INT_CFG_M, 1, @tmp)
+
 PUB MagNewData
 ' Polls the Magnetometer status register to check if new data is available.
 '   Returns TRUE if data available, FALSE if not
