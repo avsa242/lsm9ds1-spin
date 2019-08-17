@@ -777,6 +777,12 @@ PUB MagLatchInts(enabled)
 '   NOTE: If enabled, interrupts must be explicitly cleared using MagClearInt XXX verify
     result := booleanChoice (MAG, core#INT_CFG_M, core#FLD_IEL, core#MASK_IEL, core#INT_CFG_M, enabled, -1)
 
+PUB MagLowPower(enabled)
+' Enable magnetometer low-power mode
+'   Valid values: TRUE (-1 or 1) or FALSE
+'   Any other value polls the chip and returns the current setting
+    result := booleanChoice (MAG, core#CTRL_REG3_M, core#FLD_LP, core#MASK_LP, core#CTRL_REG3_M_MASK, enabled, 1)
+
 PUB MagNewData
 ' Polls the Magnetometer status register to check if new data is available.
 '   Returns TRUE if data available, FALSE if not
