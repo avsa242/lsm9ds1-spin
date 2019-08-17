@@ -770,6 +770,13 @@ PUB MagIntThresh(level) | tmp   'XXX rewrite to take gauss as a param
     tmp := level & $7FFF
     writeRegX(MAG, core#INT_THS_L_M, 2, @tmp)
 
+PUB MagLatchInts(enabled)
+' Latch interrupts asserted by the magnetometer
+'   Valid values: TRUE (-1 or 1) or FALSE
+'   Any other value polls the chip and returns the current setting
+'   NOTE: If enabled, interrupts must be explicitly cleared using MagClearInt XXX verify
+    result := booleanChoice (MAG, core#INT_CFG_M, core#FLD_IEL, core#MASK_IEL, core#INT_CFG_M, enabled, -1)
+
 PUB MagNewData
 ' Polls the Magnetometer status register to check if new data is available.
 '   Returns TRUE if data available, FALSE if not
