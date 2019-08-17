@@ -12,38 +12,38 @@
 
 CON
 
-    READ            = 0
-    WRITE           = 1
+    READ                    = 0
+    WRITE                   = 1
 
-    X_AXIS          = 0
-    Y_AXIS          = 1
-    Z_AXIS          = 2
-    ALL_AXIS        = 3
+    X_AXIS                  = 0
+    Y_AXIS                  = 1
+    Z_AXIS                  = 2
+    ALL_AXIS                = 3
 
-    CELSIUS         = 0
-    FAHRENHEIT      = 1
-    KELVIN          = 2
+    CELSIUS                 = 0
+    FAHRENHEIT              = 1
+    KELVIN                  = 2
 
-    LITTLE          = 0
-    BIG             = 1
+    LITTLE                  = 0
+    BIG                     = 1
 
-    HIGH            = 0
-    LOW             = 1
+    HIGH                    = 0
+    LOW                     = 1
 
-    FIFO_OFF        = core#FIFO_OFF
-    FIFO_THS        = core#FIFO_THS
-    FIFO_CONT_TRIG  = core#FIFO_CONT_TRIG
-    FIFO_OFF_TRIG   = core#FIFO_OFF_TRIG
-    FIFO_CONT       = core#FIFO_CONT
+    FIFO_OFF                = core#FIFO_OFF
+    FIFO_THS                = core#FIFO_THS
+    FIFO_CONT_TRIG          = core#FIFO_CONT_TRIG
+    FIFO_OFF_TRIG           = core#FIFO_OFF_TRIG
+    FIFO_CONT               = core#FIFO_CONT
 
-    AG              = 0
-    MAG             = 1
-    BOTH            = 2
+    AG                      = 0
+    MAG                     = 1
+    BOTH                    = 2
 
-    SPI_W           = 0
-    SPI_RW          = 1
+    SPI_4W                  = 0
+    SPI_3W                  = 1
 
-    FP_SCALE        = 1000
+    FP_SCALE                = 1000
 
 ' Magnetometer interrupt active levels
     MAG_INTLVL_LOW          = 0
