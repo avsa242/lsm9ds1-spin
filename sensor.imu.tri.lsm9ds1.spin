@@ -694,6 +694,22 @@ PUB MagEnableInts(enable_mask) | tmp
     tmp := (tmp | enable_mask) & core#INT_CFG_M_MASK
     writeRegX(MAG, core#INT_CFG_M, 1, @tmp)
 
+PUB MagEndian(endianness) | tmp
+' Choose byte order of magnetometer data
+'   Valid values: LITTLE (0) or BIG (1)
+'   Any other value polls the chip and returns the current setting
+    readRegX(MAG, core#CTRL_REG4_M, 1, @tmp)
+    case endianness
+        LITTLE, BIG:
+            endianness := endianness << core#FLD_BLE_M
+        OTHER:
+            tmp := (tmp >> core#FLD_BLE_M) & %1
+            return tmp
+
+    tmp &= core#MASK_BLE_M
+    tmp := (tmp | endianness) & core#CTRL_REG4_M_MASK
+    writeRegX(MAG, core#CTRL_REG4_M, 1, @tmp)
+
 PUB MagNewData
 ' Polls the Magnetometer status register to check if new data is available.
 '   Returns TRUE if data available, FALSE if not
