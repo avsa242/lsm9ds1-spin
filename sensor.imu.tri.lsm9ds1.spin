@@ -971,6 +971,12 @@ PUB ReadMagCalculated(mx, my, mz) | tmpX, tmpY, tmpZ
     long[my] := (tmpY * FP_SCALE) / _mRes
     long[mz] := (tmpZ * FP_SCALE) / _mRes
 
+PUB XLGSoftReset
+
+    result := %1
+    writeRegX(AG, core#CTRL_REG8, 1, @result)
+    time.MSleep (10)
+
 PUB XLGSPIMode(mode) | tmp
 ' Set Accelerometer/Gyroscope SPI interface mode to 3-wire or 4-wire
 '   Valid values:
@@ -992,14 +998,6 @@ PUB XLGSPIMode(mode) | tmp
     tmp &= core#MASK_SIM
     tmp := (tmp | mode) & core#CTRL_REG8_MASK
     writeRegX (AG, core#CTRL_REG8, 1, @tmp)
-
-PUB SWReset | tmp'XXX
-
-    readRegX(AG, core#CTRL_REG8, 1, @tmp)
-    tmp &= core#MASK_SW_RESET
-    tmp := (tmp | %1) & core#CTRL_REG8_MASK
-    writeRegX(AG, core#CTRL_REG8, 1, @tmp)
-    return tmp
 
 PUB Temperature
 ' Get temperature from chip
