@@ -101,8 +101,8 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay |
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
         XLGSPIMode (3)
         addressAutoInc(TRUE)
-        MagSPI (SPI_RW)
-        MagI2C (FALSE)
+        MagSPI (SPI_3W)     'Must be set to 3-wire SPI mode for the Parallax module
+        MagI2C (FALSE)      'Disable the Magnetometer I2C interface
 
 ' Once everything is initialized, check the WHO_AM_I registers
         if ID(BOTH) == core#WHOAMI_BOTH_RESP
@@ -311,7 +311,7 @@ PUB CalibrateMag(samples) | magMin[3], magMax[3], magtmp[3], axis, mx, my, mz, m
         writeRegX(MAG, core#OFFSET_X_REG_H_M + (2 * axis), 1, @msb)
 
 PUB Endian(endianness) | tmp
-' Choose byte order of data
+' Choose byte order of acclerometer/gyroscope data
 '   Valid values: LITTLE (0) or BIG (1)
 '   Any other value polls the chip and returns the current setting
     readRegX(AG, core#CTRL_REG8, 1, @tmp)
@@ -1006,6 +1006,12 @@ PUB Temperature
     result &= $FFFF
     ~~result
 
+PUB TempCompensation(enable)
+' Enable on-chip temperature compensation for magnetometer readings
+'   Valid values: TRUE (-1 or 1) or FALSE
+'   Any other value polls the chip and returns the current setting
+    result := booleanChoice (MAG, core#CTRL_REG1_M, core#FLD_TEMP_COMP, core#MASK_TEMP_COMP, core#CTRL_REG1_M, enable, 1)
+
 PUB TempNewData | tmp
 ' Temperature sensor new data available
 '   Returns TRUE or FALSE
@@ -1168,7 +1174,14 @@ PRI swap(word_addr)
     byte[word_addr][3] := 0
 
 PRI booleanChoice(device, reg, field, fieldmask, regmask, choice, invertchoice) | tmp
-
+' Reusable method for writing a field that is of a boolean or on-off type
+'   device: AG or MAG
+'   reg: register
+'   field: field within register to modify
+'   fieldmask: bitmask that clears the bits in the field being modified
+'   regmask: bitmask to ensure only valid bits within the register can be modified
+'   choice: the choice (TRUE/FALSE, 1/0)
+'   invertchoice: whether to invert the boolean logic (1 for normal, -1 for inverted)
     readRegX (device, reg, 1, @tmp)
     case ||choice
         0, 1:
