@@ -45,6 +45,10 @@ CON
 
     FP_SCALE        = 1000
 
+' Magnetometer interrupt active levels
+    MAG_INTLVL_LOW          = 0
+    MAG_INTLVL_HI           = 1
+
 OBJ
 
     spi     : "com.spi.4w"
