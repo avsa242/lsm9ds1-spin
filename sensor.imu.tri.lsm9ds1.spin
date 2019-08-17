@@ -74,17 +74,14 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay |
         _INT_AG := INT_AG_PIN
         _INT_M := INT_M_PIN
 
-        io.Input (_CS_AG)
-        io.Input (_CS_M)
-        io.Input (_SCL)
-        io.Input (_SDIO)
+        io.High (_CS_AG)
+        io.High (_CS_M)
+        io.Output (_CS_AG)
+        io.Output (_CS_M)
         io.Input (_INT_AG)
         io.Input (_INT_M)
 
 ' Initialize the IMU
-        io.High (_CS_AG)
-        io.High (_CS_M)
-        io.Low (_SCL)
         time.MSleep (1)
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
 '        tmp := $0C
