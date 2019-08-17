@@ -273,6 +273,10 @@ PUB CalibrateAG | aBiasRawtmp[3], gBiasRawtmp[3], axis, ax, ay, az, gx, gy, gz, 
 
 PUB CalibrateMag(samples) | magMin[3], magMax[3], magtmp[3], axis, mx, my, mz, msb, lsb
 ' Calibrates the Magnetometer on the LSM9DS1 IMU module
+    magtmp[0] := magtmp[1] := magtmp[2] := 0    'Initialize all variables to 0
+    magMin[0] := magMin[1] := magMin[2] := 0
+    magMax[0] := magMax[1] := magMax[2] := 0
+    axis := mx := my := mz := msb := lsb := 0
     repeat samples
         repeat until MagNewData
         readMag(@mx, @my, @mz)
@@ -284,7 +288,6 @@ PUB CalibrateMag(samples) | magMin[3], magMax[3], magtmp[3], axis, mx, my, mz, m
                 magMax[axis] := magtmp[axis]
             if (magtmp[axis] < magMin[axis])
                 magMin[axis] := magtmp[axis]
-
     repeat axis from X_AXIS to Z_AXIS
         _mBiasRaw[axis] := (magMax[axis] + magMin[axis]) / 2
         msb := (_mBiasRaw[axis] & $FF00) >> 8
