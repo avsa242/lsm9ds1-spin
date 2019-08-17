@@ -818,6 +818,23 @@ PUB MagOverflow
 '   Returns: TRUE (-1) if measurement overflows sensor's internal range, FALSE otherwise
     result := ((MagInt >> core#FLD_MROI) & %1) * TRUE
 
+PUB MagOverrun
+' Magnetometer data overrun
+'   Returns: Overrun status as bitfield
+'       MSB   LSB
+'       |     |
+'       3 2 1 0
+'       3: All axes data overrun
+'       2: Z-axis data overrun
+'       1: Y-axis data overrun
+'       0: X-axis dta overrun
+'   Example:
+'       %1111: Indicates data has overrun on all axes
+'       %0010: Indicates Y-axis data has overrun
+'   NOTE: Overrun status indicates new data for axis has overwritten the previous data.
+    readRegX (MAG, core#STATUS_REG_M, 1, @result)
+    result := (result >> core#FLD_OR) & core#BITS_OR
+
 PUB MagScale(scale) | tmp
 ' Set full scale of Magnetometer, in Gauss
 '   Valid values: 4, 8, 12, 16
