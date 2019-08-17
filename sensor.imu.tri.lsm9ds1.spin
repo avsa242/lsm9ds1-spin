@@ -655,6 +655,22 @@ PUB MagClearInt | tmp
 '    writeRegX(MAG, core#INT_SRC_M, 1, @tmp)
 '    writeRegX(MAG, core#INT_CFG_M, 1, @tmp)
 
+PUB MagDataRate(mHz) | tmp
+' Set Magnetometer Output Data Rate, in milli-Hz
+'   Valid values: 625, 1250, 2500, 5000, *10_000, 20_000, 40_000, 80_000
+'   Any other value polls the chip and returns the current setting
+    readRegX (MAG, core#CTRL_REG1_M, 1, @tmp)
+    case mHz := lookdown(mHz: 625, 1250, 2500, 5000, 10_000, 20_000, 40_000, 80_000)
+        1..8:
+            mHz := mHz-1 << core#FLD_DO
+        OTHER:
+            result := ((tmp >> core#FLD_DO) & core#BITS_DO)
+            return lookupz(result: 625, 1250, 2500, 5000, 10_000, 20_000, 40_000, 80_000)
+
+    tmp &= core#MASK_DO
+    tmp := (tmp | mHz)
+    writeRegX (MAG, core#CTRL_REG1_M, 1, @tmp)
+
 PUB MagNewData
 ' Polls the Magnetometer status register to check if new data is available.
 '   Returns TRUE if data available, FALSE if not

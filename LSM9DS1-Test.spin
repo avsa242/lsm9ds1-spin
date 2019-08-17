@@ -34,19 +34,20 @@ OBJ
     cfg     : "core.con.boardcfg.flip"
     ser     : "com.serial.terminal"
     time    : "time"
-    imu     : "sensor.imu.tri.lsm9ds1"
+    imu     : "sensor.imu.9dof.lsm9ds1.spi"
     int     : "string.integer"
 
 VAR
 
+    long _expanded, _fails
     byte _ser_cog, _imu_cog
     byte _max_cols
-    byte _test_row
+    byte _row
 
 PUB Main
 
     Setup
-    ser.Clear
+    _row := 3
 
     BLE(1)
     BDU(1)
@@ -70,12 +71,24 @@ PUB Main
     ACT_DUR (1)
     FMODE(1)
     FTH(1)
-    ser.Str (string(ser#NL, ser#NL, "Completed"))
+    MAG_DO (1)
+
+'    ser.Str (string("Completed"))
     Flash(LED, 100)
+
+PUB MAG_DO(reps) | tmp, read
+
+    _expanded := TRUE
+    _row++
+    repeat reps
+        repeat tmp from 0 to 7
+            imu.MagDataRate (lookupz(tmp: 625, 1_250, 2_500, 5000, 10000, 20000, 40000, 80000))
+            read := imu.MagDataRate (-2)
+            Message (string("MAG_DO"), lookupz(tmp: 625, 1_250, 2_500, 5000, 10000, 20000, 40000, 80000), read)
 
 PUB FTH(reps) | tmp, read
 
-    _test_row := 22
+    _row++
     repeat reps
         repeat tmp from 0 to 31
             imu.FIFOThreshold (tmp)
@@ -84,7 +97,7 @@ PUB FTH(reps) | tmp, read
 
 PUB FMODE(reps) | tmp, read
 
-    _test_row := 21
+    _row++
     repeat reps
         repeat tmp from 0 to 6
             case tmp
@@ -97,25 +110,25 @@ PUB FMODE(reps) | tmp, read
 
 PUB ACT_DUR(reps) | tmp, read
 
-    _test_row := 20
+    _row++
     repeat reps
         repeat tmp from 0 to 255
-            imu.GyroActivityDur (tmp)
-            read := imu.GyroActivityDur (-2)
+            imu.GyroInactiveDur (tmp)
+            read := imu.GyroInactiveDur (-2)
             Message (string("ACT_DUR"), tmp, read)
 
 PUB ACT_THS(reps) | tmp, read
 
-    _test_row := 19
+    _row++
     repeat reps
         repeat tmp from 0 to 127
-            imu.GyroActivityThr (tmp)
-            read := imu.GyroActivityThr (-2)
+            imu.GyroInactiveThr (tmp)
+            read := imu.GyroInactiveThr (-2)
             Message (string("ACT_THS"), tmp, read)
 
 PUB SLEEP_ON_INACT_EN(reps) | tmp, read
 
-    _test_row := 18
+    _row++
     repeat reps
         repeat tmp from 0 to -1
             imu.GyroInactiveSleep (tmp)
@@ -124,7 +137,7 @@ PUB SLEEP_ON_INACT_EN(reps) | tmp, read
 
 PUB FIFO_EN(reps) | tmp, read
 
-    _test_row := 17
+    _row++
     repeat reps
         repeat tmp from 0 to -1
             imu.FIFO (tmp)
@@ -133,7 +146,7 @@ PUB FIFO_EN(reps) | tmp, read
 
 PUB SLEEP_G(reps) | tmp, read
 
-    _test_row := 16
+    _row++
     repeat reps
         repeat tmp from 0 to -1
             imu.GyroSleep (tmp)
@@ -142,7 +155,7 @@ PUB SLEEP_G(reps) | tmp, read
 
 PUB HR(reps) | tmp, read
 
-    _test_row := 15
+    _row++
     repeat reps
         repeat tmp from 0 to -1
             imu.AccelHighRes (tmp)
@@ -151,7 +164,7 @@ PUB HR(reps) | tmp, read
 
 PUB FS_XL(reps) | tmp, read
 
-    _test_row := 14
+    _row++
     repeat reps
         repeat tmp from 1 to 4
             imu.AccelScale (lookup(tmp: 2, 16, 4, 8))
@@ -160,56 +173,56 @@ PUB FS_XL(reps) | tmp, read
 
 PUB XLDA(reps) | read
 ' XXX No verification
-    _test_row := 13
+    _row++
     repeat reps
         read := imu.AccelAvail
         Message (string("XLDA"), read, read)
 
 PUB GDA(reps) | read
 ' XXX No verification
-    _test_row := 12
+    _row++
     repeat reps
-        read := imu.GyroAvail
+        read := imu.GyroNewData
         Message (string("GDA"), read, read)
 
 PUB TDA(reps) | read
 ' XXX No verification
-    _test_row := 11
+    _row++
     repeat reps
-        read := imu.TempAvail
+        read := imu.TempNewData
         Message (string("TDA"), read, read)
 
 PUB IG_INACT (reps) | read
 ' XXX No verification
-    _test_row := 10
+    _row++
     repeat reps
         read := imu.IntInactivity
         Message (string("IG_INACT"), read, read)
 
 PUB IG_G (reps) | read
 ' XXX No verification
-    _test_row := 9
+    _row++
     repeat reps
         read := imu.IntGyro
         Message (string("IG_G"), read, read)
 
 PUB IG_XL (reps) | read
 ' XXX No verification
-    _test_row := 8
+    _row++
     repeat reps
         read := imu.IntAccel
         Message (string("IG_XL"), read, read)
 
 PUB OUT_TEMP(reps) | read
 ' XXX No verification
-    _test_row := 7
+    _row++
     repeat reps
         read := imu.Temperature
         Message (string("OUT_TEMP"), read, read)
 
 PUB LP_MODE(reps) | tmp, read
 
-    _test_row := 6
+    _row++
     repeat reps
         repeat tmp from 0 to -1
             imu.GyroLowPower (tmp)
@@ -218,7 +231,7 @@ PUB LP_MODE(reps) | tmp, read
 
 PUB FS(reps) | tmp, read
 
-    _test_row := 5
+    _row++
     repeat reps
         repeat tmp from 1 to 4
             if tmp == 3
@@ -229,7 +242,7 @@ PUB FS(reps) | tmp, read
 
 PUB ODR(reps) | tmp, read
 
-    _test_row := 4
+    _row++
     repeat reps
         repeat tmp from 1 to 7
             imu.AGDataRate (lookup(tmp: 0, 14{.9}, 59{.5}, 119, 238, 476, 952))
@@ -238,7 +251,7 @@ PUB ODR(reps) | tmp, read
 
 PUB H_LACTIVE(reps) | tmp, read
 
-    _test_row := 3
+    _row++
     repeat reps
         repeat tmp from 0 to 1
             imu.IntLevel (tmp)
@@ -247,7 +260,7 @@ PUB H_LACTIVE(reps) | tmp, read
 
 PUB BDU(reps) | tmp, read
 
-    _test_row := 2
+    _row++
     repeat reps
         repeat tmp from 0 to -1
             imu.BlockUpdate (tmp)
@@ -256,19 +269,12 @@ PUB BDU(reps) | tmp, read
 
 PUB BLE(reps) | tmp, read
 
-    _test_row := 1
+    _row++
     repeat reps
         repeat tmp from 0 to 1
             imu.Endian (tmp)
             read := imu.Endian (-2)
             Message (string("BLE"), tmp, read)
-
-PUB SW_RESET(reps) | tmp    'XXX
-
-    _test_row := 0
-    tmp := imu.SWReset
-    ser.Str (string(ser#NL, "SW Reset sent to IMU", ser#NL))
-    ser.Hex (tmp, 2)
 
 PUB Setup
 
@@ -279,8 +285,6 @@ PUB Setup
     if _imu_cog := imu.Start (SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN)
         ser.Str (string("LSM9DS1 driver started", ser#NL))
         _max_cols := 4
-        waitkey
-        return
     else
         ser.Str (string("Failed to start LSM9DS1 driver - halting", ser#NL))
         imu.Stop
@@ -288,36 +292,52 @@ PUB Setup
         ser.Stop
         repeat
 
-PUB TrueFalse(num)
-
-    case num
-        0: ser.Str (string("FALSE"))
-        -1: ser.Str (string("TRUE"))
-        OTHER: ser.Str (string("???"))
-
 PUB Message(field, arg1, arg2)
 
-    ser.PositionY (_test_row)
-    ser.PositionX (COL_REG)
-    ser.Str (field)
+    case _expanded
+        TRUE:
+            ser.PositionX (COL_REG)
+            ser.Str (field)
 
-    ser.PositionX (COL_SET)
-    ser.Str (string("SET: "))
-    ser.Hex (arg1, 4)
+            ser.PositionX (COL_SET)
+            ser.Str (string("SET: "))
+            ser.Dec (arg1)
+            ser.Chars (32, 3)
 
-    ser.PositionX (COL_READ)
-    ser.Str (string("   READ: "))
-    ser.Hex (arg2, 4)
+            ser.PositionX (COL_READ)
+            ser.Str (string("READ: "))
+            ser.Dec (arg2)
+            ser.Chars (32, 3)
+            ser.PositionX (COL_PF)
+            PassFail (arg1 == arg2)
+            ser.NewLine
 
-    ser.PositionX (COL_PF)
-    PassFail (arg1 == arg2)
-'    ser.Chars (32, (COL_READ+9)-COL_SET)
-'    ser.NewLine
+        FALSE:
+            ser.Position (COL_REG, _row)
+            ser.Str (field)
+
+            ser.Position (COL_SET, _row)
+            ser.Str (string("SET: "))
+            ser.Dec (arg1)
+            ser.Chars (32, 3)
+
+            ser.Position (COL_READ, _row)
+            ser.Str (string("READ: "))
+            ser.Dec (arg2)
+            ser.Chars (32, 3)
+
+            ser.Position (COL_PF, _row)
+            PassFail (arg1 == arg2)
+            ser.NewLine
+        OTHER:
 
 PUB PassFail(num)
 
     case num
-        0: ser.Str (string("FAIL"))
+        0:
+            ser.Str (string("FAIL"))
+'            ser.Position (COL_PF+6, _row)
+'            ser.Dec (_fails++)
         -1: ser.Str (string("PASS"))
         OTHER: ser.Str (string("???"))
 

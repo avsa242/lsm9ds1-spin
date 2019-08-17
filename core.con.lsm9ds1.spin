@@ -260,7 +260,21 @@ CON
     OFFSET_Z_REG_L_M        = $09
     OFFSET_Z_REG_H_M        = $0A
     WHO_AM_I_M              = $0F
+
     CTRL_REG1_M             = $20
+    CTRL_REG1_M_MASK        = $FF
+        FLD_TEMP_COMP       = 7
+        FLD_OM              = 5
+        FLD_DO              = 2
+        FLD_FAST_ODR        = 1
+        FLD_ST              = 0
+        BITS_OM             = %11
+        BITS_DO             = %111
+        MASK_TEMP_COMP      = CTRL_REG1_M_MASK ^ (1 << FLD_TEMP_COMP)
+        MASK_OM             = CTRL_REG1_M_MASK ^ (BITS_OM << FLD_OM)
+        MASK_DO             = CTRL_REG1_M_MASK ^ (BITS_DO << FLD_DO)
+        MASK_FAST_ODR       = CTRL_REG1_M_MASK ^ (1 << FLD_FAST_ODR)
+        MASK_ST             = CTRL_REG1_M_MASK ^ (1 << FLD_ST)
 
     CTRL_REG2_M             = $21
     CTRL_REG2_M_MASK        = $6C
