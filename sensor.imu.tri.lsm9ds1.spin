@@ -813,6 +813,11 @@ PUB MagOpMode(mode) | tmp
     tmp := (tmp | mode)
     writeRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
 
+PUB MagOverflow
+' Magnetometer measurement range overflow
+'   Returns: TRUE (-1) if measurement overflows sensor's internal range, FALSE otherwise
+    result := ((MagInt >> core#FLD_MROI) & %1) * TRUE
+
 PUB MagScale(scale) | tmp
 ' Set full scale of Magnetometer, in Gauss
 '   Valid values: 4, 8, 12, 16
