@@ -597,6 +597,14 @@ PUB IntLevel(active_state) | tmp
     tmp := (tmp | active_state) & core#CTRL_REG8_MASK
     writeRegX(AG, core#CTRL_REG8, 1, @tmp)
 
+PUB MagBlockUpdate(enabled)
+' Enable block update for magnetometer data
+'   Valid values:
+'       TRUE(-1 or 1): Output registers not updated until MSB and LSB have been read
+'       FALSE(0): Continuous update
+'   Any other value polls the chip and returns the current setting
+    result := booleanChoice (MAG, core#CTRL_REG5_M, core#FLD_BDU, core#MASK_BDU, core#CTRL_REG5_M_MASK, enabled, 1)
+
 PUB MagCal(rw, mxBias, myBias, mzBias) | axis, msb, lsb
 ' Read or write/manually set Magnetometer calibration offset values
 '   Valid values:
