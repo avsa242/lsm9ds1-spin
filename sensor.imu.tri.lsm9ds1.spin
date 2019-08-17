@@ -870,17 +870,17 @@ PUB MagScale(scale) | tmp
 ' Set full scale of Magnetometer, in Gauss
 '   Valid values: 4, 8, 12, 16
 '   Any other value polls the chip and returns the current setting
+    tmp := 0
     readRegX(MAG, core#CTRL_REG2_M, 1, @tmp)
     case(scale)
         4, 8, 12, 16:
-            _mRes := lookup(scale/4: 6896{.55}, 3448{.28}, 2298{.85}, 1724{.14})
+            _mRes := lookup(scale/4: 6896{.55}, 3448{.28}, 2298{.85}, 1724{.14})'XXX Investigate making these scaled up higher-precision fixed-points
             scale := lookdownz(scale: 4, 8, 12, 16) << core#FLD_FS_M
         OTHER:
             return (tmp >> core#FLD_FS_M) & core#BITS_FS_M
 
-    tmp &= core#MASK_FS_M
-    tmp := (tmp | scale) & core#CTRL_REG2_M_MASK
-    writeRegX(MAG, core#CTRL_REG2_M, 1, @tmp)
+    tmp := scale & (core#BITS_FS_M << core#FLD_FS_M)   'Mask off ALL other bits, because the only other
+    writeRegX(MAG, core#CTRL_REG2_M, 1, @tmp)           'fields in this reg are for performing soft-reset/reboot
 
 PUB MagI2C(enabled) | tmp
 ' Enable Magnetometer I2C interface
