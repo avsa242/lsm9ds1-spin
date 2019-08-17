@@ -710,6 +710,12 @@ PUB MagEndian(endianness) | tmp
     tmp := (tmp | endianness) & core#CTRL_REG4_M_MASK
     writeRegX(MAG, core#CTRL_REG4_M, 1, @tmp)
 
+PUB MagFastRead(enabled)
+' Enable reading of only the MSB of data to increase reading efficiency, at the cost of precision and accuracy
+'   Valid values: TRUE(-1 or 1), FALSE(0)
+'   Any other value polls the chip and returns the current setting
+    result := booleanChoice (MAG, core#CTRL_REG5_M, core#FLD_FAST_READ, core#MASK_FAST_READ, core#CTRL_REG5_M_MASK, enabled, 1)
+
 PUB MagNewData
 ' Polls the Magnetometer status register to check if new data is available.
 '   Returns TRUE if data available, FALSE if not
