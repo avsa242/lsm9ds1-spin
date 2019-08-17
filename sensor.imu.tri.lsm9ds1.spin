@@ -648,10 +648,7 @@ PUB MagClearInt | tmp
 ' Clears out any interrupts set up on the Magnetometer and
 '   resets all Magnetometer interrupt registers to their default values
     tmp := $00
-    writeRegX(MAG, core#INT_THS_L_M, 4, @tmp)
-'    writeRegX(MAG, core#INT_THS_H_M, 1, @tmp)
-'    writeRegX(MAG, core#INT_SRC_M, 1, @tmp)
-'    writeRegX(MAG, core#INT_CFG_M, 1, @tmp)
+    writeRegX(MAG, core#INT_SRC_M, 1, @tmp)
 
 PUB MagDataRate(mHz) | tmp
 ' Set Magnetometer Output Data Rate, in milli-Hz
