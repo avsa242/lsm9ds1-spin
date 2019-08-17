@@ -49,6 +49,11 @@ CON
     MAG_INTLVL_LOW          = 0
     MAG_INTLVL_HI           = 1
 
+' Magnetometer operation modes
+    MAG_OPMODE_CONT         = %00
+    MAG_OPMODE_SINGLE       = %01
+    MAG_OPMODE_POWERDOWN    = %10
+
 OBJ
 
     spi     : "com.spi.4w"
@@ -783,7 +788,7 @@ PUB MagLowPower(enabled)
 '   Any other value polls the chip and returns the current setting
     result := booleanChoice (MAG, core#CTRL_REG3_M, core#FLD_LP, core#MASK_LP, core#CTRL_REG3_M_MASK, enabled, 1)
 
-PUB MagNewData
+PUB MagNewData'XXX return actual available bits instead?
 ' Polls the Magnetometer status register to check if new data is available.
 '   Returns TRUE if data available, FALSE if not
     readRegX(MAG, core#STATUS_REG_M, 1, @result)
@@ -791,6 +796,22 @@ PUB MagNewData
         result := TRUE
     else
         result := FALSE
+
+PUB MagOpMode(mode) | tmp
+' Set magnetometer operating mode
+'   Valid values:
+'       MAG_OPMODE_CONT (0): Continuous conversion
+'       MAG_OPMODE_SINGLE (1): Single conversion
+'       MAG_OPMODE_POWERDOWN (2): Power down
+    readRegX(MAG, core#CTRL_REG3_M, 1, @tmp)
+    case mode
+        MAG_OPMODE_CONT, MAG_OPMODE_SINGLE, MAG_OPMODE_POWERDOWN:
+        OTHER:
+            result := (tmp & core#BITS_MD)
+            return
+    tmp &= core#MASK_MD
+    tmp := (tmp | mode)
+    writeRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
 
 PUB MagScale(scale) | tmp
 ' Set full scale of Magnetometer, in Gauss
