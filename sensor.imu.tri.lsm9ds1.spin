@@ -882,6 +882,12 @@ PUB MagScale(scale) | tmp
     tmp := scale & (core#BITS_FS_M << core#FLD_FS_M)   'Mask off ALL other bits, because the only other
     writeRegX(MAG, core#CTRL_REG2_M, 1, @tmp)           'fields in this reg are for performing soft-reset/reboot
 
+PUB MagSelfTest(enabled) | tmp
+' Enable on-chip magnetometer self-test
+'   Valid values: TRUE (-1 or 1) or FALSE
+'   Any other value polls the chip and returns the current setting
+    result := booleanChoice (MAG, core#CTRL_REG1_M, core#FLD_ST, core#MASK_ST, core#CTRL_REG1_M_MASK, enabled, 1)
+
 PUB MagI2C(enabled) | tmp
 ' Enable Magnetometer I2C interface
 '   Valid values: *TRUE (-1 or 1), FALSE (0)
