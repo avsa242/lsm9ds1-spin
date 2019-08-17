@@ -716,6 +716,22 @@ PUB MagFastRead(enabled)
 '   Any other value polls the chip and returns the current setting
     result := booleanChoice (MAG, core#CTRL_REG5_M, core#FLD_FAST_READ, core#MASK_FAST_READ, core#CTRL_REG5_M_MASK, enabled, 1)
 
+PUB MagInt
+' Magnetometer interrupt source(s)
+'   Returns: Interrupts that are currently asserted, as a bitmask
+'   MSB    LSB
+'   |      |
+'   76543210
+'   7: X-axis exceeds threshold, positive side
+'   6: Y-axis exceeds threshold, positive side
+'   5: Z-axis exceeds threshold, positive side
+'   4: X-axis exceeds threshold, negative side
+'   3: Y-axis exceeds threshold, negative side
+'   2: Z-axis exceeds threshold, negative side
+'   1: A measurement exceeded the internal magnetometer measurement range (overflow)
+'   0: Interrupt asserted
+    readRegX(MAG, core#INT_SRC_M, 1, @result)
+
 PUB MagNewData
 ' Polls the Magnetometer status register to check if new data is available.
 '   Returns TRUE if data available, FALSE if not
