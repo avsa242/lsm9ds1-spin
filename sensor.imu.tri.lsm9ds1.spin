@@ -667,6 +667,33 @@ PUB MagDataRate(mHz) | tmp
     tmp := (tmp | mHz) & core#CTRL_REG1_M_MASK
     writeRegX (MAG, core#CTRL_REG1_M, 1, @tmp)
 
+PUB MagEnableInts(enable_mask) | tmp
+' Enable magnetometer interrupts, as a bitmask
+'   Valid values: %000..%111
+'     MSB   LSB
+'       |   |
+'       2 1 0
+'       2: X-axis data overrun
+'       1: Y-axis data overrun
+'       0: Z-axis dta overrun
+'   Example:
+'       %111: Enable interrupts for all three axes
+'       %010: Enable interrupts for Y axis only
+
+'   Any other value polls the chip and returns the current setting
+    tmp := $00
+    readRegX(MAG, core#INT_CFG_M, 1, @tmp)
+    case enable_mask
+        %000..%111:
+            enable_mask <<= core#FLD_XYZIEN
+        OTHER:
+            tmp := (tmp >> core#FLD_XYZIEN) & core#BITS_XYZIEN
+            return tmp
+
+    tmp &= core#MASK_XYZIEN
+    tmp := (tmp | enable_mask) & core#INT_CFG_M_MASK
+    writeRegX(MAG, core#INT_CFG_M, 1, @tmp)
+
 PUB MagNewData
 ' Polls the Magnetometer status register to check if new data is available.
 '   Returns TRUE if data available, FALSE if not
