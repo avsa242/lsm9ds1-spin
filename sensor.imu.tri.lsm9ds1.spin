@@ -48,10 +48,6 @@ CON
     MAG                     = 1
     BOTH                    = 2
 
-' SPI modes
-    SPI_4W                  = 0
-    SPI_3W                  = 1
-
 ' Scale used for fixed-point math
     FP_SCALE                = 1000
 
@@ -106,12 +102,15 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN): okay |
         io.Input (_INT_AG)
         io.Input (_INT_M)
 
+        time.MSleep (110)
 ' Initialize the IMU
-        time.MSleep (1)
+
+        XLGSoftReset
+        MagSoftReset
+
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
-        XLGSPIMode (3)
+        setSPI3WireMode
         addressAutoInc(TRUE)
-        MagSPI (SPI_3W)     'Must be set to 3-wire SPI mode for the Parallax module
         MagI2C (FALSE)      'Disable the Magnetometer I2C interface
 
 ' Once everything is initialized, check the WHO_AM_I registers
@@ -153,7 +152,6 @@ PUB Defaults | tmp
     'CTRL_REG3_M
     MagI2C (FALSE)
     MagLowPower (FALSE)
-    MagSPI (SPI_3W)
     MagOpMode (MAG_OPMODE_CONT)
 
     'CTRL_REG4_M
@@ -842,6 +840,7 @@ PUB MagOpMode(mode) | tmp
 '       MAG_OPMODE_CONT (0): Continuous conversion
 '       MAG_OPMODE_SINGLE (1): Single conversion
 '       MAG_OPMODE_POWERDOWN (2): Power down
+    tmp := $00
     readRegX(MAG, core#CTRL_REG3_M, 1, @tmp)
     case mode
         MAG_OPMODE_CONT, MAG_OPMODE_SINGLE, MAG_OPMODE_POWERDOWN:
@@ -849,7 +848,7 @@ PUB MagOpMode(mode) | tmp
             result := (tmp & core#BITS_MD)
             return
     tmp &= core#MASK_MD
-    tmp := (tmp | mode)
+    tmp := (tmp | mode) & core#CTRL_REG3_M_MASK
     writeRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
 
 PUB MagOverflow
@@ -921,35 +920,23 @@ PUB MagSelfTest(enabled) | tmp
 '   Any other value polls the chip and returns the current setting
     result := booleanChoice (MAG, core#CTRL_REG1_M, core#FLD_ST, core#MASK_ST, core#CTRL_REG1_M_MASK, enabled, 1)
 
-PUB MagSoftReset
+PUB MagSoftReset | tmp
 ' Perform soft-test of magnetometer
-    result := $00
-    result := (1 << core#FLD_REBOOT) | (1 << core#FLD_SOFT_RST)
-    writeRegX (MAG, core#CTRL_REG2_M, 1, @result)
+    tmp := $00
+    tmp := (1 << core#FLD_REBOOT) | (1 << core#FLD_SOFT_RST)
+    tmp &= core#CTRL_REG2_M_MASK
+    writeRegX (MAG, core#CTRL_REG2_M, 1, @tmp)
     time.MSleep (10)
+
+    tmp := $00                                  'Mag doesn't seem to come out of reset unless
+    writeRegX (MAG, core#CTRL_REG2_M, 1, @tmp)  ' clearing the reset bit manually - Why would this behave
+    setSPI3WireMode                             ' differently than the XL/G reset?
 
 PUB MagI2C(enabled) | tmp
 ' Enable Magnetometer I2C interface
 '   Valid values: *TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
     result := booleanChoice(MAG, core#CTRL_REG3_M, core#FLD_M_I2C_DISABLE, core#MASK_M_I2C_DISABLE, core#CTRL_REG3_M_MASK, enabled, -1)
-
-PUB MagSPI(mode) | tmp
-' Set Magnetometer SPI interface mode
-'   Valid values:
-'      *SPI_4W (0): SPI interface 4-wire mode
-'       SPI_3W (1): SPI interface 3-wire mode
-'   Any other value polls the chip and returns the current setting
-    readRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
-    case mode
-        SPI_3W, SPI_4W:
-            mode := mode << core#FLD_M_SIM
-        OTHER:
-            return (tmp >> core#FLD_M_SIM) & %1
-
-    tmp &= core#MASK_M_SIM
-    tmp := (tmp | mode) & core#CTRL_REG3_M_MASK
-    writeRegX (MAG, core#CTRL_REG3_M, 1, @tmp)
 
 PUB ReadAccel(ax, ay, az) | tmp[2]
 ' Reads the Accelerometer output registers
@@ -1009,28 +996,6 @@ PUB XLGSoftReset
     result := %1
     writeRegX(AG, core#CTRL_REG8, 1, @result)
     time.MSleep (10)
-
-PUB XLGSPIMode(mode) | tmp
-' Set Accelerometer/Gyroscope SPI interface mode to 3-wire or 4-wire
-'   Valid values:
-'       3
-'      *4
-'   Any other value polls the chip and returns the current setting
-    tmp := $00
-'    readRegX (AG, core#CTRL_REG8, 1, @tmp)
-    case mode' := lookdown(mode: 4, 3)
-        3:
-            mode := 1 << core#FLD_SIM
-        4:
-            mode := 0 << core#FLD_SIM
-
-        OTHER:
-            result := (tmp >> core#FLD_SIM) & %1
-            return lookupz(result: 4, 3)
-
-    tmp &= core#MASK_SIM
-    tmp := (tmp | mode) & core#CTRL_REG8_MASK
-    writeRegX (AG, core#CTRL_REG8, 1, @tmp)
 
 PUB Temperature
 ' Get temperature from chip
@@ -1199,6 +1164,13 @@ PRI addressAutoInc(enabled) | tmp
     tmp := (tmp | enabled) & core#CTRL_REG8_MASK
     writeRegX (AG, core#CTRL_REG8, 1, @tmp)
 
+PRI setSPI3WireMode | tmp
+
+    tmp := (1 << core#FLD_SIM)
+    writeRegX(AG, core#CTRL_REG8, 1, @tmp)
+    tmp := (1 << core#FLD_M_SIM)
+    writeRegX(MAG, core#CTRL_REG3_M, 1, @tmp)
+
 PRI swap(word_addr)
 
     byte[word_addr][3] := byte[word_addr][0]
@@ -1268,10 +1240,17 @@ PRI writeRegX(device, reg, nr_bytes, buf_addr) | tmp
     case device
         AG:
             case reg
-                $04..$0D, $10..$13, $1E..$24, $2E, $30..$37:
+                $04..$0D, $10..$13, $1E..$21, $23, $24, $2E, $30..$37:
                     io.Low (_CS_AG)
                     spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
                     repeat tmp from 0 to nr_bytes-1
+                        spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[buf_addr][tmp])
+                    io.High (_CS_AG)
+                core#CTRL_REG8:
+                    io.Low (_CS_AG)
+                    spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
+                    byte[buf_addr][0] := byte[buf_addr][0] | (1 << core#FLD_SIM)   'Enforce 3-wire SPI mode
+                     repeat tmp from 0 to nr_bytes-1
                         spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[buf_addr][tmp])
                     io.High (_CS_AG)
 
@@ -1280,11 +1259,19 @@ PRI writeRegX(device, reg, nr_bytes, buf_addr) | tmp
 
         MAG:
             case reg
-                $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
+                $05..$0A, $0F, $20, $21, $23, $24, $27..$2D, $30..$33:
                     reg |= WRITE
                     reg |= MS
                     io.Low (_CS_M)
                     spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
+                    repeat tmp from 0 to nr_bytes-1
+                        spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[buf_addr][tmp])
+                    io.High (_CS_M)
+                core#CTRL_REG3_M:   'Ensure any writes to this register also keep the 3-wire SPI mode bit set
+                    reg |= WRITE
+                    io.Low (_CS_M)
+                    spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
+                    byte[buf_addr][0] := byte[buf_addr][0] | (1 << core#FLD_M_SIM)    'Enforce 3-wire SPI mode
                     repeat tmp from 0 to nr_bytes-1
                         spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[buf_addr][tmp])
                     io.High (_CS_M)
