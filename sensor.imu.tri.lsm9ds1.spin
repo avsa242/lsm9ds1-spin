@@ -12,8 +12,12 @@
 
 CON
 
-    READ                    = 0
-    WRITE                   = 1
+' SPI read/write: Bit 7 (MSB) of transaction in 3-wire SPI mode
+    READ                    = 1 << 7
+    WRITE                   = 0
+
+' MS bit: increments address in multiple reads
+    MS                      = 1 << 6
 
     X_AXIS                  = 0
     Y_AXIS                  = 1
@@ -1202,23 +1206,23 @@ PRI readRegX(device, reg, nr_bytes, buf_addr) | tmp
         AG:
             case reg
                 $04..$0D, $0F..$24, $26..$37:
-                    reg |= $80
+                    reg |= READ
                     io.Low(_CS_AG)
-                    spi.shiftout(_SDIO, _SCL, spi#MSBFIRST, 8, reg)
+                    spi.shiftout(_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
                     repeat tmp from 0 to nr_bytes-1
-                        byte[buf_addr][tmp] := spi.shiftin(_SDIO, _SCL, spi#MSBPRE, 8)
+                        byte[buf_addr][tmp] := spi.shiftin(_SDIO, _SCL, core#MISO_BITORDER, 8)
                     io.High(_CS_AG)
                 OTHER:
                     return FALSE
         MAG:
             case reg
                 $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
-                    reg |= $80
-                    reg |= $40
+                    reg |= READ
+                    reg |= MS
                     io.Low(_CS_M)
-                    spi.shiftout(_SDIO, _SCL, spi#MSBFIRST, 8, reg)
+                    spi.shiftout(_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
                     repeat tmp from 0 to nr_bytes-1
-                        byte[buf_addr][tmp] := spi.shiftin(_SDIO, _SCL, spi#MSBPRE, 8)
+                        byte[buf_addr][tmp] := spi.shiftin(_SDIO, _SCL, core#MISO_BITORDER, 8)
                     io.High(_CS_M)
                 OTHER:
                     return FALSE
@@ -1247,6 +1251,8 @@ PRI writeRegX(device, reg, nr_bytes, buf_addr) | tmp
         MAG:
             case reg
                 $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
+                    reg |= WRITE
+                    reg |= MS
                     io.Low (_CS_M)
                     spi.SHIFTOUT (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
                     repeat tmp from 0 to nr_bytes-1
