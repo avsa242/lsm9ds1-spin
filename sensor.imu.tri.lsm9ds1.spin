@@ -135,12 +135,35 @@ PUB Defaults | tmp
     writeRegX(AG, core#CTRL_REG7_XL, 1, @tmp)
 
 'Init Mag
-    tmp := $00
-    writeRegX(MAG, core#CTRL_REG2_M, 1, @tmp)
-    tmp := $0C
-    writeRegX(MAG, core#CTRL_REG4_M, 1, @tmp)
-    tmp := $00
-    writeRegX(MAG, core#CTRL_REG5_M, 1, @tmp)
+    'CTRL_REG1_M
+    TempCompensation (FALSE)
+    MagPerf (MAG_PERF_HIGH)
+    MagDataRate (10_000) 'after 1st cold start, odr looks good. resetting the prop after this, it then looks much faster?
+    MagSelfTest (FALSE)
+
+    'CTRL_REG2_M
+    MagScale (16)
+
+    'CTRL_REG3_M
+    MagI2C (FALSE)
+    MagLowPower (FALSE)
+    MagSPI (SPI_3W)
+    MagOpMode (MAG_OPMODE_CONT)
+
+    'CTRL_REG4_M
+    MagEndian (LITTLE)
+
+    'CTRL_REG5_M
+    MagFastRead (FALSE)
+    MagBlockUpdate (TRUE)
+
+    'INT_CFG_M
+    MagEnableInts (%000)
+    MagIntLevel (MAG_INTLVL_LOW)
+    MagLatchInts (TRUE)
+
+    'INT_THS_L, _H
+    MagIntThresh ($0000)
 
 'Set Scales
     GyroScale(245)
@@ -1186,6 +1209,7 @@ PRI booleanChoice(device, reg, field, fieldmask, regmask, choice, invertchoice) 
 '   regmask: bitmask to ensure only valid bits within the register can be modified
 '   choice: the choice (TRUE/FALSE, 1/0)
 '   invertchoice: whether to invert the boolean logic (1 for normal, -1 for inverted)
+    tmp := $00
     readRegX (device, reg, 1, @tmp)
     case ||choice
         0, 1:

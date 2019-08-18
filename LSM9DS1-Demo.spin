@@ -46,7 +46,7 @@ PUB Main
 
     waitkey(string("Press any key to calibrate Magnetometer", ser#NL))
     ser.Str (string("Calibrating..."))
-    imu.CalibrateMag (512)
+    imu.CalibrateMag (10)
 
     ser.Clear
 
