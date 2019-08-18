@@ -12,44 +12,50 @@
 
 CON
 
-' SPI read/write: Bit 7 (MSB) of transaction in 3-wire SPI mode
+' Constants used in low-level SPI read/write
     READ                    = 1 << 7
     WRITE                   = 0
-
-' MS bit: increments address in multiple reads
     MS                      = 1 << 6
 
+' Axis-specific constants
     X_AXIS                  = 0
     Y_AXIS                  = 1
     Z_AXIS                  = 2
     ALL_AXIS                = 3
 
+' Temperature scale constants
     CELSIUS                 = 0
     FAHRENHEIT              = 1
     KELVIN                  = 2
 
+' Endian constants
     LITTLE                  = 0
     BIG                     = 1
 
-    HIGH                    = 0
-    LOW                     = 1
+' Accel/gyro interrupt active states
+    XLG_INTLVL_HIGH         = 0
+    XLG_INTLVL_LOW          = 1
 
+' FIFO settings
     FIFO_OFF                = core#FIFO_OFF
     FIFO_THS                = core#FIFO_THS
     FIFO_CONT_TRIG          = core#FIFO_CONT_TRIG
     FIFO_OFF_TRIG           = core#FIFO_OFF_TRIG
     FIFO_CONT               = core#FIFO_CONT
 
+' Sensor-specific constants
     AG                      = 0
     MAG                     = 1
     BOTH                    = 2
 
+' SPI modes
     SPI_4W                  = 0
     SPI_3W                  = 1
 
+' Scale used for fixed-point math
     FP_SCALE                = 1000
 
-' Magnetometer interrupt active levels
+' Magnetometer interrupt active states
     MAG_INTLVL_LOW          = 0
     MAG_INTLVL_HI           = 1
 
@@ -625,11 +631,11 @@ PUB IntInactivity | tmp
 
 PUB IntLevel(active_state) | tmp
 ' Set active state for interrupts
-'   Valid values: HIGH (0) - active high, LOW (1) - active low
+'   Valid values: XLG_INTLVL_HIGH (0) - active high, XLG_INTLVL_LOW (1) - active low
 '   Any other value polls the chip and returns the current setting
     readRegX(AG, core#CTRL_REG8, 1, @tmp)
     case active_state
-        HIGH, LOW:
+        XLG_INTLVL_HIGH, XLG_INTLVL_LOW:
             active_state := active_state << core#FLD_H_LACTIVE
         OTHER:
             tmp := (tmp >> core#FLD_H_LACTIVE) & %1
