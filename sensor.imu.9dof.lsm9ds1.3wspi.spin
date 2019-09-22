@@ -415,8 +415,7 @@ PUB GyroCal(rw, gxBias, gyBias, gzBias)
 '           READ (0), WRITE (1)
 '       gxBias, gyBias, gzBias:
 '           -32768..32767
-'   NOTE: When rw is set to READ, gxBias, gyBias and gzBias must be addresses of respective variables to hold the returned
-'       calibration offset values.
+'   NOTE: When rw is set to READ, gxBias, gyBias and gzBias must be addresses of respective variables to hold the returned calibration offset values.
     case rw
         READ:
             long[gxBias] := _gBiasRaw[X_AXIS]

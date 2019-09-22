@@ -51,6 +51,18 @@ PUB Main
 
     ser.Clear
 
+{    repeat
+        ser.Position (0, 0)
+        AccelCalc
+        ser.Position (0, 1)
+        GyroCalc
+        ser.Position (0, 2)
+        MagCalc
+        ser.Position (0, 3)
+        TempRaw
+
+        time.MSleep (10)
+}
     repeat
         ser.Position (0, 0)
         AccelRaw
@@ -62,6 +74,30 @@ PUB Main
         TempRaw
 
         time.MSleep (10)
+
+PUB AccelCalc | ax, ay, az
+
+    imu.ReadAccelCalculated (@ax, @ay, @az)
+    ser.Str (string("Accel: "))
+    ser.Str (int.DecPadded (ax, 7))
+    ser.Str (int.DecPadded (ay, 7))
+    ser.Str (int.DecPadded (az, 7))
+
+PUB GyroCalc | gx, gy, gz
+
+    imu.ReadGyroCalculated (@gx, @gy, @gz)
+    ser.Str (string("Gyro:  "))
+    ser.Str (int.DecPadded (gx, 7))
+    ser.Str (int.DecPadded (gy, 7))
+    ser.Str (int.DecPadded (gz, 7))
+
+PUB MagCalc | mx, my, mz
+
+    imu.ReadMagCalculated (@mx, @my, @mz)
+    ser.Str (string("Mag:  "))
+    ser.Str (int.DecPadded (mx, 7))
+    ser.Str (int.DecPadded (my, 7))
+    ser.Str (int.DecPadded (mz, 7))
 
 PUB AccelRaw | ax, ay, az
 
