@@ -1,11 +1,12 @@
 {
     --------------------------------------------
-    Filename: LSM9DS1-Test.spin
+    Filename: LSM9DS1-Demo.spin
     Author: Jesse Burt
-    Description: Test harness for LSM9DS1 driver
+    Description: Simple demo of the LSM9DS1 driver that
+        outputs live data from the chip.
     Copyright (c) 2019
     Started Aug 12, 2017
-    Updated Feb 18, 2019
+    Updated Sep 22, 2019
     See end of file for terms of use.
     --------------------------------------------
 }
