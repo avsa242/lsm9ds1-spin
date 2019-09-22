@@ -1,7 +1,7 @@
 # lsm9ds1-spin
----------------
+--------------
 
-This is a P8X32A/Propeller driver object for the LSM9DS1 9-DoF IMU.
+This is a P8X32A/Propeller driver object for the STMicroelectronics LSM9DS1 9-DoF IMU.
 
 ## Salient Features
 
@@ -12,14 +12,16 @@ This is a P8X32A/Propeller driver object for the LSM9DS1 9-DoF IMU.
 
 ## Requirements
 
-* 1 additional core/cog for the SPI driver
+* 1 additional core/cog for the PASM SPI driver
 
 ## Limitations
 
-* _testing_ branch may be **very broken** at times!
+* Very early in development - may malfunction, or outright fail to build
 * Some data may be imprecise because of fixed-point math implementation (unverified)
+* Interrupt lines not currently supported
 
 ## TODO
 
 - [ ] Code cleanup
+- [ ] Implement 3W and 4W SPI variants
 - [ ] Implement I2C driver variant

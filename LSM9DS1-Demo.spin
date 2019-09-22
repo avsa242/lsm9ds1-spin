@@ -60,7 +60,7 @@ PUB Main
         ser.Position (0, 3)
         TempRaw
 
-        time.MSleep (100)
+        time.MSleep (10)
 
 PUB AccelRaw | ax, ay, az
 

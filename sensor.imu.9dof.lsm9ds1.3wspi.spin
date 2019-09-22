@@ -455,12 +455,12 @@ PUB GyroDataRate(Hz) | tmp
 '   NOTE: 0 powers down the Gyroscope
 '   NOTE: 15 and 60 are rounded up from the datasheet specifications of 14.9 and 59.5, respectively
     readRegX (AG, core#CTRL_REG1_G, 1, @tmp)
-    case Hz := lookdown(Hz: 0, 15, 60, 119, 238, 476, 952)
-        1..6:
-            Hz := Hz << core#FLD_ODR
+    case Hz
+        0, 15, 60, 119, 238, 476, 952:
+            Hz := lookdownz(Hz: 0, 15, 60, 119, 238, 476, 952) << core#FLD_ODR
         OTHER:
-            result := ((tmp >> core#FLD_ODR) & core#BITS_ODR) + 1
-            return lookup(result: 0, 15, 60, 119, 238, 476, 952)
+            result := ((tmp >> core#FLD_ODR) & core#BITS_ODR)
+            return lookupz(result: 0, 15, 60, 119, 238, 476, 952)
 
     tmp &= core#MASK_ODR
     tmp := (tmp | Hz)
@@ -1199,7 +1199,7 @@ PRI booleanChoice(device, reg, field, fieldmask, regmask, choice, invertchoice) 
     tmp := (tmp | choice) & regmask
     writeRegX (device, reg, 1, @tmp)
 
-PRI readRegX(device, reg, nr_bytes, buf_addr) | tmp
+PUB readRegX(device, reg, nr_bytes, buf_addr) | tmp
 ' Read from device
 ' Validate register - allow only registers that are
 '   not 'reserved' (ST states reading should only be performed on registers listed in
