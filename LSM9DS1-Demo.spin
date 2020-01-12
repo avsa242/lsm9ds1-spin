@@ -4,9 +4,9 @@
     Author: Jesse Burt
     Description: Simple demo of the LSM9DS1 driver that
         outputs live data from the chip.
-    Copyright (c) 2019
+    Copyright (c) 2020
     Started Aug 12, 2017
-    Updated Sep 22, 2019
+    Updated Jan 12, 2020
     See end of file for terms of use.
     --------------------------------------------
 }
