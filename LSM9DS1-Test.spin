@@ -207,14 +207,14 @@ PUB IG_G (reps) | read
 ' XXX No verification
     _row++
     repeat reps
-        read := imu.IntGyro
+        read := imu.GyroInt
         Message (string("IG_G"), read, read)
 
 PUB IG_XL (reps) | read
 ' XXX No verification
     _row++
     repeat reps
-        read := imu.IntAccel
+        read := imu.AccelInt
         Message (string("IG_XL"), read, read)
 
 PUB OUT_TEMP(reps) | read
@@ -249,8 +249,8 @@ PUB ODR(reps) | tmp, read
     _row++
     repeat reps
         repeat tmp from 1 to 7
-            imu.AGDataRate (lookup(tmp: 0, 14{.9}, 59{.5}, 119, 238, 476, 952))
-            read := imu.AGDataRate (-2)
+            imu.XLGDataRate (lookup(tmp: 0, 14{.9}, 59{.5}, 119, 238, 476, 952))
+            read := imu.XLGDataRate (-2)
             Message (string("ODR"), lookup(tmp: 0, 14{.9}, 59{.5}, 119, 238, 476, 952), read)
 
 PUB H_LACTIVE(reps) | tmp, read
@@ -267,8 +267,8 @@ PUB BDU(reps) | tmp, read
     _row++
     repeat reps
         repeat tmp from 0 to -1
-            imu.BlockUpdate (tmp)
-            read := imu.BlockUpdate (-2)
+            imu.MagBlockUpdate (tmp)
+            read := imu.MagBlockUpdate (-2)
             Message (string("BDU"), tmp, read)
 
 PUB BLE(reps) | tmp, read

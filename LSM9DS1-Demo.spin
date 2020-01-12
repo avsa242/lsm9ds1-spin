@@ -44,9 +44,9 @@ VAR
 PUB Main
 
     Setup
+
     imu.MagDataRate(80_000)
     ser.HideCursor
-
 
     repeat
         ser.Position (0, 3)
@@ -87,7 +87,7 @@ PUB Calibrate
 
     ser.Position (0, 8)
     ser.Str(string("Calibrating..."))
-    imu.CalibrateAG
+    imu.CalibrateXLG
     imu.CalibrateMag (10)
     ser.Position (0, 8)
     ser.Str(string("              "))

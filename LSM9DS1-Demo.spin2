@@ -29,12 +29,13 @@ CON
     SER_TX      = cfg#SER_TX
     SER_BAUD    = 2_000_000
 
-    SCL_PIN     = 32
-    SDIO_PIN    = 33
-    CS_AG_PIN   = 34
-    CS_M_PIN    = 35
-    INT_AG_PIN  = 36
-    INT_M_PIN   = 37
+    SCL_PIN     = 14
+    SDIO_PIN    = 12
+    CS_AG_PIN   = 10
+    CS_M_PIN    = 8
+    INT_AG_PIN  = 9
+    INT_M_PIN   = 11
+    SCK_FREQ    = 5_000_000
 
 OBJ
 
@@ -52,9 +53,9 @@ VAR
 PUB Main
 
     Setup
+
     imu.MagDataRate(80_000)
     ser.HideCursor
-
 
     repeat
         ser.Position (0, 3)
@@ -95,7 +96,7 @@ PUB Calibrate
 
     ser.Position (0, 8)
     ser.Str(string("Calibrating..."))
-    imu.CalibrateAG
+    imu.CalibrateXLG
     imu.CalibrateMag (10)
     ser.Position (0, 8)
     ser.Str(string("              "))
@@ -112,7 +113,7 @@ PUB GyroCalc | gx, gy, gz
 
     repeat until imu.GyroDataReady
     imu.GyroDPS (@gx, @gy, @gz)
-    ser.printf("Gyro:  %s", int.DecPadded (gx, 10)) 'Combining all 3 lines into one printf doesn't work;
+    ser.printf("Gyro:   %s", int.DecPadded (gx, 10)) 'Combining all 3 lines into one printf doesn't work;
     ser.printf(" %s", int.DecPadded (gy, 10))        'all values end up the same
     ser.printf(" %s", int.DecPadded (gz, 10))
 
@@ -120,7 +121,7 @@ PUB MagCalc | mx, my, mz
 
     repeat until imu.MagDataReady
     imu.MagGauss (@mx, @my, @mz)
-    ser.printf("Mag:  %s", int.DecPadded (mx, 10)) 'Combining all 3 lines into one printf doesn't work;
+    ser.printf("Mag:    %s", int.DecPadded (mx, 10)) 'Combining all 3 lines into one printf doesn't work;
     ser.printf(" %s", int.DecPadded (my, 10))        'all values end up the same
     ser.printf(" %s", int.DecPadded (mz, 10))
 
@@ -159,7 +160,7 @@ PUB Setup
     ser.Clear
     ser.printf("Serial terminal started\n")
 
-    if _imu_cog := imu.Start (SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN, 5_000_000)
+    if _imu_cog := imu.Start (SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN, SCK_FREQ)
         ser.printf("LSM9DS1 driver started\n")
     else
         ser.printf("LSM9DS1 driver failed to start- halting\n")
