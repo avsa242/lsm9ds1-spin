@@ -2,10 +2,10 @@
     --------------------------------------------
     Filename: LSM9DS1-Test.spin2
     Author: Jesse Burt
-    Description: Test harness for LSM9DS1 driver (P2 version)
-    Copyright (c) 2019
+    Description: Test app for LSM9DS1 driver (P2 version)
+    Copyright (c) 2020
     Started Nov 3, 2019
-    Updated Nov 3, 2019
+    Updated Jan 12, 2020
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -23,6 +23,12 @@ CON
     SETFREQ     = cfg#SETFREQ
     ENAFREQ     = cfg#ENAFREQ
 
+    COL_REG     = 0
+    COL_SET     = COL_REG+20
+    COL_READ    = COL_REG+32
+    COL_PF      = COl_REG+48
+
+' User modifiable constants
     LED         = cfg#LED1
     SER_RX      = cfg#SER_RX
     SER_TX      = cfg#SER_TX
@@ -35,16 +41,12 @@ CON
     INT_AG_PIN  = 36
     INT_M_PIN   = 37
 
-    COL_REG     = 0
-    COL_SET     = COL_REG+20
-    COL_READ    = COL_REG+32
-    COL_PF      = COl_REG+48
-
 OBJ
 
     cfg     : "core.con.boardcfg.p2eval"
     ser     : "com.serial.terminal.ansi"
     time    : "time"
+    io      : "io"
     imu     : "sensor.imu.9dof.lsm9ds1.3wspi"
     int     : "string.integer"
 
@@ -84,8 +86,7 @@ PUB Main
     FTH(1)
     MAG_DO (1)
 
-'    ser.Str (string("Completed"))
-    Flash(LED, 100)
+    FlashLED(LED, 100)
 
 PUB MAG_DO(reps) | tmp, read
 
@@ -151,8 +152,8 @@ PUB FIFO_EN(reps) | tmp, read
     _row++
     repeat reps
         repeat tmp from 0 to -1
-            imu.FIFO (tmp)
-            read := imu.FIFO (-2)
+            imu.FIFOEnabled (tmp)
+            read := imu.FIFOEnabled (-2)
             Message (string("FIFO_EN"), tmp, read)
 
 PUB SLEEP_G(reps) | tmp, read
@@ -186,21 +187,21 @@ PUB XLDA(reps) | read
 ' XXX No verification
     _row++
     repeat reps
-        read := imu.AccelAvail
+        read := imu.AccelDataReady
         Message (string("XLDA"), read, read)
 
 PUB GDA(reps) | read
 ' XXX No verification
     _row++
     repeat reps
-        read := imu.GyroNewData
+        read := imu.GyroDataReady
         Message (string("GDA"), read, read)
 
 PUB TDA(reps) | read
 ' XXX No verification
     _row++
     repeat reps
-        read := imu.TempNewData
+        read := imu.TempDataReady
         Message (string("TDA"), read, read)
 
 PUB IG_INACT (reps) | read
@@ -265,8 +266,8 @@ PUB H_LACTIVE(reps) | tmp, read
     _row++
     repeat reps
         repeat tmp from 0 to 1
-            imu.IntLevel (tmp)
-            read := imu.IntLevel (-2)
+            imu.XLGIntLevel (tmp)
+            read := imu.XLGIntLevel (-2)
             Message (string("H_LACTIVE"), tmp, read)
 
 PUB BDU(reps) | tmp, read
@@ -345,16 +346,9 @@ PUB Setup
         _max_cols := 4
     else
         ser.printf("Failed to start LSM9DS1 driver - halting\n")
-        Flash(LED, 500)
+        FlashLED(LED, 500)
 
-#include "lib.io.spin2"
-
-PUB Flash(led_pin, delay_ms)
-
-    dir(led_pin, 1)
-    repeat
-        out(led_pin, !in(led_pin))
-        time.MSleep (delay_ms)
+#include "lib.utility.spin2"
 
 DAT
 {

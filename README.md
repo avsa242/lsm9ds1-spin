@@ -29,13 +29,14 @@ This is a P8X32A/Propeller, P2X8C4M64P/Propeller 2 driver object for the STMicro
 
 * Very early in development - may malfunction, or outright fail to build
 * Magnetometer data low-confidence (I have no way to verify this type of sensor, currently)
-* Interrupt I/O pins not currently used in the driver
+* Interrupt I/O pins not currently used in the driver (interrupt status can be read through API, however)
 
 ## TODO
 
 - [ ] Indicate default values in methods
 - [ ] Modify some methods to take scaled parameters, rather than raw register values
 - [ ] Add ability to set temperature scale
-- [ ] Rename methods to the sensor.imu API
-- [ ] Implement 3W and 4W SPI variants
-- [ ] Implement I2C driver variant
+- [ ] Rename methods to the sensor.imu API - WIP
+- [x] Implement 3W SPI driver
+- [ ] Implement 4W SPI driver
+- [ ] Implement I2C driver

@@ -94,8 +94,8 @@ PUB Calibrate
 
 PUB AccelCalc | ax, ay, az
 
-    repeat until imu.AccelAvail
-    imu.ReadAccelCalculated (@ax, @ay, @az)
+    repeat until imu.AccelDataReady
+    imu.AccelG (@ax, @ay, @az)
     ser.Str (string("Accel: "))
     ser.Str (int.DecPadded (ax, 10))
     ser.Str (int.DecPadded (ay, 10))
@@ -103,8 +103,8 @@ PUB AccelCalc | ax, ay, az
 
 PUB GyroCalc | gx, gy, gz
 
-    repeat until imu.GyroNewData
-    imu.ReadGyroCalculated (@gx, @gy, @gz)
+    repeat until imu.GyroDataReady
+    imu.GyroDPS (@gx, @gy, @gz)
     ser.Str (string("Gyro:  "))
     ser.Str (int.DecPadded (gx, 10))
     ser.Str (int.DecPadded (gy, 10))
@@ -112,8 +112,8 @@ PUB GyroCalc | gx, gy, gz
 
 PUB MagCalc | mx, my, mz
 
-    repeat until imu.MagNewData
-    imu.ReadMagCalculated (@mx, @my, @mz)
+    repeat until imu.MagDataReady
+    imu.MagGauss (@mx, @my, @mz)
     ser.Str (string("Mag:   "))
     ser.Str (int.DecPadded (mx, 10))
     ser.Str (int.DecPadded (my, 10))
@@ -121,7 +121,8 @@ PUB MagCalc | mx, my, mz
 
 PUB AccelRaw | ax, ay, az
 
-    imu.ReadAccel (@ax, @ay, @az)
+    repeat until imu.AccelDataReady
+    imu.AccelData (@ax, @ay, @az)
     ser.Str (string("Accel: "))
     ser.Str (int.DecPadded (ax, 7))
     ser.Str (int.DecPadded (ay, 7))
@@ -129,8 +130,8 @@ PUB AccelRaw | ax, ay, az
 
 PUB GyroRaw | gx, gy, gz
 
-    repeat until imu.GyroNewData
-    imu.ReadGyro (@gx, @gy, @gz)
+    repeat until imu.GyroDataReady
+    imu.GyroData (@gx, @gy, @gz)
     ser.Str (string("Gyro:  "))
     ser.Str (int.DecPadded (gx, 7))
     ser.Str (int.DecPadded (gy, 7))
@@ -138,7 +139,8 @@ PUB GyroRaw | gx, gy, gz
 
 PUB MagRaw | mx, my, mz
 
-    imu.ReadMag (@mx, @my, @mz)
+    repeat until imu.MagDataReady
+    imu.MagData (@mx, @my, @mz)
     ser.Str (string("Mag:  "))
     ser.Str (int.DecPadded (mx, 7))
     ser.Str (int.DecPadded (my, 7))
@@ -158,7 +160,7 @@ PUB Setup
     if _imu_cog := imu.Start (SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN, INT_AG_PIN, INT_M_PIN)
         ser.Str (string("LSM9DS1 driver started", ser#CR, ser#LF))
     else
-        ser.Str (string("LSM9DS1 driver failed to start- halting", ser#CR, ser#LF))
+        ser.Str (string("LSM9DS1 driver failed to start - halting", ser#CR, ser#LF))
         imu.Stop
         time.MSleep (5)
         ser.Stop
