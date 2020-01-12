@@ -1199,7 +1199,7 @@ PRI booleanChoice(device, reg, field, fieldmask, regmask, choice, invertchoice) 
     tmp := (tmp | choice) & regmask
     writeReg (device, reg, 1, @tmp)
 
-PUB readReg(device, reg, nr_bytes, buff_addr) | tmp
+PRI readReg(device, reg, nr_bytes, buff_addr) | tmp
 ' Read from device
 ' Validate register - allow only registers that are
 '   not 'reserved' (ST states reading should only be performed on registers listed in
