@@ -48,9 +48,6 @@ CON
     MAG                     = 1
     BOTH                    = 2
 
-' Scale used for fixed-point math
-    FP_SCALE                = 1000
-
 ' Magnetometer interrupt active states
     MAG_INTLVL_LOW          = 0
     MAG_INTLVL_HI           = 1
@@ -134,10 +131,10 @@ PUB Defaults | tmp
 'Init Accel
     AccelOutEnable (TRUE, TRUE, TRUE)
 
-    tmp := $C0
-    writeRegX(AG, core#CTRL_REG6_XL, 1, @tmp)
-    tmp := $00
-    writeRegX(AG, core#CTRL_REG7_XL, 1, @tmp)
+    tmp := $C0                                  '\
+    writeRegX(AG, core#CTRL_REG6_XL, 1, @tmp)   ' } Rewrite high-level
+    tmp := $00                                  ' |
+    writeRegX(AG, core#CTRL_REG7_XL, 1, @tmp)   '/
 
 'Init Mag
     'CTRL_REG1_M
@@ -219,8 +216,9 @@ PUB AccelScale(scale) | tmp
     readRegX(AG, core#CTRL_REG6_XL, 1, @tmp)
     case scale
         2, 4, 8, 16:
-            _aRes := 32768/scale
-            scale := (lookdown(scale: 2, 16, 4, 8) - 1) << core#FLD_FS_XL
+            scale := lookdownz(scale: 2, 16, 4, 8)
+            _aRes := lookupz(scale: 0_000061, 0_000732, 0_000122, 0_000244)
+            scale <<= core#FLD_FS_XL
         OTHER:
             tmp := ((tmp >> core#FLD_FS_XL) & core#BITS_FS_XL) + 1
             return lookup(tmp: 2, 16, 4, 8)
@@ -305,9 +303,9 @@ PUB CalibrateAG | aBiasRawtmp[3], gBiasRawtmp[3], axis, ax, ay, az, gx, gy, gz, 
         ReadAccel(@ax, @ay, @az)
         aBiasRawtmp[X_AXIS] += ax
         aBiasRawtmp[Y_AXIS] += ay
-        aBiasRawtmp[Z_AXIS] += az - _aRes ' Assumes sensor facing up!
+        aBiasRawtmp[Z_AXIS] += az - (1_000_000 / _aRes) ' Assumes sensor facing up!
 
-    repeat axis from 0 to 2
+    repeat axis from X_AXIS to Z_AXIS
         _gBiasRaw[axis] := gBiasRawtmp[axis] / samples
         _gBias[axis] := (_gBiasRaw[axis]) / _gRes
         _aBiasRaw[axis] := aBiasRawtmp[axis] / samples
@@ -571,8 +569,9 @@ PUB GyroScale(scale) | tmp
     readRegX(AG, core#CTRL_REG1_G, 1, @tmp)
     case scale
         245, 500, 2000:
-            _gRes := 32768/scale
-            scale := (lookdown(scale: 245, 500, 0, 2000) - 1) << core#FLD_FS
+            scale := lookdownz(scale: 245, 500, 0, 2000)
+            _gRes := lookupz(scale: 0_008750, 0_017500, 0, 0_070000)
+            scale <<= core#FLD_FS
         OTHER:
             tmp := ((tmp >> core#FLD_FS) & core#BITS_FS) + 1
             return lookup(tmp: 245, 500, 0, 2000)
@@ -905,8 +904,9 @@ PUB MagScale(scale) | tmp
     readRegX(MAG, core#CTRL_REG2_M, 1, @tmp)
     case(scale)
         4, 8, 12, 16:
-            _mRes := lookup(scale/4: 6896{.55}, 3448{.28}, 2298{.85}, 1724{.14})'XXX Investigate making these scaled up higher-precision fixed-points
-            scale := lookdownz(scale: 4, 8, 12, 16) << core#FLD_FS_M
+            scale := lookdownz(scale: 4, 8, 12, 16)
+            _mRes := lookupz(scale: 0_000140, 0_000290, 0_000430, 0_000580)
+            scale <<= core#FLD_FS_M
         OTHER:
             return (tmp >> core#FLD_FS_M) & core#BITS_FS_M
 
@@ -951,11 +951,11 @@ PUB ReadAccel(ax, ay, az) | tmp[2]
         long[az] -= _aBiasRaw[Z_AXIS]
 
 PUB ReadAccelCalculated(ax, ay, az) | tmpX, tmpY, tmpZ
-' Reads the Accelerometer output registers and scales the outputs to milli-g's (1 g = 9.8 m/s/s)
+' Reads the Accelerometer output registers and scales the outputs to micro-g's (1_000_000 = 1.000000 g = 9.8 m/s/s)
     ReadAccel(@tmpX, @tmpY, @tmpZ)
-    long[ax] := (tmpX * FP_SCALE) / (_aRes)
-    long[ay] := (tmpY * FP_SCALE) / (_aRes)
-    long[az] := (tmpZ * FP_SCALE) / (_aRes)
+    long[ax] := tmpX * _aRes
+    long[ay] := tmpY * _aRes
+    long[az] := tmpZ * _aRes
 
 PUB ReadGyro(gx, gy, gz) | tmp[2]
 ' Reads the Gyroscope output registers
@@ -970,11 +970,11 @@ PUB ReadGyro(gx, gy, gz) | tmp[2]
         long[gz] -= _gBiasRaw[Z_AXIS]
 
 PUB ReadGyroCalculated(gx, gy, gz) | tmpX, tmpY, tmpZ
-' Read the Gyroscope output registers and scale the outputs to milli-degrees of rotation per second (DPS)
+' Read the Gyroscope output registers and scale the outputs to micro-degrees of rotation per second (1_000_000 = 1.000000 deg/sec)
     readGyro(@tmpX, @tmpY, @tmpZ)
-    long[gx] := (tmpX * FP_SCALE) / _gRes
-    long[gy] := (tmpY * FP_SCALE) / _gRes
-    long[gz] := (tmpZ * FP_SCALE) / _gRes
+    long[gx] := tmpX * _gRes
+    long[gy] := tmpY * _gRes
+    long[gz] := tmpZ * _gRes
 
 PUB ReadMag(mx, my, mz) | tmp[2]
 ' Read the Magnetometer output registers
@@ -984,24 +984,23 @@ PUB ReadMag(mx, my, mz) | tmp[2]
     long[mz] := ~~tmp.word[2]
 
 PUB ReadMagCalculated(mx, my, mz) | tmpX, tmpY, tmpZ
-' Read the Magnetometer output registers and scale the outputs to milli-Gauss
+' Read the Magnetometer output registers and scale the outputs to micro-Gauss (1_000_000 = 1.000000 Gs)
     readMag(@tmpX, @tmpY, @tmpZ)
-    long[mx] := (tmpX * FP_SCALE) / _mRes
-    long[my] := (tmpY * FP_SCALE) / _mRes
-    long[mz] := (tmpZ * FP_SCALE) / _mRes
+    long[mx] := tmpX * _mRes
+    long[my] := tmpY * _mRes
+    long[mz] := tmpZ * _mRes
 
 PUB XLGSoftReset
-
+' Perform soft-reset of accelerometer/gyroscope
     result := %1
     writeRegX(AG, core#CTRL_REG8, 1, @result)
     time.MSleep (10)
 
 PUB Temperature
 ' Get temperature from chip
-'   Result is two's-complement
+'   Returns: Temperature in hundredths of a degree Celsius (1000 = 10.00 deg C)
     readRegX(AG, core#OUT_TEMP_L, 2, @result)
-    result &= $FFFF
-    ~~result
+    result := (((result.byte[0] << 8 | result.byte[1]) >> 8) * 10) + 250
 
 PUB TempCompensation(enable)
 ' Enable on-chip temperature compensation for magnetometer readings
@@ -1017,6 +1016,7 @@ PUB TempNewData | tmp
 
 PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tmpRegValue, accelThs, accelThsH, tmpThs
 'Configures the Accelerometer interrupt output to the INT_A/G pin.
+'XXX LEGACY METHOD
     overUnder &= $01
     andOr &= $01
     tmpRegValue := 0
@@ -1062,6 +1062,7 @@ PUB setAccelInterrupt(axis, threshold, duration, overUnder, andOr) | tmpRegValue
 
 PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tmpRegValue, gyroThs, gyroThsH, gyroThsL
 ' Configures the Gyroscope interrupt output to the INT_A/G pin.
+' XXX LEGACY METHOD
     overUnder &= $01
     tmpRegValue := 0
     readRegX(AG, core#CTRL_REG4, 1, @tmpRegValue)
@@ -1117,7 +1118,7 @@ PUB setGyroInterrupt(axis, threshold, duration, overUnder, andOr) | tmpRegValue,
     writeRegX(AG, core#INT1_CTRL, 1, @tmpRegValue)
 
 PUB setMagInterrupt(axis, threshold, lowHigh) | tmpCfgValue, tmpSrcValue, magThs, magThsL, magThsH 'PARTIAL
-
+' XXX LEGACY METHOD
     lowHigh &= $01
     tmpCfgValue := $00
     tmpCfgValue |= (lowHigh << 2)
