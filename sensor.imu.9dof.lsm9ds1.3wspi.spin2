@@ -5,7 +5,7 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU (P2 version)
     Copyright (c) 2020
     Started Aug 12, 2017
-    Updated Jan 12, 2020
+    Updated May 15, 2020
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -172,7 +172,7 @@ PUB AccelAxisEnabled(x, y, z) | tmp, bits
 '   Valid values: FALSE (0) or TRUE (1 or -1), for each axis
 '   Any other value polls the chip and returns the current setting
     readReg(XLG, core#CTRL_REG5_XL, 1, @tmp)
-    case bits := (||z << 2) | (||y << 1) | ||x
+    case bits := abs(z << 2) | abs(y << 1) | abs(x)
         %000..%111:
             bits <<= core#FLD_XEN_XL
         OTHER:
@@ -214,12 +214,12 @@ PUB AccelCal(rw, axBias, ayBias, azBias)
                     _aBiasRaw[Z_AXIS] := azBias
                 OTHER:
 
-PUB AccelClearInt | tmp, reg
+PUB AccelClearInt | tmp, reg_nr
 ' Clears out any interrupts set up on the Accelerometer
 '   and resets all Accelerometer interrupt registers to their default values.
     tmp := $00
-    repeat reg from core#INT_GEN_CFG_XL to core#INT_GEN_DUR_XL
-        writeReg(XLG, reg, 1, @tmp)
+    repeat reg_nr from core#INT_GEN_CFG_XL to core#INT_GEN_DUR_XL
+        writeReg(XLG, reg_nr, 1, @tmp)
     readReg(XLG, core#INT1_CTRL, 1, @tmp)
     tmp &= core#MASK_INT1_IG_XL
     writeReg(XLG, core#INT1_CTRL, 1, @tmp)
@@ -432,7 +432,7 @@ PUB GyroAxisEnabled(x, y, z) | tmp, bits
 '   Valid values: FALSE (0) or TRUE (1 or -1), for each axis
 '   Any other value polls the chip and returns the current setting
     readReg(XLG, core#CTRL_REG4, 1, @tmp)
-    case bits := (||z << 2) | (||y << 1) | ||x
+    case bits := abs(z << 2) | abs(y << 1) | abs(x)
         %000..%111:
             bits <<= core#FLD_XEN_G
         OTHER:
@@ -473,11 +473,11 @@ PUB GyroCal(rw, gxBias, gyBias, gzBias)
                     _gBiasRaw[Z_AXIS] := gzBias
                 OTHER:
 
-PUB GyroClearInt | tmp, reg
+PUB GyroClearInt | tmp, reg_nr
 ' Clears out any interrupts set up on the Gyroscope and resets all Gyroscope interrupt registers to their default values.
     tmp := $00
-    repeat reg from core#INT_GEN_CFG_G to core#INT_GEN_DUR_G
-        writeReg(XLG, reg, 1, @tmp)
+    repeat reg_nr from core#INT_GEN_CFG_G to core#INT_GEN_DUR_G
+        writeReg(XLG, reg_nr, 1, @tmp)
     readReg(XLG, core#INT1_CTRL, 1, @tmp)
     tmp &= core#MASK_INT1_IG_G
     writeReg(XLG, core#INT1_CTRL, 1, @tmp)
@@ -1145,9 +1145,9 @@ PRI addressAutoInc(enabled) | tmp
 '   Valid values: TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
     readReg(XLG, core#CTRL_REG8, 1, @tmp)
-    case ||enabled
+    case abs(enabled)
         0, 1:
-            enabled := (||enabled) << core#FLD_IF_ADD_INC
+            enabled := (abs(enabled)) << core#FLD_IF_ADD_INC
         OTHER:
             result := ((tmp >> core#FLD_IF_ADD_INC) & %1) * TRUE
             return result
@@ -1176,7 +1176,7 @@ PRI swap(word_addr)
     byte[word_addr][1] := byte[word_addr][3]
     byte[word_addr][3] := 0
 
-PRI booleanChoice(device, reg, field, fieldmask, regmask, choice, invertchoice) | tmp
+PRI booleanChoice(device, reg_nr, field, fieldmask, regmask, choice, invertchoice) | tmp
 ' Reusable method for writing a field that is of a boolean or on-off type
 '   device: AG or MAG
 '   reg: register
@@ -1186,41 +1186,41 @@ PRI booleanChoice(device, reg, field, fieldmask, regmask, choice, invertchoice) 
 '   choice: the choice (TRUE/FALSE, 1/0)
 '   invertchoice: whether to invert the boolean logic (1 for normal, -1 for inverted)
     tmp := $00
-    readReg (device, reg, 1, @tmp)
-    case ||choice
+    readReg (device, reg_nr, 1, @tmp)
+    case abs(choice)
         0, 1:
-            choice := ||(choice * invertchoice) << field
+            choice := abs(choice * invertchoice) << field
         OTHER:
             return (((tmp >> field) & %1) * TRUE) * invertchoice
 
     tmp &= fieldmask
     tmp := (tmp | choice) & regmask
-    writeReg (device, reg, 1, @tmp)
+    writeReg (device, reg_nr, 1, @tmp)
 
-PRI readReg(device, reg, nr_bytes, buff_addr) | tmp
+PRI readReg(device, reg_nr, nr_bytes, buff_addr) | tmp
 ' Read from device
 ' Validate register - allow only registers that are
 '   not 'reserved' (ST states reading should only be performed on registers listed in
 '   their datasheet to guarantee proper behavior of the device)
     case device
         XLG:
-            case reg
+            case reg_nr
                 $04..$0D, $0F..$24, $26..$37:
-                    reg |= READ
+                    reg_nr |= READ
                     io.Low(_CS_AG)
-                    spi.Write(_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
+                    spi.Write(_SDIO, _SCL, core#MOSI_BITORDER, 8, reg_nr)
                     repeat tmp from 0 to nr_bytes-1
                         byte[buff_addr][tmp] := spi.Read(_SDIO, _SCL, core#MISO_BITORDER, 8)
                     io.High(_CS_AG)
                 OTHER:
                     return FALSE
         MAG:
-            case reg
+            case reg_nr
                 $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
-                    reg |= READ
-                    reg |= MS
+                    reg_nr |= READ
+                    reg_nr |= MS
                     io.Low(_CS_M)
-                    spi.Write(_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
+                    spi.Write(_SDIO, _SCL, core#MOSI_BITORDER, 8, reg_nr)
                     repeat tmp from 0 to nr_bytes-1
                         byte[buff_addr][tmp] := spi.Read(_SDIO, _SCL, core#MISO_BITORDER, 8)
                     io.High(_CS_M)
@@ -1230,23 +1230,23 @@ PRI readReg(device, reg, nr_bytes, buff_addr) | tmp
         OTHER:
             return FALSE
 
-PRI writeReg(device, reg, nr_bytes, buff_addr) | tmp
+PRI writeReg(device, reg_nr, nr_bytes, buff_addr) | tmp
 ' Write byte to device
 '   Validate register - allow only registers that are
 '       writeable, and not 'reserved' (ST claims writing to these can
 '       permanently damage the device)
     case device
         XLG:
-            case reg
+            case reg_nr
                 $04..$0D, $10..$13, $1E..$21, $23, $24, $2E, $30..$37:
                     io.Low (_CS_AG)
-                    spi.Write (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
+                    spi.Write (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg_nr)
                     repeat tmp from 0 to nr_bytes-1
                         spi.Write (_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[buff_addr][tmp])
                     io.High (_CS_AG)
                 core#CTRL_REG8:
                     io.Low (_CS_AG)
-                    spi.Write (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
+                    spi.Write (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg_nr)
                     byte[buff_addr][0] := byte[buff_addr][0] | (1 << core#FLD_SIM)   'Enforce 3-wire SPI mode
                      repeat tmp from 0 to nr_bytes-1
                         spi.Write (_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[buff_addr][tmp])
@@ -1256,19 +1256,19 @@ PRI writeReg(device, reg, nr_bytes, buff_addr) | tmp
                     return FALSE
 
         MAG:
-            case reg
+            case reg_nr
                 $05..$0A, $0F, $20, $21, $23, $24, $27..$2D, $30..$33:
-                    reg |= WRITE
-                    reg |= MS
+                    reg_nr |= WRITE
+                    reg_nr |= MS
                     io.Low (_CS_M)
-                    spi.Write (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
+                    spi.Write (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg_nr)
                     repeat tmp from 0 to nr_bytes-1
                         spi.Write (_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[buff_addr][tmp])
                     io.High (_CS_M)
                 core#CTRL_REG3_M:   'Ensure any writes to this register also keep the 3-wire SPI mode bit set
-                    reg |= WRITE
+                    reg_nr |= WRITE
                     io.Low (_CS_M)
-                    spi.Write (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg)
+                    spi.Write (_SDIO, _SCL, core#MOSI_BITORDER, 8, reg_nr)
                     byte[buff_addr][0] := byte[buff_addr][0] | (1 << core#FLD_M_SIM)    'Enforce 3-wire SPI mode
                     repeat tmp from 0 to nr_bytes-1
                         spi.Write (_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[buff_addr][tmp])
