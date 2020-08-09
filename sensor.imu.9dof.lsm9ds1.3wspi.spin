@@ -912,7 +912,7 @@ PUB MagScale(scale): curr_scl
             _mres := lookupz(scale: 0_000140, 0_000290, 0_000430, 0_000580)
             scale <<= core#FLD_FS_M
         OTHER:
-            curr_scl := (curr_scl >> core.FLD_FS_M) & core.BITS_FS_M
+            curr_scl := (curr_scl >> core#FLD_FS_M) & core#BITS_FS_M
             return lookupz(curr_scl: 4, 8, 12, 16)
 
     curr_scl := scale & (core#BITS_FS_M << core#FLD_FS_M)   'Mask off ALL other bits, because the only other
