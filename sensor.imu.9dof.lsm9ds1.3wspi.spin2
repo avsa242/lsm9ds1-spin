@@ -314,10 +314,12 @@ PUB CalibrateMag() | magmin[3], magmax[3], magtmp[3], axis, samples, opmode_orig
     magdatarate(80_000)                                     '   and fastest data rate
     magbias(0, 0, 0, W)                                     ' Start with offsets cleared
 
-    magdata(@magtmp[X_AXIS], @magtmp[Y_AXIS], @magtmp[Z_AXIS])
-    magmax[X_AXIS] := magmin[X_AXIS] := magtmp[X_AXIS]      ' Establish initial minimum and maximum values:
-    magmax[Y_AXIS] := magmin[Y_AXIS] := magtmp[Y_AXIS]      ' Start both with the same value to avoid skewing the
-    magmax[Z_AXIS] := magmin[Z_AXIS] := magtmp[Z_AXIS]      '   calcs (because vars were initialized with 0)
+    repeat 5
+        repeat until magdataready()
+        magdata(@magtmp[X_AXIS], @magtmp[Y_AXIS], @magtmp[Z_AXIS])
+        magmax[X_AXIS] := magmin[X_AXIS] := magtmp[X_AXIS]      ' Establish initial minimum and maximum values:
+        magmax[Y_AXIS] := magmin[Y_AXIS] := magtmp[Y_AXIS]      ' Start both with the same value to avoid skewing the
+        magmax[Z_AXIS] := magmin[Z_AXIS] := magtmp[Z_AXIS]      '   calcs (because vars were initialized with 0)
 
     samples := 100                                          ' XXX arbitrary
     repeat samples
@@ -754,8 +756,8 @@ PUB MagDataRate(mHz=-2): curr_rate
 PUB MagDataReady(): flag
 ' Polls the Magnetometer status register to check if new data is available.
 '   Returns TRUE if data available, FALSE if not
-    readReg(MAG, core.STATUS_REG_M, 1, @flag)
-    return (flag & core.BITS_DA) > 0
+    readreg(MAG, core.STATUS_REG_M, 1, @flag)
+    return ((flag >> core.FLD_ZYXDA) & %1) == 1
 
 PUB MagEndian(endianness=-2): curr_order
 ' Choose byte order of magnetometer data
