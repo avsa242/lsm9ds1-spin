@@ -87,45 +87,36 @@ OBJ
 
 VAR
 
-    long _autoCalc
     long _gres, _gbiasraw[3]
     long _ares, _abiasraw[3]
     long _mres, _mbiasraw[3]
     long _SCL, _SDIO, _CS_AG, _CS_M
 
 PUB Null{}
-'This is not a top-level object  
+' This is not a top-level object
 
 PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN): okay | tmp
-
-    if lookdown(SCL_PIN: 0..31) and lookdown(SDIO_PIN: 0..31) and lookdown(CS_AG_PIN: 0..31) and lookdown(CS_M_PIN: 0..31)
+' Start using custom I/O pins
+    if lookdown(SCL_PIN: 0..31) and lookdown(SDIO_PIN: 0..31) and {
+}   lookdown(CS_AG_PIN: 0..31) and lookdown(CS_M_PIN: 0..31)
         okay := spi.start(core#CLK_DELAY, core#CPOL)
-        _SCL := SCL_PIN
-        _SDIO := SDIO_PIN
-        _CS_AG := CS_AG_PIN
-        _CS_M := CS_M_PIN
+        longmove(@_SCL, @SCL_PIN, 4)
 
-        io.high(_CS_AG)
-        io.high(_CS_M)
+        io.high(_CS_AG)                         ' make sure CS starts
+        io.high(_CS_M)                          '   high
         io.output(_CS_AG)
         io.output(_CS_M)
 
-        time.msleep(110)
-' Initialize the IMU
+        time.usleep(core#TPOR)                  ' startup time
 
-        xlgsoftreset{}
-        magsoftreset{}
+        xlgsoftreset{}                          ' reset/initialize to
+        magsoftreset{}                          ' POR defaults
 
-' Set both the Accel/Gyro and Mag to 3-wire SPI mode
-        setspi3wiremode{}
-        addressautoinc(TRUE)
-        magi2c(FALSE)                           ' disable mag I2C interface
-
-' Once everything is initialized, check the WHO_AM_I registers
-        if deviceid{} == core#WHOAMI_BOTH_RESP
-            defaults{}
+        if deviceid{} == core#WHOAMI_BOTH_RESP  ' validate device
             return okay
-    stop{}
+    ' if this point is reached, something above failed
+    ' Double check I/O pin assignments, connections, power
+    ' Lastly - make sure you have at least one free core/cog
     return FALSE
 
 PUB Stop{}
@@ -133,51 +124,26 @@ PUB Stop{}
     spi.stop{}
 
 PUB Defaults{} | tmp
-' Init Gyro
-    gyrodatarate(952)
-    gyrointselect(%00)
-    gyrohighpass(0)
-    gyroaxisenabled(%111)
+' Factory default settings
+    xlgsoftreset{}
+    magsoftreset{}
+    time.usleep(core#TPOR)
 
-' Init Accel
-    accelaxisenabled(%111)
+PUB Preset_XL_G_M_3WSPI{}
+' Like Defaults(), but
+'   * enables output data (XL/G: 59Hz, Mag: 40Hz)
+'   * sets SPI mode to 3-wire
+'   * disables magnetometer I2C interface
+    xlgsoftreset{}
+    magsoftreset{}
+    time.usleep(core#TPOR)
 
-    tmp := $C0                                  '\
-    writereg(XLG, core#CTRL_REG6_XL, 1, @tmp)   ' } Rewrite high-level
-    tmp := 0                                    ' |
-    writereg(XLG, core#CTRL_REG7_XL, 1, @tmp)   '/
-
-'Init Mag
-    'CTRL_REG1_M
-    tempcompensation(FALSE)
-    magperf(MAG_PERF_HIGH)
-    magdatarate(10_000) 'XXX after 1st cold start, odr looks good. resetting the prop after this, it then looks much faster?
-    magselftest(FALSE)
-
-    'CTRL_REG2_M
-    magscale(16)
-
-    'CTRL_REG3_M
-    magi2c(FALSE)
-    maglowpower(FALSE)
-    magopmode(MAG_OPMODE_CONT)
-
-    'CTRL_REG4_M
-    magendian(LITTLE)
-
-    'CTRL_REG5_M
-    magfastread(FALSE)
-    magblockupdate(TRUE)
-
-    'INT_CFG_M
-    magintsenabled(%000)
-    magintlevel(ACTIVE_LOW)
-    magintslatched(TRUE)
-
-    'INT_THS_L, _H
-    magintthresh(0)
-
-'Set Scales
+' Set both the Accel/Gyro and Mag to 3-wire SPI mode
+    setspi3wiremode{}
+    addressautoinc(TRUE)
+    magi2c(FALSE)                               ' disable mag I2C interface
+    xlgdatarate(59)
+    magdatarate(40_000)
     gyroscale(245)
     accelscale(2)
     magscale(4)
@@ -204,25 +170,22 @@ PUB AccelBias(axbias, aybias, azbias, rw)
 '           R (0), W (1)
 '       axbias, aybias, azbias:
 '           -32768..32767
-'   NOTE: When rw is set to READ, axbias, aybias and azbias must be addresses of respective variables to hold the returned
-'       calibration offset values.
+'   NOTE: When rw is set to READ, axbias, aybias and azbias must be addresses
+'       of respective variables to hold the returned calibration offset values
     case rw
         R:
             long[axbias] := _abiasraw[X_AXIS]
             long[aybias] := _abiasraw[Y_AXIS]
             long[azbias] := _abiasraw[Z_AXIS]
-
         W:
             case axbias
                 -32768..32767:
                     _abiasraw[X_AXIS] := axbias
                 other:
-
             case aybias
                 -32768..32767:
                     _abiasraw[Y_AXIS] := aybias
                 other:
-
             case azbias
                 -32768..32767:
                     _abiasraw[Z_AXIS] := azbias

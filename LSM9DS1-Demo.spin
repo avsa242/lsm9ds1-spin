@@ -45,6 +45,7 @@ VAR
 PUB Main | dispmode, axo, ayo, azo, gxo, gyo, gzo
 
     Setup
+    imu.preset_xl_g_m_3wspi{}
     imu.AccelScale(2)                                       ' 2, 4, 8, 16 (g's)
     imu.AccelAxisEnabled(%111)                              ' 0 or 1 for each bit (%xyz)
 

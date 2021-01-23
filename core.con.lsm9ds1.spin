@@ -15,9 +15,10 @@ CON
     CPOL                    = 1
     CLK_DELAY               = 1
     SCK_MAX_FREQ            = 10_000_000
-    MOSI_BITORDER           = 5             'MSBFIRST
-    MISO_BITORDER           = 2             'MSBPOST
+    MOSI_BITORDER           = 5                 ' MSBFIRST
+    MISO_BITORDER           = 2                 ' MSBPOST
 
+    TPOR                    = 110_000           ' usec
     WHOAMI_AG_RESP          = $68
     WHOAMI_M_RESP           = $3D
     WHOAMI_BOTH_RESP        = (WHOAMI_AG_RESP << 8) | WHOAMI_M_RESP
@@ -376,7 +377,6 @@ CON
 PUB Null{}
 ' This is not a top-level object
 #endif
-
 {
     --------------------------------------------------------------------------------------------------------
     TERMS OF USE: MIT License
@@ -397,3 +397,4 @@ PUB Null{}
     SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
     --------------------------------------------------------------------------------------------------------
 }
+
