@@ -23,10 +23,10 @@ CON
     SER_TX      = 30
     SER_BAUD    = 115_200
 
-    SCL_PIN     = 1
-    SDIO_PIN    = 2
-    CS_AG_PIN   = 3
-    CS_M_PIN    = 0
+    SCL_PIN     = 2
+    SDIO_PIN    = 3
+    CS_AG_PIN   = 0
+    CS_M_PIN    = 1
 ' --
 
 OBJ
@@ -36,7 +36,7 @@ OBJ
     io      : "io"
     time    : "time"
     int     : "string.integer"
-    imu     : "sensor.imu.9dof.lsm9ds1.3wspi"
+    imu     : "sensor.imu.9dof.lsm9ds1.spi"
 
 VAR
 
