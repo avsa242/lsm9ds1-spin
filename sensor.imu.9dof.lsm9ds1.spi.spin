@@ -3,9 +3,9 @@
     Filename: sensor.imu.9dof.lsm9ds1.3wspi.spin
     Author: Jesse Burt
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
-    Copyright (c) 2020
+    Copyright (c) 2021
     Started Aug 12, 2017
-    Updated Aug 23, 2020
+    Updated Jan 23, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -95,25 +95,25 @@ VAR
 PUB Null{}
 ' This is not a top-level object
 
-PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN): okay | tmp
+PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN): status | tmp
 ' Start using custom I/O pins
     if lookdown(SCL_PIN: 0..31) and lookdown(SDIO_PIN: 0..31) and {
 }   lookdown(CS_AG_PIN: 0..31) and lookdown(CS_M_PIN: 0..31)
-        okay := spi.start(core#CLK_DELAY, core#CPOL)
-        longmove(@_SCL, @SCL_PIN, 4)
+        if (status := spi.start(core#CLK_DELAY, core#CPOL))
+            longmove(@_SCL, @SCL_PIN, 4)
 
-        io.high(_CS_AG)                         ' make sure CS starts
-        io.high(_CS_M)                          '   high
-        io.output(_CS_AG)
-        io.output(_CS_M)
+            io.high(_CS_AG)                     ' make sure CS starts
+            io.high(_CS_M)                      '   high
+            io.output(_CS_AG)
+            io.output(_CS_M)
 
-        time.usleep(core#TPOR)                  ' startup time
+            time.usleep(core#TPOR)              ' startup time
 
-        xlgsoftreset{}                          ' reset/initialize to
-        magsoftreset{}                          ' POR defaults
+            xlgsoftreset{}                      ' reset/initialize to
+            magsoftreset{}                      ' POR defaults
 
-        if deviceid{} == core#WHOAMI_BOTH_RESP  ' validate device
-            return okay
+            if deviceid{} == core#WHOAMI_BOTH_RESP
+                return status                   ' validate device
     ' if this point is reached, something above failed
     ' Double check I/O pin assignments, connections, power
     ' Lastly - make sure you have at least one free core/cog
@@ -148,20 +148,19 @@ PUB Preset_XL_G_M_3WSPI{}
     accelscale(2)
     magscale(4)
 
-PUB AccelAxisEnabled(xyz_mask): curr_mask
+PUB AccelAxisEnabled(mask): curr_mask
 ' Enable data output for Accelerometer - per axis
 '   Valid values: FALSE (0) or TRUE (1 or -1), for each axis
 '   Any other value polls the chip and returns the current setting
     readreg(XLG, core#CTRL_REG5_XL, 1, @curr_mask)
-    case xyz_mask
+    case mask
         %000..%111:
-            xyz_mask <<= core#XEN_XL
+            mask <<= core#XEN_XL
         other:
-            return (curr_mask >> core#EN_XL) & core#EN_XL_BITS
+            return ((curr_mask >> core#EN_XL) & core#EN_XL_BITS)
 
-    curr_mask &= core#EN_XL_MASK
-    curr_mask := (curr_mask | xyz_mask) & core#CTRL_REG5_XL_MASK
-    writereg(XLG, core#CTRL_REG5_XL, 1, @curr_mask)
+    mask := ((curr_mask & core#EN_XL_MASK) | mask)
+    writereg(XLG, core#CTRL_REG5_XL, 1, @mask)
 
 PUB AccelBias(axbias, aybias, azbias, rw)
 ' Read or write/manually set accelerometer calibration offset values
@@ -236,7 +235,8 @@ PUB AccelHighRes(state): curr_state
 ' Enable high resolution mode for accelerometer
 '   Valid values: FALSE (0) or TRUE (1 or -1)
 '   Any other value polls the chip and returns the current setting
-    return booleanchoice(XLG, core#CTRL_REG7_XL, core#HR, core#HR, core#CTRL_REG7_XL_MASK, state, 1)
+    return booleanchoice(XLG, core#CTRL_REG7_XL, core#HR, core#HR, {
+}   core#CTRL_REG7_XL_MASK, state, 1)
 
 PUB AccelInt{}: flag
 ' Flag indicating accelerometer interrupt asserted
@@ -258,9 +258,8 @@ PUB AccelScale(scale): curr_scl
             curr_scl := ((curr_scl >> core#FS_XL) & core#FS_XL_BITS) + 1
             return lookup(curr_scl: 2, 16, 4, 8)
 
-    curr_scl &= core#FS_XL_MASK
-    curr_scl := (curr_scl | scale) & core#CTRL_REG6_XL_MASK
-    writereg(XLG, core#CTRL_REG6_XL, 1, @curr_scl)
+    scale := ((curr_scl & core#FS_XL_MASK) | scale)
+    writereg(XLG, core#CTRL_REG6_XL, 1, @scale)
 
 PUB CalibrateMag{} | magmin[3], magmax[3], magtmp[3], axis, samples, orig_opmode, orig_odr
 ' Calibrate the magnetometer
@@ -338,26 +337,26 @@ PUB DeviceID{}: id
     readreg(XLG, core#WHO_AM_I_XG, 1, @id.byte[1])
     readreg(MAG, core#WHO_AM_I_M, 1, @id.byte[0])
 
-PUB Endian(endianness): curr_order  'XXX rename to DataByteOrder()
+PUB Endian(order): curr_order  'XXX rename to DataByteOrder()
 ' Choose byte order of acclerometer/gyroscope data
 '   Valid values: LITTLE (0) or BIG (1)
 '   Any other value polls the chip and returns the current setting
     readreg(XLG, core#CTRL_REG8, 1, @curr_order)
-    case endianness
+    case order
         LITTLE, BIG:
-            endianness := endianness << core#BLE
+            order := order << core#BLE
         other:
             return ((curr_order >> core#BLE) & 1)
 
-    curr_order &= core#BLE_MASK
-    curr_order := (curr_order | endianness) & core#CTRL_REG8_MASK
-    writereg(XLG, core#CTRL_REG8, 1, @curr_order)
+    order := ((curr_order & core#BLE_MASK) | order)
+    writereg(XLG, core#CTRL_REG8, 1, @order)
 
 PUB FIFOEnabled(state): curr_state
 ' Enable FIFO memory
 '   Valid values: FALSE (0), TRUE(1 or -1)
 '   Any other value polls the chip and returns the current setting
-    return booleanchoice(XLG, core#CTRL_REG9, core#FIFO_EN, core#FIFO_EN, core#CTRL_REG9_MASK, state, 1)
+    return booleanchoice(XLG, core#CTRL_REG9, core#FIFO_EN, core#FIFO_EN,{
+}   core#CTRL_REG9_MASK, state, 1)
 
 PUB FIFOFull{}: flag
 ' FIFO Threshold status
@@ -384,9 +383,8 @@ PUB FIFOMode(mode): curr_mode
         other:
             return (curr_mode >> core#FMODE) & core#FMODE_BITS
 
-    curr_mode &= core#FMODE_MASK
-    curr_mode := (curr_mode | mode) & core#FIFO_CTRL_MASK
-    writereg(XLG, core#FIFO_CTRL, 1, @curr_mode)
+    mode := ((curr_mode & core#FMODE_MASK) | mode)
+    writereg(XLG, core#FIFO_CTRL, 1, @mode)
 
 PUB FIFOThreshold(level): curr_lvl
 ' Set FIFO threshold level
@@ -398,9 +396,8 @@ PUB FIFOThreshold(level): curr_lvl
         other:
             return curr_lvl & core#FTH_BITS
 
-    curr_lvl &= core#FTH_MASK
-    curr_lvl := (curr_lvl | level) & core#FIFO_CTRL_MASK
-    writereg(XLG, core#FIFO_CTRL, 1, @curr_lvl)
+    level := ((curr_lvl & core#FTH_MASK) | level)
+    writereg(XLG, core#FIFO_CTRL, 1, @level)
 
 PUB FIFOUnreadSamples{}: nr_samples
 ' Number of unread samples stored in FIFO
@@ -408,20 +405,19 @@ PUB FIFOUnreadSamples{}: nr_samples
     readreg(XLG, core#FIFO_SRC, 1, @nr_samples)
     return nr_samples & core#FSS_BITS
 
-PUB GyroAxisEnabled(xyz_mask): curr_mask
+PUB GyroAxisEnabled(mask): curr_mask
 ' Enable data output for Gyroscope - per axis
 '   Valid values: FALSE (0) or TRUE (1 or -1), for each axis
 '   Any other value polls the chip and returns the current setting
     readreg(XLG, core#CTRL_REG4, 1, @curr_mask)
-    case xyz_mask
+    case mask
         %000..%111:
-            xyz_mask <<= core#XEN_G
+            mask <<= core#XEN_G
         other:
             return (curr_mask >> core#XEN_G) & core#EN_G_BITS
 
-    curr_mask &= core#EN_G_MASK
-    curr_mask := (curr_mask | xyz_mask) & core#CTRL_REG4_MASK
-    writereg(XLG, core#CTRL_REG4, 1, @curr_mask)
+    mask := ((curr_mask & core#EN_G_MASK) | mask)
+    writereg(XLG, core#CTRL_REG4, 1, @mask)
 
 PUB GyroBias(gxbias, gybias, gzbias, rw)
 ' Read or write/manually set Gyroscope calibration offset values
@@ -486,9 +482,8 @@ PUB GyroDataRate(rate): curr_rate
             curr_rate := ((curr_rate >> core#ODR) & core#ODR_BITS)
             return lookupz(curr_rate: 0, 15, 60, 119, 238, 476, 952)
 
-    curr_rate &= core#ODR_MASK
-    curr_rate := (curr_rate | rate)
-    writereg(XLG, core#CTRL_REG1_G, 1, @curr_rate)
+    rate := ((curr_rate & core#ODR_MASK) | rate)
+    writereg(XLG, core#CTRL_REG1_G, 1, @rate)
 
 PUB GyroDataReady{}: flag
 ' Flag indicating new gyroscope data available
@@ -515,9 +510,8 @@ PUB GyroHighPass(freq): curr_freq
         other:
             return (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
 
-    curr_freq &= core#HPCF_G_MASK
-    curr_freq := (curr_freq | freq) & core#CTRL_REG3_G_MASK
-    writereg(XLG, core#CTRL_REG3_G, 1, @curr_freq)
+    freq := ((curr_freq & core#HPCF_G_MASK) | freq)
+    writereg(XLG, core#CTRL_REG3_G, 1, @freq)
 
 PUB GyroInactiveDur(duration): curr_dur
 ' Set gyroscope inactivity timer (use GyroInactiveSleep() to define behavior on
@@ -533,21 +527,20 @@ PUB GyroInactiveDur(duration): curr_dur
 
     writereg(XLG, core#ACT_DUR, 1, @duration)
 
-PUB GyroInactiveThr(threshold): curr_thr
+PUB GyroInactiveThr(thresh): curr_thr
 ' Set gyroscope inactivity threshold (use GyroInactiveSleep() to define
 '   behavior on inactivity)
 '   Valid values: 0..127 (0 effectively disables the feature)
 '   Any other value polls the chip and returns the current setting
     curr_thr := 0
     readreg(XLG, core#ACT_THS, 1, @curr_thr)
-    case threshold
+    case thresh
         0..127:
         other:
             return curr_thr & core#ACT_THR_BITS
 
-    curr_thr &= core#ACT_THR_MASK
-    curr_thr := (curr_thr | threshold) & core#ACT_THS_MASK
-    writereg(XLG, core#ACT_THS, 1, @curr_thr)
+    thresh := ((curr_thr & core#ACT_THR_MASK) | thresh)
+    writereg(XLG, core#ACT_THS, 1, @thresh)
 
 PUB GyroInactiveSleep(state): curr_state
 ' Enable gyroscope sleep mode when inactive (see GyroActivityThr())
@@ -577,9 +570,8 @@ PUB GyroIntSelect(mode): curr_mode' XXX expand
         other:
             return (curr_mode >> core#INT_SEL) & core#INT_SEL_BITS
 
-    curr_mode &= core#INT_SEL_MASK
-    curr_mode := (curr_mode | mode) & core#CTRL_REG2_G_MASK
-    writereg(XLG, core#CTRL_REG2_G, 1, @curr_mode)
+    mode := ((curr_mode & core#INT_SEL_MASK) | mode)
+    writereg(XLG, core#CTRL_REG2_G, 1, @mode)
 
 PUB GyroLowPower(state): curr_state
 ' Enable low-power mode
@@ -603,9 +595,8 @@ PUB GyroScale(scale): curr_scale
             curr_scale := ((curr_scale >> core#FS) & core#FS_BITS) + 1
             return lookup(curr_scale: 245, 500, 0, 2000)
 
-    curr_scale &= core#FS_MASK
-    curr_scale := (curr_scale | scale) & core#CTRL_REG1_G_MASK
-    writereg(XLG, core#CTRL_REG1_G, 1, @curr_scale)
+    scale := ((curr_scale & core#FS_MASK) | scale)
+    writereg(XLG, core#CTRL_REG1_G, 1, @scale)
 
 PUB GyroSleep(state): curr_state
 ' Enable gyroscope sleep mode
@@ -720,9 +711,8 @@ PUB MagDataRate(rate): curr_rate
             return lookupz(curr_rate: 625, 1250, 2500, 5000, 10_000, 20_000, {
 }           40_000, 80_000)
 
-    curr_rate &= core#DO_MASK
-    curr_rate := (curr_rate | rate) & core#CTRL_REG1_M_MASK
-    writereg(MAG, core#CTRL_REG1_M, 1, @curr_rate)
+    rate := ((curr_rate & core#DO_MASK) | rate)
+    writereg(MAG, core#CTRL_REG1_M, 1, @rate)
 
 PUB MagDataReady{}: flag
 ' Flag indicating new magnetometer data ready
@@ -730,28 +720,28 @@ PUB MagDataReady{}: flag
     readreg(MAG, core#STATUS_REG_M, 1, @flag)
     return (((flag >> core#ZYXDA) & 1) == 1)
 
-PUB MagEndian(endianness): curr_order
+PUB MagEndian(order): curr_order
 ' Choose byte order of magnetometer data
 '   Valid values: LITTLE (0) or BIG (1)
 '   Any other value polls the chip and returns the current setting
     curr_order := 0
     readreg(MAG, core#CTRL_REG4_M, 1, @curr_order)
-    case endianness
+    case order
         LITTLE, BIG:
-            endianness := endianness << core#BLE_M
+            order := order << core#BLE_M
         other:
-            return (curr_order >> core#BLE_M) & 1
+            return ((curr_order >> core#BLE_M) & 1)
 
-    curr_order &= core#BLE_M_MASK
-    curr_order := (curr_order | endianness) & core#CTRL_REG4_M_MASK
-    writereg(MAG, core#CTRL_REG4_M, 1, @curr_order)
+    order := ((curr_order & core#BLE_M_MASK) | order)
+    writereg(MAG, core#CTRL_REG4_M, 1, @order)
 
 PUB MagFastRead(state): curr_state
 ' Enable reading of only the MSB of data to increase reading efficiency, at
 '   the cost of precision and accuracy
 '   Valid values: TRUE(-1 or 1), FALSE(0)
 '   Any other value polls the chip and returns the current setting
-    return booleanChoice (MAG, core#CTRL_REG5_M, core#FAST_READ, core#FAST_READ_MASK, core#CTRL_REG5_M_MASK, state, 1)
+    return booleanChoice (MAG, core#CTRL_REG5_M, core#FAST_READ, {
+}   core#FAST_READ_MASK, core#CTRL_REG5_M_MASK, state, 1)
 
 PUB MagGauss(ptr_x, ptr_y, ptr_z) | tmp[3]
 ' Read the Magnetometer output registers and scale the outputs to micro-Gauss
@@ -777,22 +767,21 @@ PUB MagInt{}: intsrc
 '   0: Interrupt asserted
     readreg(MAG, core#INT_SRC_M, 1, @intsrc)
 
-PUB MagIntLevel(active_state): curr_state
+PUB MagIntLevel(state): curr_state
 ' Set active state of INT_MAG pin when magnetometer interrupt asserted
 '   Valid values: ACTIVE_LOW (0), ACTIVE_HIGH (1)
 '   Any other value polls the chip and returns the current setting
     curr_state := 0
     readreg(MAG, core#INT_CFG_M, 1, @curr_state)
-    case active_state
+    case state
         ACTIVE_LOW, ACTIVE_HIGH:
-            active_state ^= 1                   ' This bit's polarity is
-            active_state <<= core#IEA           ' opposite that of the XLG
+            state ^= 1                   ' This bit's polarity is
+            state <<= core#IEA           ' opposite that of the XLG
         other:
             return (curr_state >> core#IEA) & 1
 
-    curr_state &= core#IEA_MASK
-    curr_state := (curr_state | active_state) & core#INT_CFG_M_MASK
-    writereg(MAG, core#INT_CFG_M, 1, @curr_state)
+    state := ((curr_state & core#IEA_MASK) | state)
+    writereg(MAG, core#INT_CFG_M, 1, @state)
 
 PUB MagIntsEnabled(mask): curr_mask
 ' Enable magnetometer interrupts, as a bitmask
@@ -816,9 +805,8 @@ PUB MagIntsEnabled(mask): curr_mask
         other:
             return (curr_mask>> core#XYZIEN) & core#XYZIEN_BITS
 
-    curr_mask &= core#XYZIEN_MASK
-    curr_mask := (curr_mask | mask) & core#INT_CFG_M_MASK
-    writereg(MAG, core#INT_CFG_M, 1, @curr_mask)
+    mask := ((curr_mask & core#XYZIEN_MASK) | mask)
+    writereg(MAG, core#INT_CFG_M, 1, @mask)
 
 PUB MagIntsLatched(state): curr_state
 ' Latch interrupts asserted by the magnetometer
@@ -867,9 +855,8 @@ PUB MagOpMode(mode): curr_mode
         other:
             return (curr_mode & core#MD_BITS)
 
-    curr_mode &= core#MD_MASK
-    curr_mode := (curr_mode | mode) & core#CTRL_REG3_M_MASK
-    writereg(MAG, core#CTRL_REG3_M, 1, @curr_mode)
+    mode := ((curr_mode & core#MD_MASK) | mode)
+    writereg(MAG, core#CTRL_REG3_M, 1, @mode)
 
 PUB MagOverflow{}: flag
 ' Flag indicating magnetometer measurement has overflowed
@@ -931,7 +918,6 @@ PUB MagSelfTest(state): curr_state
 
 PUB MagSoftreset{} | tmp
 ' Perform soft-test of magnetometer
-    tmp := 0
     tmp := (1 << core#RE_BOOT) | (1 << core#SOFT_RST)
     tmp &= core#CTRL_REG2_M_MASK
     writereg(MAG, core#CTRL_REG2_M, 1, @tmp)
@@ -982,29 +968,27 @@ PUB XLGDataRate(rate): curr_rate
             curr_rate := ((curr_rate >> core#ODR) & core#ODR_BITS) + 1
             return lookup(curr_rate: 0, 14{.9}, 59{.5}, 119, 238, 476, 952)
 
-    curr_rate &= core#ODR_MASK
-    curr_rate := (curr_rate | rate) & core#CTRL_REG1_G_MASK
-    writereg(XLG, core#CTRL_REG1_G, 1, @curr_rate)
+    rate := ((curr_rate & core#ODR_MASK) | rate)
+    writereg(XLG, core#CTRL_REG1_G, 1, @rate)
 
-PUB XLGIntLevel(active_state): curr_state
+PUB XLGIntLevel(state): curr_state
 ' Set active state for interrupts from Accelerometer and Gyroscope
 '   Valid values: ACTIVE_HIGH (0) - active high, ACTIVE_LOW (1) - active low
 '   Any other value polls the chip and returns the current setting
     curr_state := 0
     readreg(XLG, core#CTRL_REG8, 1, @curr_state)
-    case active_state
+    case state
         ACTIVE_HIGH, ACTIVE_LOW:
-            active_state := active_state << core#H_LACTIVE
+            state := state << core#H_LACTIVE
         other:
-            return (curr_state >> core#H_LACTIVE) & 1
+            return ((curr_state >> core#H_LACTIVE) & 1)
 
-    curr_state &= core#H_LACTIVE_MASK
-    curr_state := (curr_state | active_state) & core#CTRL_REG8_MASK
-    writereg(XLG, core#CTRL_REG8, 1, @curr_state)
+    state := ((curr_state & core#H_LACTIVE_MASK) | state)
+    writereg(XLG, core#CTRL_REG8, 1, @state)
 
 PUB XLGSoftreset{} | tmp
 ' Perform soft-reset of accelerometer/gyroscope
-    tmp := 1
+    tmp := core#XLG_SW_RESET
     writereg(XLG, core#CTRL_REG8, 1, @tmp)
     time.msleep(10)
 
@@ -1111,37 +1095,6 @@ PUB setGyroInterrupt(axis, threshold, duration, overunder, andOr) | tmpregvalue,
     tmpregvalue |= $80
     writereg(XLG, core#INT1_CTRL, 1, @tmpregvalue)
 
-PUB setMagInterrupt(axis, threshold, lowhigh) | tmpcfgvalue, tmpsrcvalue, magths, magthsl, magthsh 'PARTIAL
-' XXX LEGACY METHOD
-    lowhigh &= $01
-    tmpcfgvalue := 0
-    tmpcfgvalue |= (lowhigh << 2)
-    tmpcfgvalue |= $03
-    tmpsrcvalue := 0
-    magths := 0
-    magthsl := 0
-    magthsh := 0
-    magths := _mres * threshold
-
-    if (magths < 0)
-        magths := -1 * magths
-    if (magths > 32767)
-        magths := 32767
-    magthsl := magths & $FF
-    magthsh := (magths >> 8) & $7F
-    writereg(MAG, core#INT_THS_L_M, 1, @magthsl)
-    writereg(MAG, core#INT_THS_H_M, 1, @magthsh)
-    case axis
-        X_AXIS :
-            tmpcfgvalue |= ((1 << 7) | 2)
-        Y_AXIS :
-            tmpcfgvalue |= ((1 << 6) | 2)
-        Z_AXIS :
-            tmpcfgvalue |= ((1 << 5) | 2)
-        OTHER :
-            tmpcfgvalue |= (%11100010)
-    writereg(MAG, core#INT_CFG_M, 1, @tmpcfgvalue)
-
 PRI addressAutoInc(state): curr_state
 ' Enable automatic address increment, for multibyte transfers (SPI and I2C)
 '   Valid values: TRUE (-1 or 1), FALSE (0)
@@ -1154,9 +1107,8 @@ PRI addressAutoInc(state): curr_state
         other:
             return (((curr_state >> core#IF_ADD_INC) & 1) == 1)
 
-    curr_state &= core#IF_ADD_INC
-    curr_state := (curr_state | state) & core#CTRL_REG8_MASK
-    writereg(XLG, core#CTRL_REG8, 1, @curr_state)
+    state := ((curr_state & core#IF_ADD_INC) | state)
+    writereg(XLG, core#CTRL_REG8, 1, @state)
 
 PRI MagI2C(state): curr_state
 ' Enable Magnetometer I2C interface
@@ -1167,9 +1119,9 @@ PRI MagI2C(state): curr_state
 
 PRI setSPI3WireMode{} | tmp
 ' Set SPI interface to 3-wire mode
-    tmp := (1 << core#SIM)
+    tmp := core#XLG_3WSPI
     writereg(XLG, core#CTRL_REG8, 1, @tmp)
-    tmp := (1 << core#M_SIM)
+    tmp := core#M_3WSPI
     writereg(MAG, core#CTRL_REG3_M, 1, @tmp)
 
 PRI swap(word_addr)
@@ -1198,7 +1150,8 @@ PRI booleanChoice(device, reg_nr, field, fieldmask, regmask, choice, invertchoic
 
     bool &= fieldmask
     bool := (bool | choice) & regmask
-    writereg(device, reg_nr, 1, @bool)
+    choice := ((bool & fieldmask) | choice) & regmask
+    writereg(device, reg_nr, 1, @choice)
 
 PRI readReg(device, reg_nr, nr_bytes, ptr_buff) | tmp
 ' Read from device

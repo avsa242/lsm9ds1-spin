@@ -3,9 +3,9 @@
     Filename: core.con.lsm9ds1.spin
     Author: Jesse Burt
     Description: LSM9DS1 low-level constants
-    Copyright (c) 2020
+    Copyright (c) 2021
     Started Feb 9, 2019
-    Updated Jul 22, 2020
+    Updated Jan 23, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -194,6 +194,8 @@ CON
         IF_ADD_INC_MASK     = (1 << IF_ADD_INC) ^ CTRL_REG8_MASK
         BLE_MASK            = (1 << BLE) ^ CTRL_REG8_MASK
         SW_RESET_MASK       = (1 << SW_RESET) ^ CTRL_REG8_MASK
+        XLG_SW_RESET        = 1
+        XLG_3WSPI           = 1 << SIM
 
     CTRL_REG9               = $23
     CTRL_REG9_MASK          = $5F
@@ -304,6 +306,7 @@ CON
         LP_MASK             = (1 << LP) ^ CTRL_REG3_M_MASK
         M_SIM_MASK          = (1 << M_SIM) ^ CTRL_REG3_M_MASK
         MD_MASK             = (MD_BITS << MD) ^ CTRL_REG3_M_MASK
+        M_3WSPI             = 1 << M_SIM
 
     CTRL_REG4_M             = $23
     CTRL_REG4_M_MASK        = $0E
