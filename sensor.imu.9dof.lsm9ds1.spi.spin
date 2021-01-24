@@ -190,16 +190,6 @@ PUB AccelBias(axbias, aybias, azbias, rw)
                     _abiasraw[Z_AXIS] := azbias
                 other:
 
-PUB AccelClearInt{} | tmp, reg
-' Clears out any interrupts set up on the Accelerometer
-'   and resets all Accelerometer interrupt registers to their default values.
-    tmp := 0
-    repeat reg from core#INT_GEN_CFG_XL to core#INT_GEN_DUR_XL
-        writereg(XLG, reg, 1, @tmp)
-    readreg(XLG, core#INT1_CTRL, 1, @tmp)
-    tmp &= core#INT1_IG_XL_MASK
-    writereg(XLG, core#INT1_CTRL, 1, @tmp)
-
 PUB AccelData(ax, ay, az) | tmp[2]
 ' Reads the Accelerometer output registers
     readreg(XLG, core#OUT_X_L_XL, 6, @tmp)
@@ -243,6 +233,16 @@ PUB AccelInt{}: flag
 '   Returns TRUE if interrupt asserted, FALSE if not
     readreg(XLG, core#STATUS_REG, 1, @flag)
     return (((flag >> core#IG_XL) & 1) == 1)
+
+PUB AccelIntClear{} | tmp, reg
+' Clears out any interrupts set up on the Accelerometer
+'   and resets all Accelerometer interrupt registers to their default values.
+    tmp := 0
+    repeat reg from core#INT_GEN_CFG_XL to core#INT_GEN_DUR_XL
+        writereg(XLG, reg, 1, @tmp)
+    readreg(XLG, core#INT1_CTRL, 1, @tmp)
+    tmp &= core#INT1_IG_XL_MASK
+    writereg(XLG, core#INT1_CTRL, 1, @tmp)
 
 PUB AccelScale(scale): curr_scl
 ' Sets the full-scale range of the Accelerometer, in g's
@@ -433,32 +433,19 @@ PUB GyroBias(gxbias, gybias, gzbias, rw)
             long[gxbias] := _gbiasraw[X_AXIS]
             long[gybias] := _gbiasraw[Y_AXIS]
             long[gzbias] := _gbiasraw[Z_AXIS]
-
         W:
             case gxbias
                 -32768..32767:
                     _gbiasraw[X_AXIS] := gxbias
                 other:
-
             case gybias
                 -32768..32767:
                     _gbiasraw[Y_AXIS] := gybias
                 other:
-
             case gzbias
                 -32768..32767:
                     _gbiasraw[Z_AXIS] := gzbias
                 other:
-
-PUB GyroClearInt{} | tmp, reg_nr
-' Clear gyroscope interrupts and reset all gyroscope interrupt registers to
-'   their default values
-    tmp := 0
-    repeat reg_nr from core#INT_GEN_CFG_G to core#INT_GEN_DUR_G
-        writereg(XLG, reg_nr, 1, @tmp)
-    readreg(XLG, core#INT1_CTRL, 1, @tmp)
-    tmp &= core#INT1_IG_G_MASK
-    writereg(XLG, core#INT1_CTRL, 1, @tmp)
 
 PUB GyroData(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Read gyroscope data
@@ -557,6 +544,16 @@ PUB GyroInt{}: flag
     readreg(XLG, core#STATUS_REG, 1, @flag)
     return (((flag >> core#IG_G) & 1) == 1)
 
+PUB GyroIntClear{} | tmp, reg_nr
+' Clear gyroscope interrupts and reset all gyroscope interrupt registers to
+'   their default values
+    tmp := 0
+    repeat reg_nr from core#INT_GEN_CFG_G to core#INT_GEN_DUR_G
+        writereg(XLG, reg_nr, 1, @tmp)
+    readreg(XLG, core#INT1_CTRL, 1, @tmp)
+    tmp &= core#INT1_IG_G_MASK
+    writereg(XLG, core#INT1_CTRL, 1, @tmp)
+
 PUB GyroIntSelect(mode): curr_mode' XXX expand
 ' Set gyroscope interrupt generator selection
 '   Valid values:
@@ -642,35 +639,24 @@ PUB MagBias(mxbias, mybias, mzbias, rw) | axis, msb, lsb
             long[mxbias] := _mbiasraw[X_AXIS]
             long[mybias] := _mbiasraw[Y_AXIS]
             long[mzbias] := _mbiasraw[Z_AXIS]
-
         W:
             case mxbias
                 -32768..32767:
                     _mbiasraw[X_AXIS] := mxbias
                 other:
-
             case mybias
                 -32768..32767:
                     _mbiasraw[Y_AXIS] := mybias
                 other:
-
             case mzbias
                 -32768..32767:
                     _mbiasraw[Z_AXIS] := mzbias
                 other:
-
             repeat axis from X_AXIS to Z_AXIS
                 msb := (_mbiasraw[axis] & $FF00) >> 8
                 lsb := _mbiasraw[axis] & $00FF
-
                 writereg(MAG, core#OFFSET_X_REG_L_M + (2 * axis), 1, @lsb)
                 writereg(MAG, core#OFFSET_X_REG_H_M + (2 * axis), 1, @msb)
-
-PUB MagClearInt{} | tmp
-' Clears out any interrupts set up on the Magnetometer and
-'   resets all Magnetometer interrupt registers to their default values
-    tmp := 0
-    writereg(MAG, core#INT_SRC_M, 1, @tmp)
 
 PUB MagData(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Read the Magnetometer output registers
@@ -766,6 +752,12 @@ PUB MagInt{}: intsrc
 '   1: A measurement exceeded the magnetometer's measurement range (overflow)
 '   0: Interrupt asserted
     readreg(MAG, core#INT_SRC_M, 1, @intsrc)
+
+PUB MagIntClear{} | tmp
+' Clears out any interrupts set up on the Magnetometer and
+'   resets all Magnetometer interrupt registers to their default values
+    tmp := 0
+    writereg(MAG, core#INT_SRC_M, 1, @tmp)
 
 PUB MagIntLevel(state): curr_state
 ' Set active state of INT_MAG pin when magnetometer interrupt asserted
