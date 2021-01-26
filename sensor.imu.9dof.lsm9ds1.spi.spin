@@ -5,7 +5,7 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2021
     Started Aug 12, 2017
-    Updated Jan 23, 2021
+    Updated Jan 25, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -36,9 +36,8 @@ CON
     ALL_AXIS                = 3
 
 ' Temperature scale constants
-    CELSIUS                 = 0
-    FAHRENHEIT              = 1
-    KELVIN                  = 2
+    C                       = 0
+    F                       = 1
 
 ' Endian constants
     LITTLE                  = 0
@@ -82,7 +81,6 @@ OBJ
 
     spi     : "com.spi.4w"
     core    : "core.con.lsm9ds1"
-    io      : "io"
     time    : "time"
 
 VAR
@@ -90,23 +88,22 @@ VAR
     long _gres, _gbiasraw[3]
     long _ares, _abiasraw[3]
     long _mres, _mbiasraw[3]
-    long _SCL, _SDIO, _CS_AG, _CS_M
+    long _CS_AG, _CS_M
+    byte _temp_scale
 
 PUB Null{}
 ' This is not a top-level object
 
-PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN): status | tmp
+PUB Start(CS_AG_PIN, CS_M_PIN, SCL_PIN, SDIO_PIN): status
 ' Start using custom I/O pins
     if lookdown(SCL_PIN: 0..31) and lookdown(SDIO_PIN: 0..31) and {
 }   lookdown(CS_AG_PIN: 0..31) and lookdown(CS_M_PIN: 0..31)
-        if (status := spi.start(core#CLK_DELAY, core#CPOL))
-            longmove(@_SCL, @SCL_PIN, 4)
-
-            io.high(_CS_AG)                     ' make sure CS starts
-            io.high(_CS_M)                      '   high
-            io.output(_CS_AG)
-            io.output(_CS_M)
-
+        if (status := spi.init(SCL_PIN, SDIO_PIN, SDIO_PIN, core#SPI_MODE))
+            longmove(@_CS_AG, @CS_AG_PIN, 2)
+            outa[_CS_AG] := 1                   ' make sure CS starts
+            outa[_CS_M] := 1                    '   high
+            dira[_CS_AG] := 1
+            dira[_CS_M] := 1
             time.usleep(core#TPOR)              ' startup time
 
             xlgsoftreset{}                      ' reset/initialize to
@@ -121,9 +118,9 @@ PUB Start(SCL_PIN, SDIO_PIN, CS_AG_PIN, CS_M_PIN): status | tmp
 
 PUB Stop{}
 
-    spi.stop{}
+    spi.deinit{}
 
-PUB Defaults{} | tmp
+PUB Defaults{}
 ' Factory default settings
     xlgsoftreset{}
     magsoftreset{}
@@ -142,11 +139,11 @@ PUB Preset_XL_G_M_3WSPI{}
     setspi3wiremode{}
     addressautoinc(TRUE)
     magi2c(FALSE)                               ' disable mag I2C interface
-    xlgdatarate(59)
-    magdatarate(40_000)
-    gyroscale(245)
-    accelscale(2)
-    magscale(4)
+    xlgdatarate(59)                             ' arbitrary
+    magdatarate(40_000)                         '
+    gyroscale(245)                              ' already the POR defaults,
+    accelscale(2)                               ' but still need to call these
+    magscale(4)                                 ' to set scale factor hub vars
 
 PUB AccelAxisEnabled(mask): curr_mask
 ' Enable data output for Accelerometer - per axis
@@ -198,7 +195,7 @@ PUB AccelData(ax, ay, az) | tmp[2]
     long[ay] := ~~tmp.word[Y_AXIS] - _abiasraw[Y_AXIS]
     long[az] := ~~tmp.word[Z_AXIS] - _abiasraw[Z_AXIS]
 
-PUB AccelDataOverrun: flag
+PUB AccelDataOverrun{}: flag
 ' Dummy method
 
 PUB AccelDataRate(rate): curr_rate
@@ -234,12 +231,12 @@ PUB AccelInt{}: flag
     readreg(XLG, core#STATUS_REG, 1, @flag)
     return (((flag >> core#IG_XL) & 1) == 1)
 
-PUB AccelIntClear{} | tmp, reg
+PUB AccelIntClear{} | tmp, reg_nr
 ' Clears out any interrupts set up on the Accelerometer
 '   and resets all Accelerometer interrupt registers to their default values.
     tmp := 0
-    repeat reg from core#INT_GEN_CFG_XL to core#INT_GEN_DUR_XL
-        writereg(XLG, reg, 1, @tmp)
+    repeat reg_nr from core#INT_GEN_CFG_XL to core#INT_GEN_DUR_XL
+        writereg(XLG, reg_nr, 1, @tmp)
     readreg(XLG, core#INT1_CTRL, 1, @tmp)
     tmp &= core#INT1_IG_XL_MASK
     writereg(XLG, core#INT1_CTRL, 1, @tmp)
@@ -795,7 +792,7 @@ PUB MagIntsEnabled(mask): curr_mask
         %000..%111:
             mask <<= core#XYZIEN
         other:
-            return (curr_mask>> core#XYZIEN) & core#XYZIEN_BITS
+            return (curr_mask >> core#XYZIEN) & core#XYZIEN_BITS
 
     mask := ((curr_mask & core#XYZIEN_MASK) | mask)
     writereg(MAG, core#INT_CFG_M, 1, @mask)
@@ -921,9 +918,8 @@ PUB MagSoftreset{} | tmp
 
 PUB Temperature{}: temp
 ' Get temperature from chip
-'   Returns: Temperature in hundredths of a degree Celsius (1000 = 10.00 deg C)
-    readreg(XLG, core#OUT_TEMP_L, 2, @temp)
-    return (((temp.byte[0] << 8 | temp.byte[1]) >> 8) * 10) + 250
+'   Returns: Temperature in hundredths of a degree in chosen scale
+    return adc2temp(tempdata{})
 
 PUB TempCompensation(enable): curr_setting
 ' Enable on-chip temperature compensation for magnetometer readings
@@ -932,11 +928,29 @@ PUB TempCompensation(enable): curr_setting
     return booleanchoice(MAG, core#CTRL_REG1_M, core#TEMP_COMP, {
 }   core#TEMP_COMP_MASK, core#CTRL_REG1_M, enable, 1)
 
+PUB TempData{}: temp_adc
+' Temperature ADC data
+    temp_adc := 0
+    readreg(XLG, core#OUT_TEMP_L, 2, @temp_adc)
+    return ~~temp_adc
+
 PUB TempDataReady{}: flag
 ' Temperature sensor new data available
 '   Returns TRUE or FALSE
     readreg(XLG, core#STATUS_REG, 1, @flag)
     return (((flag >> core#TDA) & 1) == 1)
+
+PUB TempScale(scale): curr_scl
+' Set temperature scale used by Temperature method
+'   Valid values:
+'      *C (0): Celsius
+'       F (1): Fahrenheit
+'   Any other value returns the current setting
+    case scale
+        C, F:
+            _temp_scale := scale
+        other:
+            return _temp_scale
 
 PRI XLGDataBlockUpdate(state): curr_state
 ' Wait until both MSB and LSB of output registers are read before updating
@@ -1087,6 +1101,19 @@ PUB setGyroInterrupt(axis, threshold, duration, overunder, andOr) | tmpregvalue,
     tmpregvalue |= $80
     writereg(XLG, core#INT1_CTRL, 1, @tmpregvalue)
 
+PRI adc2temp(temp_word): temp_cal
+' Calculate temperature, using temperature word
+'   Returns: temperature, in hundredths of a degree, in chosen scale
+'    temp_cal := (temp_word * 10) + 250'(((temp.byte[0] << 8 | temp.byte[1]) >> 8) * 10) + 250
+    temp_cal := (temp_word / 16) + 2500
+    case _temp_scale
+        C:
+            return
+        F:
+            return ((temp_cal * 90) / 50) + 32_00
+        other:
+            return FALSE
+
 PRI addressAutoInc(state): curr_state
 ' Enable automatic address increment, for multibyte transfers (SPI and I2C)
 '   Valid values: TRUE (-1 or 1), FALSE (0)
@@ -1154,11 +1181,10 @@ PRI readReg(device, reg_nr, nr_bytes, ptr_buff) | tmp
         XLG:
             case reg_nr
                 $04..$0D, $0F..$24, $26..$37:
-                    io.low(_CS_AG)
-                    spi.shiftout(_SDIO, _SCL, core#MOSI_BITORDER, 8, reg_nr | READ)
-                    repeat tmp from 0 to nr_bytes-1
-                        byte[ptr_buff][tmp] := spi.shiftin(_SDIO, _SCL, core#MISO_BITORDER, 8)
-                    io.high(_CS_AG)
+                    outa[_CS_AG] := 0
+                    spi.wr_byte(reg_nr | READ)
+                    spi.rdblock_lsbf(ptr_buff, nr_bytes)
+                    outa[_CS_AG] := 1
                 other:
                     return
         MAG:
@@ -1166,11 +1192,10 @@ PRI readReg(device, reg_nr, nr_bytes, ptr_buff) | tmp
                 $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
                     reg_nr |= READ
                     reg_nr |= MS
-                    io.low(_CS_M)
-                    spi.shiftout(_SDIO, _SCL, core#MOSI_BITORDER, 8, reg_nr)
-                    repeat tmp from 0 to nr_bytes-1
-                        byte[ptr_buff][tmp] := spi.shiftin(_SDIO, _SCL, core#MISO_BITORDER, 8)
-                    io.high(_CS_M)
+                    outa[_CS_M] := 0
+                    spi.wr_byte(reg_nr)
+                    spi.rdblock_lsbf(ptr_buff, nr_bytes)
+                    outa[_CS_M] := 1
                 other:
                     return
 
@@ -1186,18 +1211,17 @@ PRI writeReg(device, reg_nr, nr_bytes, ptr_buff) | tmp
         XLG:
             case reg_nr
                 $04..$0D, $10..$13, $1E..$21, $23, $24, $2E, $30..$37:
-                    io.low(_CS_AG)
-                    spi.shiftout(_SDIO, _SCL, core#MOSI_BITORDER, 8, reg_nr)
-                    repeat tmp from 0 to nr_bytes-1
-                        spi.shiftout(_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[ptr_buff][tmp])
-                    io.high(_CS_AG)
+                    outa[_CS_AG] := 0
+                    spi.wr_byte(reg_nr)
+                    spi.wrblock_lsbf(ptr_buff, nr_bytes)
+                    outa[_CS_AG] := 1
                 core#CTRL_REG8:
-                    io.low(_CS_AG)
-                    spi.shiftout(_SDIO, _SCL, core#MOSI_BITORDER, 8, reg_nr)
-                    byte[ptr_buff][0] := byte[ptr_buff][0] | (1 << core#SIM)   'Enforce 3-wire SPI mode
-                     repeat tmp from 0 to nr_bytes-1
-                        spi.shiftout(_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[ptr_buff][tmp])
-                    io.high(_CS_AG)
+                    outa[_CS_AG] := 0
+                    spi.wr_byte(reg_nr)
+                    ' enforce 3-wire SPI mode
+                    byte[ptr_buff][0] := byte[ptr_buff][0] | (1 << core#SIM)
+                    spi.wrblock_lsbf(ptr_buff, nr_bytes)
+                    outa[_CS_AG] := 1
                 other:
                     return
         MAG:
@@ -1205,24 +1229,22 @@ PRI writeReg(device, reg_nr, nr_bytes, ptr_buff) | tmp
                 $05..$0A, $0F, $20, $21, $23, $24, $27..$2D, $30..$33:
                     reg_nr |= WRITE
                     reg_nr |= MS
-                    io.low(_CS_M)
-                    spi.shiftout(_SDIO, _SCL, core#MOSI_BITORDER, 8, reg_nr)
-                    repeat tmp from 0 to nr_bytes-1
-                        spi.shiftout(_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[ptr_buff][tmp])
-                    io.high(_CS_M)
-                core#CTRL_REG3_M:   'Ensure any writes to this register also keep the 3-wire SPI mode bit set
+                    outa[_CS_M] := 0
+                    spi.wr_byte(reg_nr)
+                    spi.wrblock_lsbf(ptr_buff, nr_bytes)
+                    outa[_CS_M] := 1
+                core#CTRL_REG3_M:
                     reg_nr |= WRITE
-                    io.low(_CS_M)
-                    spi.shiftout(_SDIO, _SCL, core#MOSI_BITORDER, 8, reg_nr)
-                    byte[ptr_buff][0] := byte[ptr_buff][0] | (1 << core#M_SIM)    'Enforce 3-wire SPI mode
-                    repeat tmp from 0 to nr_bytes-1
-                        spi.shiftout(_SDIO, _SCL, core#MOSI_BITORDER, 8, byte[ptr_buff][tmp])
-                    io.high(_CS_M)
+                    outa[_CS_M] := 0
+                    spi.wr_byte(reg_nr)
+                    ' enforce 3-wire SPI mode
+                    byte[ptr_buff][0] := byte[ptr_buff][0] | (1 << core#M_SIM)
+                    spi.wrblock_lsbf(ptr_buff, nr_bytes)
+                    outa[_CS_M] := 1
                 other:
                     return
         other:
             return
-
 DAT
 {
     --------------------------------------------------------------------------------------------------------

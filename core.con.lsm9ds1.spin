@@ -1,22 +1,19 @@
-{
+o{
     --------------------------------------------
     Filename: core.con.lsm9ds1.spin
     Author: Jesse Burt
     Description: LSM9DS1 low-level constants
     Copyright (c) 2021
     Started Feb 9, 2019
-    Updated Jan 23, 2021
+    Updated Jan 26, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
 
 CON
 ' SPI Configuration
-    CPOL                    = 1
-    CLK_DELAY               = 1
+    SPI_MODE                = 3
     SCK_MAX_FREQ            = 10_000_000
-    MOSI_BITORDER           = 5                 ' MSBFIRST
-    MISO_BITORDER           = 2                 ' MSBPOST
 
     TPOR                    = 110_000           ' usec
     WHOAMI_AG_RESP          = $68
@@ -376,10 +373,8 @@ CON
     FIFO_OFF_TRIG           = 4
     FIFO_CONT               = 6
 
-#ifndef __propeller2__
 PUB Null{}
 ' This is not a top-level object
-#endif
 {
     --------------------------------------------------------------------------------------------------------
     TERMS OF USE: MIT License
