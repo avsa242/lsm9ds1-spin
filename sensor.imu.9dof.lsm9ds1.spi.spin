@@ -1104,8 +1104,7 @@ PUB setGyroInterrupt(axis, threshold, duration, overunder, andOr) | tmpregvalue,
 PRI adc2temp(temp_word): temp_cal
 ' Calculate temperature, using temperature word
 '   Returns: temperature, in hundredths of a degree, in chosen scale
-'    temp_cal := (temp_word * 10) + 250'(((temp.byte[0] << 8 | temp.byte[1]) >> 8) * 10) + 250
-    temp_cal := (temp_word / 16) + 2500
+    temp_cal := ((temp_word * 10) / 16) + 2500
     case _temp_scale
         C:
             return
