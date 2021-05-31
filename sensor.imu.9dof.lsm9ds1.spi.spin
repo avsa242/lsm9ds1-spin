@@ -20,6 +20,14 @@ CON
     BARO_DOF                = 0
     DOF                     = ACCEL_DOF + GYRO_DOF + MAG_DOF + BARO_DOF
 
+' Scales and data rates used during calibration/bias/offset process
+    CAL_XL_SCL              = 2
+    CAL_G_SCL               = 245
+    CAL_M_SCL               = 4
+    CAL_XL_DR               = 238
+    CAL_G_DR                = 238
+    CAL_M_DR                = 80_000
+
 ' Constants used in low-level SPI read/write
     READ                    = 1 << 7
     WRITE                   = 0
@@ -258,6 +266,64 @@ PUB AccelScale(scale): curr_scl
     scale := ((curr_scl & core#FS_XL_MASK) | scale)
     writereg(XLG, core#CTRL_REG6_XL, 1, @scale)
 
+PUB CalibrateAccel{} | axis, orig_res, orig_scl, orig_drate, tmp[ACCEL_DOF], tmpx, tmpy, tmpz, samples
+' Calibrate the accelerometer
+'   NOTE: The accelerometer must be oriented with the package top facing up
+'       for this method to be successful
+    longfill(@axis, 0, 11)                      ' initialize vars to 0
+    orig_scl := accelscale(-2)                  ' save user's current settings
+    orig_drate := acceldatarate(-2)
+
+    accelbias(0, 0, 0, W)                       ' clear existing bias
+
+    accelscale(CAL_XL_SCL)
+    acceldatarate(CAL_XL_DR)
+    samples := CAL_XL_DR
+
+    repeat samples                              ' accumulate ~1sec of samples
+        repeat until acceldataready{}
+        acceldata(@tmpx, @tmpy, @tmpz)
+        tmp[X_AXIS] += tmpx
+        tmp[Y_AXIS] += tmpy
+        tmp[Z_AXIS] += (tmpz-(1_000_000 / _ares))' cancel out 1g on Z-axis
+
+    repeat axis from X_AXIS to Z_AXIS
+        tmp[axis] /= samples
+
+    ' update offsets
+    accelbias(tmp[X_AXIS], tmp[Y_AXIS], tmp[Z_AXIS], W)
+
+    accelscale(orig_scl)                        ' restore user's settings
+    acceldatarate(orig_drate)
+
+PUB CalibrateGyro{} | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[GYRO_DOF], samples
+' Calibrate the gyroscope
+    longfill(@axis, 0, 10)                      ' initialize vars to 0
+    orig_scl := gyroscale(-2)                   ' save user's current settings
+    orig_dr := gyrodatarate(-2)
+    gyrobias(0, 0, 0, W)                        ' clear existing bias offsets
+
+    ' set sensor to CAL_G_SCL range, CAL_G_DR Hz data rate
+    gyroscale(CAL_G_SCL)
+    gyrodatarate(CAL_G_DR)
+    samples := CAL_G_DR                         ' samples = DR, for 1 sec time
+
+    ' accumulate and average approx. 1sec worth of samples
+    repeat samples
+        repeat until gyrodataready{}
+        gyrodata(@tmpx, @tmpy, @tmpz)
+        tmp[X_AXIS] += tmpx
+        tmp[Y_AXIS] += tmpy
+        tmp[Z_AXIS] += tmpz
+
+    repeat axis from X_AXIS to Z_AXIS           ' calc avg
+        tmp[axis] /= samples
+
+    gyrobias(tmp[X_AXIS], tmp[Y_AXIS], tmp[Z_AXIS], W)
+
+    gyroscale(orig_scl)                         ' restore user's settings
+    gyrodatarate(orig_dr)
+
 PUB CalibrateMag{} | magmin[3], magmax[3], magtmp[3], axis, samples, orig_opmode, orig_odr
 ' Calibrate the magnetometer
     longfill(@magmin, 0, 11)                    ' Initialize variables to 0
@@ -293,39 +359,10 @@ PUB CalibrateMag{} | magmin[3], magmax[3], magtmp[3], axis, samples, orig_opmode
     magopmode(orig_opmode)                      ' Restore the user settings
     magdatarate(orig_odr)
 
-PUB CalibrateXLG{} | abiasrawtmp[3], gbiasrawtmp[3], axis, ax, ay, az, gx, gy, gz, samples ' XXX break this up into CalibrateAccel() and CalibrateGyro(), then this calls both
-' Calibrates the Accelerometer and Gyroscope
-' Turn on FIFO and set threshold to 32 samples
-    fifoenabled(TRUE)
-    fifomode(FIFO_THS)
-    fifothreshold(31)
-    samples := fifothreshold(-2)
-    repeat until fifofull{}
-    repeat axis from 0 to 2
-        gbiasrawtmp[axis] := 0
-        abiasrawtmp[axis] := 0
-
-    gyrobias(0, 0, 0, W)                        ' Clear out existing bias offsets
-    accelbias(0, 0, 0, W)                       '
-    repeat samples
-        gyrodata(@gx, @gy, @gz)                 ' read gyro and accel data
-        gbiasrawtmp[X_AXIS] += gx               ' from FIFO
-        gbiasrawtmp[Y_AXIS] += gy
-        gbiasrawtmp[Z_AXIS] += gz
-
-        acceldata(@ax, @ay, @az)
-        abiasrawtmp[X_AXIS] += ax
-        abiasrawtmp[Y_AXIS] += ay
-        ' compensate on z-axis for chip 'facing up' orientation:
-        abiasrawtmp[Z_AXIS] += az - (1_000_000 / _ares)
-
-    gyrobias(gbiasrawtmp[X_AXIS]/samples, gbiasrawtmp[Y_AXIS]/samples,{
-}   gbiasrawtmp[Z_AXIS]/samples, W)
-    accelbias(abiasrawtmp[X_AXIS]/samples, abiasrawtmp[Y_AXIS]/samples,{
-}   abiasrawtmp[Z_AXIS]/samples, W)
-
-    fifoenabled(FALSE)
-    fifomode(FIFO_OFF)
+PUB CalibrateXLG{}
+' Calibrate the Accelerometer and Gyroscope
+    calibrateaccel{}
+    calibrategyro{}
 
 PUB DeviceID{}: id
 ' Read device identification
