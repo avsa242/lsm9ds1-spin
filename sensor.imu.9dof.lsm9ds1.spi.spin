@@ -266,42 +266,43 @@ PUB AccelScale(scale): curr_scl
     scale := ((curr_scl & core#FS_XL_MASK) | scale)
     writereg(XLG, core#CTRL_REG6_XL, 1, @scale)
 
-PUB CalibrateAccel{} | axis, orig_res, orig_scl, orig_drate, tmp[ACCEL_DOF], tmpx, tmpy, tmpz, samples
+PUB CalibrateAccel{} | axis, orig_res, orig_scl, orig_dr, tmp[ACCEL_DOF], tmpx, tmpy, tmpz, samples
 ' Calibrate the accelerometer
 '   NOTE: The accelerometer must be oriented with the package top facing up
 '       for this method to be successful
     longfill(@axis, 0, 11)                      ' initialize vars to 0
     orig_scl := accelscale(-2)                  ' save user's current settings
-    orig_drate := acceldatarate(-2)
-
+    orig_dr := acceldatarate(-2)
     accelbias(0, 0, 0, W)                       ' clear existing bias
 
+    ' set sensor to CAL_XL_SCL range, CAL_XL_DR Hz data rate
     accelscale(CAL_XL_SCL)
     acceldatarate(CAL_XL_DR)
-    samples := CAL_XL_DR
+    samples := CAL_XL_DR                        ' samples = DR, for 1 sec time
 
-    repeat samples                              ' accumulate ~1sec of samples
+    ' accumulate and average approx. 1sec worth of samples
+    repeat samples
         repeat until acceldataready{}
         acceldata(@tmpx, @tmpy, @tmpz)
         tmp[X_AXIS] += tmpx
         tmp[Y_AXIS] += tmpy
         tmp[Z_AXIS] += (tmpz-(1_000_000 / _ares))' cancel out 1g on Z-axis
 
-    repeat axis from X_AXIS to Z_AXIS
+    repeat axis from X_AXIS to Z_AXIS           ' calc avg
         tmp[axis] /= samples
 
     ' update offsets
     accelbias(tmp[X_AXIS], tmp[Y_AXIS], tmp[Z_AXIS], W)
 
     accelscale(orig_scl)                        ' restore user's settings
-    acceldatarate(orig_drate)
+    acceldatarate(orig_dr)
 
 PUB CalibrateGyro{} | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[GYRO_DOF], samples
 ' Calibrate the gyroscope
     longfill(@axis, 0, 10)                      ' initialize vars to 0
     orig_scl := gyroscale(-2)                   ' save user's current settings
     orig_dr := gyrodatarate(-2)
-    gyrobias(0, 0, 0, W)                        ' clear existing bias offsets
+    gyrobias(0, 0, 0, W)                        ' clear existing bias
 
     ' set sensor to CAL_G_SCL range, CAL_G_DR Hz data rate
     gyroscale(CAL_G_SCL)
@@ -319,45 +320,40 @@ PUB CalibrateGyro{} | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[GYRO_DOF], 
     repeat axis from X_AXIS to Z_AXIS           ' calc avg
         tmp[axis] /= samples
 
+    ' update offsets
     gyrobias(tmp[X_AXIS], tmp[Y_AXIS], tmp[Z_AXIS], W)
 
     gyroscale(orig_scl)                         ' restore user's settings
     gyrodatarate(orig_dr)
 
-PUB CalibrateMag{} | magmin[3], magmax[3], magtmp[3], axis, samples, orig_opmode, orig_odr
+PUB CalibrateMag{} | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[MAG_DOF], samples
 ' Calibrate the magnetometer
-    longfill(@magmin, 0, 11)                    ' Initialize variables to 0
-    orig_opmode := magopmode(-2)                ' Store the user-set operating mode
-    orig_odr := magdatarate(-2)                 '   and data rate
+    longfill(@axis, 0, 11)                      ' initialize vars to 0
+    orig_scl := magscale(-2)                    ' save user's current settings
+    orig_dr := magdatarate(-2)
+    magbias(0, 0, 0, W)                         ' clear existing bias
 
-    magopmode(MAG_OPMODE_CONT)                  ' Change to continuous measurement mode
-    magdatarate(80_000)                         '   and fastest data rate
-    magbias(0, 0, 0, W)                         ' Start with offsets cleared
+    ' set sensor to CAL_M_SCL range, CAL_M_DR Hz data rate
+    magscale(CAL_M_SCL)
+    magdatarate(CAL_M_DR)
+    samples := CAL_M_DR                         ' samples = DR, for 1 sec time
 
-    repeat 5
-        repeat until magdataready{}
-        magdata(@magtmp[X_AXIS], @magtmp[Y_AXIS], @magtmp[Z_AXIS])
-        ' Establish initial minimum and maximum values for averaging:
-        ' Start both with the same value to avoid skewing the
-        '   calcs (because vars were initialized with 0)
-        magmax[X_AXIS] := magmin[X_AXIS] := magtmp[X_AXIS]
-        magmax[Y_AXIS] := magmin[Y_AXIS] := magtmp[Y_AXIS]
-        magmax[Z_AXIS] := magmin[Z_AXIS] := magtmp[Z_AXIS]
-
-    samples := 100                              ' XXX arbitrary
+    ' accumulate and average approx. 1sec worth of samples
     repeat samples
         repeat until magdataready{}
-        magdata(@magtmp[X_AXIS], @magtmp[Y_AXIS], @magtmp[Z_AXIS])
-        repeat axis from X_AXIS to Z_AXIS
-            magmin[axis] := magtmp[axis] <# magmin[axis]
-            magmax[axis] := magtmp[axis] #> magmax[axis]
+        magdata(@tmpx, @tmpy, @tmpz)
+        tmp[X_AXIS] += tmpx
+        tmp[Y_AXIS] += tmpy
+        tmp[Z_AXIS] += tmpz
 
-    magbias((magmax[X_AXIS] + magmin[X_AXIS]) / 2,{
-}   (magmax[Y_AXIS] + magmin[Y_AXIS]) / 2, {
-}   (magmax[Z_AXIS] + magmin[Z_AXIS]) / 2, W)
+    repeat axis from X_AXIS to Z_AXIS           ' calc avg
+        tmp[axis] /= samples
 
-    magopmode(orig_opmode)                      ' Restore the user settings
-    magdatarate(orig_odr)
+    ' update offsets
+    magbias(tmp[X_AXIS], tmp[Y_AXIS], tmp[Z_AXIS], W)
+
+    magscale(orig_scl)                          ' restore user's settings
+    magdatarate(orig_dr)
 
 PUB CalibrateXLG{}
 ' Calibrate the Accelerometer and Gyroscope
