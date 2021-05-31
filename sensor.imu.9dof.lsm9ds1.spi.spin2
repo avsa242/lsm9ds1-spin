@@ -26,7 +26,7 @@ CON
     CAL_M_SCL               = 4
     CAL_XL_DR               = 238
     CAL_G_DR                = 238
-    CAL_M_DR                = 80_000
+    CAL_M_DR                = 80
 
 ' Constants used in low-level SPI read/write
     READ                    = 1 << 7
@@ -719,19 +719,17 @@ PUB MagDataOverrun(): status
     return ((status >> core.OVERRN) & core.OVERRN_BITS)
 
 PUB MagDataRate(rate=-2): curr_rate
-' Set Magnetometer Output Data Rate, in milli-Hz
-'   Valid values: 625, 1250, 2500, 5000, *10_000, 20_000, 40_000, 80_000
+' Set Magnetometer Output Data Rate, in Hz
+'   Valid values: 0 (0.625), 1 (1.250), 2 (2.5), 5, *10, 20, 40, 80
 '   Any other value polls the chip and returns the current setting
     curr_rate := 0
     readreg(MAG, core.CTRL_REG1_M, 1, @curr_rate)
     case rate
-        625, 1250, 2500, 5000, 10_000, 20_000, 40_000, 80_000:
-            rate := lookdownz(rate: 625, 1250, 2500, 5000, 10_000, 20_000, {
-}           40_000, 80_000) << core.DO
+        0, 1, 2, 5, 10, 20, 40, 80:
+            rate := lookdownz(rate: 0, 1, 2, 5, 10, 20, 40, 80) << core.DO
         other:
             curr_rate := ((curr_rate >> core.DO) & core.DO_BITS)
-            return lookupz(curr_rate: 625, 1250, 2500, 5000, 10_000, 20_000, {
-}           40_000, 80_000)
+            return lookupz(curr_rate: 0, 1, 2, 5, 10, 20, 40, 80)
 
     rate := ((curr_rate & core.DO_MASK) | rate)
     writereg(MAG, core.CTRL_REG1_M, 1, @rate)
