@@ -198,9 +198,9 @@ PUB AccelData(ax, ay, az) | tmp[2]
 ' Reads the Accelerometer output registers
     readreg(XLG, core.OUT_X_L_XL, 6, @tmp)
 
-    long[ax] := ~~tmp.word[X_AXIS] - _abiasraw[X_AXIS]
-    long[ay] := ~~tmp.word[Y_AXIS] - _abiasraw[Y_AXIS]
-    long[az] := ~~tmp.word[Z_AXIS] - _abiasraw[Z_AXIS]
+    long[ax] := (tmp.word[X_AXIS] signx 15) - _abiasraw[X_AXIS]
+    long[ay] := (tmp.word[Y_AXIS] signx 15) - _abiasraw[Y_AXIS]
+    long[az] := (tmp.word[Z_AXIS] signx 15) - _abiasraw[Z_AXIS]
 
 PUB AccelDataOverrun(): flag
 ' Dummy method
@@ -354,11 +354,6 @@ PUB CalibrateMag() | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[MAG_DOF], sa
     magscale(orig_scl)                          ' restore user's settings
     magdatarate(orig_dr)
 
-PUB CalibrateXLG()
-' Calibrate the Accelerometer and Gyroscope
-    calibrateaccel()
-    calibrategyro()
-
 PUB DeviceID(): id
 ' Read device identification
 '   Returns: $683D
@@ -435,8 +430,8 @@ PUB FIFOUnreadSamples(): nr_samples
     return nr_samples & core.FSS_BITS
 
 PUB GyroAxisEnabled(mask=-2): curr_mask
-' Enable data output for Gyroscope - per axis
-'   Valid values: FALSE (0) or TRUE (1 or -1), for each axis
+' Enable Gyroscope data output, per axis mask
+'   Valid values: 0 or 1, for each axis
 '   Any other value polls the chip and returns the current setting
     readreg(XLG, core.CTRL_REG4, 1, @curr_mask)
     case mask
@@ -479,9 +474,9 @@ PUB GyroBias(gxbias, gybias, gzbias, rw=0)
 PUB GyroData(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Read gyroscope data
     readreg(XLG, core.OUT_X_G_L, 6, @tmp)
-    long[ptr_x] := ~~tmp.word[X_AXIS] - _gbiasraw[X_AXIS]
-    long[ptr_y] := ~~tmp.word[Y_AXIS] - _gbiasraw[Y_AXIS]
-    long[ptr_z] := ~~tmp.word[Z_AXIS] - _gbiasraw[Z_AXIS]
+    long[ptr_x] := (tmp.word[X_AXIS] signx 15) - _gbiasraw[X_AXIS]
+    long[ptr_y] := (tmp.word[Y_AXIS] signx 15) - _gbiasraw[Y_AXIS]
+    long[ptr_z] := (tmp.word[Z_AXIS] signx 15) - _gbiasraw[Z_AXIS]
 
 PUB GyroDataOverrun()
 ' dummy method
@@ -693,9 +688,9 @@ PUB MagBias(mxbias, mybias, mzbias, rw=0) | axis, msb, lsb
 PUB MagData(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Read the Magnetometer output registers
     readreg(MAG, core.OUT_X_L_M, 6, @tmp)
-    long[ptr_x] := ~~tmp.word[X_AXIS]              ' no offset correction
-    long[ptr_y] := ~~tmp.word[Y_AXIS]              ' because the mag has
-    long[ptr_z] := ~~tmp.word[Z_AXIS]              ' offset registers built-in
+    long[ptr_x] := tmp.word[X_AXIS] signx 15    ' no offset correction
+    long[ptr_y] := tmp.word[Y_AXIS] signx 15    ' because the mag has
+    long[ptr_z] := tmp.word[Z_AXIS] signx 15    ' offset registers built-in
 
 PUB MagDataOverrun(): status
 ' Magnetometer data overrun
@@ -961,7 +956,7 @@ PUB TempData(): temp_adc
 ' Temperature ADC data
     temp_adc := 0
     readreg(XLG, core.OUT_TEMP_L, 2, @temp_adc)
-    return ~~temp_adc
+    return (temp_adc signx 15)
 
 PUB TempDataReady(): flag
 ' Temperature sensor new data available

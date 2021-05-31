@@ -355,11 +355,6 @@ PUB CalibrateMag{} | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[MAG_DOF], sa
     magscale(orig_scl)                          ' restore user's settings
     magdatarate(orig_dr)
 
-PUB CalibrateXLG{}
-' Calibrate the Accelerometer and Gyroscope
-    calibrateaccel{}
-    calibrategyro{}
-
 PUB DeviceID{}: id
 ' Read device identification
 '   Returns: $683D
@@ -437,7 +432,7 @@ PUB FIFOUnreadSamples{}: nr_samples
 
 PUB GyroAxisEnabled(mask): curr_mask
 ' Enable data output for Gyroscope - per axis
-'   Valid values: FALSE (0) or TRUE (1 or -1), for each axis
+'   Valid values: 0 or 1, for each axis
 '   Any other value polls the chip and returns the current setting
     readreg(XLG, core#CTRL_REG4, 1, @curr_mask)
     case mask
