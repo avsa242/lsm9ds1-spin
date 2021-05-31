@@ -5,7 +5,7 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2021
     Started Aug 12, 2017
-    Updated Jan 25, 2021
+    Updated May 31, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -812,17 +812,13 @@ PUB MagIntThresh(thresh): curr_thr 'XXX rewrite to take gauss as a param
 '   Any other value polls the chip and returns the current setting
 '   NOTE: The set thresh is an absolute value and is compared to positive and
 '       negative measurements alike
-    curr_thr := 0
-    readreg(MAG, core#INT_THS_L_M, 2, @curr_thr)
     case thresh
         0..32767:
-            swap(@thresh)
+            writereg(MAG, core#INT_THS_L_M, 2, @thresh)
         other:
-            swap(@curr_thr)
-            return curr_thr
-
-    curr_thr := thresh & $7FFF
-    writereg(MAG, core#INT_THS_L_M, 2, @curr_thr)
+            curr_thr := 0
+            readreg(MAG, core#INT_THS_L_M, 2, @curr_thr)
+            return
 
 PUB MagLowPower(state): curr_state
 ' Enable magnetometer low-power mode
@@ -1141,13 +1137,6 @@ PRI setSPI3WireMode{} | tmp
     writereg(XLG, core#CTRL_REG8, 1, @tmp)
     tmp := core#M_3WSPI
     writereg(MAG, core#CTRL_REG3_M, 1, @tmp)
-
-PRI swap(word_addr)
-
-    byte[word_addr][3] := byte[word_addr][0]
-    byte[word_addr][0] := byte[word_addr][1]
-    byte[word_addr][1] := byte[word_addr][3]
-    byte[word_addr][3] := 0
 
 PRI booleanChoice(device, reg_nr, field, fieldmask, regmask, choice, invertchoice): bool
 ' Reusable method for writing a field that is of a boolean or on-off type
