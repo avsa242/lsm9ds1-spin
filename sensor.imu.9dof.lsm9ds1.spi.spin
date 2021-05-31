@@ -431,7 +431,7 @@ PUB FIFOUnreadSamples{}: nr_samples
     return nr_samples & core#FSS_BITS
 
 PUB GyroAxisEnabled(mask): curr_mask
-' Enable data output for Gyroscope - per axis
+' Enable Gyroscope data output, per axis mask
 '   Valid values: 0 or 1, for each axis
 '   Any other value polls the chip and returns the current setting
     readreg(XLG, core#CTRL_REG4, 1, @curr_mask)
@@ -513,14 +513,53 @@ PUB GyroDPS(gx, gy, gz) | tmp[3]
 
 PUB GyroHighPass(freq): curr_freq
 ' Set Gyroscope high-pass filter cutoff frequency
-'   Valid values: 0..9
+'   Valid values: dependent on GyroDataRate(), see table below
 '   Any other value polls the chip and returns the current setting
+    curr_freq := 0
     readreg(XLG, core#CTRL_REG3_G, 1, @curr_freq)
-    case freq
-        0..9:
-            freq := freq << core#HPCF_G
-        other:
-            return (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+    case gyrodatarate(-2)
+        15:
+            case freq
+                0_001, 0_002, 0_005, 0_010, 0_020, 0_050, 0_100, 0_200, 0_500, 1_000:
+                    freq := lookdownz(freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001) << core#HPCF_G
+                other:
+                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
+        60:
+            case freq
+                0_005, 0_010, 0_020, 0_050, 0_100, 0_200, 0_500, 1_000, 2_000, 4_000:
+                    freq := lookdownz(freq: 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005) << core#HPCF_G
+                other:
+                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
+        119:
+            case freq
+                0_010, 0_020, 0_050, 0_100, 0_200, 0_500, 1_000, 2_000, 4_000, 8_000:
+                    freq := lookdownz(freq: 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010) << core#HPCF_G
+                other:
+                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
+        238:
+            case freq
+                0_020, 0_050, 0_100, 0_200, 0_500, 1_000, 2_000, 4_000, 8_000, 15_000:
+                    freq := lookdownz(freq: 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020) << core#HPCF_G
+                other:
+                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
+        476:
+            case freq
+                0_050, 0_100, 0_200, 0_500, 1_000, 2_000, 4_000, 8_000, 15_000, 30_000:
+                    freq := lookdownz(freq: 30_000, 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050) << core#HPCF_G
+                other:
+                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
+        952:
+            case freq
+                0_100, 0_200, 0_500, 1_000, 2_000, 4_000, 8_000, 15_000, 30_000, 57_000:
+                    freq := lookdownz(freq: 57_000, 30_000, 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100) << core#HPCF_G
+                other:
+                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
 
     freq := ((curr_freq & core#HPCF_G_MASK) | freq)
     writereg(XLG, core#CTRL_REG3_G, 1, @freq)
