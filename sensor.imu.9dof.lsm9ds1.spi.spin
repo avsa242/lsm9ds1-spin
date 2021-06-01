@@ -943,21 +943,17 @@ PUB MagScale(scale): curr_scl
 ' Set full scale of Magnetometer, in Gauss
 '   Valid values: 4, 8, 12, 16
 '   Any other value polls the chip and returns the current setting
-    curr_scl := 0
-    readreg(MAG, core#CTRL_REG2_M, 1, @curr_scl)
     case(scale)
         4, 8, 12, 16:
             scale := lookdownz(scale: 4, 8, 12, 16)
             _mres := lookupz(scale: 0_000140, 0_000290, 0_000430, 0_000580)
             scale <<= core#FS_M
+            writereg(MAG, core#CTRL_REG2_M, 1, @scale)
         other:
+            curr_scl := 0
+            readreg(MAG, core#CTRL_REG2_M, 1, @curr_scl)
             curr_scl := (curr_scl >> core#FS_M) & core#FS_M_BITS
             return lookupz(curr_scl: 4, 8, 12, 16)
-
-    ' Mask off ALL other bits, because the only other
-    ' fields in this reg are for performing soft-reset/reboot
-    curr_scl := scale & (core#FS_M_BITS << core#FS_M)
-    writereg(MAG, core#CTRL_REG2_M, 1, @curr_scl)
 
 PUB MagSelfTest(state): curr_state
 ' Enable on-chip magnetometer self-test
