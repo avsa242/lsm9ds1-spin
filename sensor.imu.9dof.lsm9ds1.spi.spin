@@ -5,7 +5,7 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2021
     Started Aug 12, 2017
-    Updated May 31, 2021
+    Updated Jun 1, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -815,11 +815,10 @@ PUB MagInt{}: intsrc
 '   0: Interrupt asserted
     readreg(MAG, core#INT_SRC_M, 1, @intsrc)
 
-PUB MagIntClear{} | tmp
-' Clears out any interrupts set up on the Magnetometer and
-'   resets all Magnetometer interrupt registers to their default values
-    tmp := 0
-    writereg(MAG, core#INT_SRC_M, 1, @tmp)
+PUB MagIntClear{}
+' Clear magnetometer interrupts
+'   NOTE: This is only required if MagIntsLatched() is set to TRUE
+    magint{}
 
 PUB MagIntLevel(state): curr_state
 ' Set active state of INT_MAG pin when magnetometer interrupt asserted
