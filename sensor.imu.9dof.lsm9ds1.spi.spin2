@@ -250,6 +250,27 @@ PUB AccelIntClear() | tmp, reg_nr
     tmp &= core.INT1_IG_XL_MASK
     writereg(XLG, core.INT1_CTRL, 1, @tmp)
 
+PUB AccelIntMask(mask=-2): curr_mask
+' Set accelerometer interrupt mask
+'   Valid values:
+'       bits 7..0
+'       7: *OR (0)/AND (1) interrupt events
+'       6: 6-direction detection
+'       5: Z-axis high
+'       4: Z-axis low
+'       3: Y-axis high
+'       2: Y-axis low
+'       1: Z-axis high
+'       0: Z-axis low
+'   Any other value polls the chip and returns the current setting
+    case mask
+        %00000000..%11111111:
+            writereg(XLG, core.INT_GEN_CFG_XL, 1, @mask)
+        other:
+            curr_mask := 0
+            readreg(XLG, core.INT_GEN_CFG_XL, 1, @curr_mask)
+            return
+
 PUB AccelScale(scale=-2): curr_scl
 ' Sets the full-scale range of the Accelerometer, in g's
 '   Valid values: 2, 4, 8, 16
