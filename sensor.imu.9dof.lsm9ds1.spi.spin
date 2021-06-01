@@ -817,11 +817,6 @@ PUB MagInt{}: intsrc
 '   0: Interrupt asserted
     readreg(MAG, core#INT_SRC_M, 1, @intsrc)
 
-PUB MagIntClear{}
-' Clear magnetometer interrupts
-'   NOTE: This is only required if MagIntsLatched() is set to TRUE
-    magint{}
-
 PUB MagIntActiveState(state): curr_state
 ' Set active state of INT_MAG pin when magnetometer interrupt asserted
 '   Valid values: ACTIVE_LOW (0), ACTIVE_HIGH (1)
@@ -837,6 +832,11 @@ PUB MagIntActiveState(state): curr_state
 
     state := ((curr_state & core#IEA_MASK) | state)
     writereg(MAG, core#INT_CFG_M, 1, @state)
+
+PUB MagIntClear{}
+' Clear magnetometer interrupts
+'   NOTE: This is only required if MagIntsLatched() is set to TRUE
+    magint{}
 
 PUB MagIntMask(mask): curr_mask
 ' Enable magnetometer threshold interrupts, as a bitmask
