@@ -93,9 +93,9 @@ OBJ
 
 VAR
 
-    long _gres, _gbiasraw[3]
-    long _ares, _abiasraw[3]
-    long _mres, _mbiasraw[3]
+    long _gres, _gbiasraw[GYRO_DOF]
+    long _ares, _abiasraw[ACCEL_DOF]
+    long _mres
     long _CS_AG, _CS_M
     byte _temp_scale
 
@@ -692,7 +692,7 @@ PUB MagBlockUpdate(state): curr_state
     return booleanChoice (MAG, core#CTRL_REG5_M, core#BDU_M, core#BDU_M_MASK,{
 }   core#CTRL_REG5_M_MASK, state, 1)
 
-PUB MagBias(mxbias, mybias, mzbias, rw) | axis, msb, lsb
+PUB MagBias(mxbias, mybias, mzbias, rw) | tmp[2]
 ' Read or write/manually set Magnetometer calibration offset values
 '   Valid values:
 '       rw:
@@ -703,27 +703,26 @@ PUB MagBias(mxbias, mybias, mzbias, rw) | axis, msb, lsb
 '       of respective variables to hold the returned calibration offset values
     case rw
         R:
-            long[mxbias] := _mbiasraw[X_AXIS]
-            long[mybias] := _mbiasraw[Y_AXIS]
-            long[mzbias] := _mbiasraw[Z_AXIS]
+            readreg(MAG, core#OFFSET_X_REG_L_M, 6, @tmp)
+            long[mxbias] := ~~tmp.word[X_AXIS]
+            long[mybias] := ~~tmp.word[Y_AXIS]
+            long[mzbias] := ~~tmp.word[Z_AXIS]
         W:
             case mxbias
                 -32768..32767:
-                    _mbiasraw[X_AXIS] := mxbias
                 other:
+                    return
             case mybias
                 -32768..32767:
-                    _mbiasraw[Y_AXIS] := mybias
                 other:
+                    return
             case mzbias
                 -32768..32767:
-                    _mbiasraw[Z_AXIS] := mzbias
                 other:
-            repeat axis from X_AXIS to Z_AXIS
-                msb := (_mbiasraw[axis] & $FF00) >> 8
-                lsb := _mbiasraw[axis] & $00FF
-                writereg(MAG, core#OFFSET_X_REG_L_M + (2 * axis), 1, @lsb)
-                writereg(MAG, core#OFFSET_X_REG_H_M + (2 * axis), 1, @msb)
+                    return
+            writereg(MAG, core#OFFSET_X_REG_L_M, 2, @mxbias)
+            writereg(MAG, core#OFFSET_Y_REG_L_M, 2, @mybias)
+            writereg(MAG, core#OFFSET_Z_REG_L_M, 2, @mzbias)
 
 PUB MagData(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Read the Magnetometer output registers
