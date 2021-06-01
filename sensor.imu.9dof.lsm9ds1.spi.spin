@@ -836,15 +836,15 @@ PUB MagIntLevel(state): curr_state
     state := ((curr_state & core#IEA_MASK) | state)
     writereg(MAG, core#INT_CFG_M, 1, @state)
 
-PUB MagIntsEnabled(mask): curr_mask
-' Enable magnetometer interrupts, as a bitmask
+PUB MagIntMask(mask): curr_mask
+' Enable magnetometer threshold interrupts, as a bitmask
 '   Valid values: %000..%111
 '     MSB   LSB
 '       |   |
 '       2 1 0
-'       2: X-axis data overrun
-'       1: Y-axis data overrun
-'       0: Z-axis dta overrun
+'       2: X-axis
+'       1: Y-axis
+'       0: Z-axis
 '   Example:
 '       %111: Enable interrupts for all three axes
 '       %010: Enable interrupts for Y axis only
