@@ -146,6 +146,8 @@ PUB Preset_XL_G_M_3WSPI()
     setspi3wiremode()
     addressautoinc(TRUE)
     magi2c(FALSE)                               ' disable mag I2C interface
+    xlgdatablockupdate(TRUE)                    ' ensure MSB & LSB are from
+    magblockupdate(TRUE)                        '   the same "frame" of data
     xlgdatarate(59)                             ' arbitrary
     magdatarate(40_000)                         '
     gyroscale(245)                              ' already the POR defaults,
