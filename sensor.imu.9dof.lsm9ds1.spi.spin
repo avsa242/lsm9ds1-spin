@@ -618,10 +618,13 @@ PUB GyroIntClear{} | tmp, reg_nr
     tmp &= core#INT1_IG_G_MASK
     writereg(XLG, core#INT1_CTRL, 1, @tmp)
 
-PUB GyroIntSelect(mode): curr_mode' XXX expand
-' Set gyroscope interrupt generator selection
+PUB GyroIntDataPath(mode): curr_mode
+' Set gyroscope interrupt filter path
 '   Valid values:
-'       *%00..%11
+'       %00: interrupt generator uses data fed by LPF (low-pass filtered) only
+'       %01: interrupt generator uses data fed by LPF->HPF (high-pass filtered)
+'           (effective only if high-pass filter is enabled)
+'       %10, %11: interrupt generator uses data fed by LPF->HPF->2nd LPF
 '   Any other value polls the chip and returns the current setting
     curr_mode := 0
     readreg(XLG, core#CTRL_REG2_G, 1, @curr_mode)
@@ -866,7 +869,6 @@ PUB MagIntsLatched(state): curr_state
 '   Valid values: TRUE (-1 or 1) or FALSE
 '   Any other value polls the chip and returns the current setting
 '   NOTE: If enabled, interrupts must be explicitly cleared using MagClearInt()
-'        XXX verify
     return booleanchoice(MAG, core#INT_CFG_M, core#IEL, core#IEL_MASK,{
 }   core#INT_CFG_M, state, -1)
 
