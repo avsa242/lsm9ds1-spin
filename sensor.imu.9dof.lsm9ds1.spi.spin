@@ -251,6 +251,19 @@ PUB AccelIntClear{} | tmp, reg_nr
     tmp &= core#INT1_IG_XL_MASK
     writereg(XLG, core#INT1_CTRL, 1, @tmp)
 
+PUB AccelIntDur(samples): curr_smp
+' Set number of samples accelerometer data must be past threshold to be
+'   considered an interrupt
+'   Valid values: 0..127
+'   Any other value polls the chip and returns the current setting
+    case samples
+        0..127:
+            writereg(XLG, core#INT_GEN_DUR_XL, 1, @samples)
+        other:
+            curr_smp := 0
+            readreg(XLG, core#INT_GEN_DUR_XL, 1, @curr_smp)
+            return
+
 PUB AccelIntMask(mask): curr_mask
 ' Set accelerometer interrupt mask
 '   Valid values:
