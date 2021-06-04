@@ -5,7 +5,7 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2021
     Started Aug 12, 2017
-    Updated Jun 2, 2021
+    Updated Jun 4, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -699,6 +699,36 @@ PUB GyroIntDataPath(mode): curr_mode
 
     mode := ((curr_mode & core#INT_SEL_MASK) | mode)
     writereg(XLG, core#CTRL_REG2_G, 1, @mode)
+
+PUB GyroIntThresh(x, y, z, rw) | gscl, lsb, tmp[2], axis
+' Set gyroscope interrupt thresholds per axis, in micro-dps (signed)
+'   Valid values: +/- full-scale * 1_000_000
+'   Any other value will be clamped to min/max limits
+'   NOTE: When rw == R (0), x, y, and z must be pointers to variables
+'       to hold values read from chip
+    gscl := gyroscale(-2) * 1_000000
+    lsb := gscl / 16384                         ' calc LSB for the thresh reg
+    case rw
+        W:
+            x := 0 #> x <# gscl                 ' clamp values to full-scale
+            y := 0 #> y <# gscl
+            z := 0 #> z <# gscl
+            x /= lsb                            ' scale values down to reg's
+            y /= lsb                            '   15-bit signed format
+            z /= lsb
+            writereg(XLG, core#INT_GEN_THS_XH_G, 2, @x)
+            writereg(XLG, core#INT_GEN_THS_YH_G, 2, @y)
+            writereg(XLG, core#INT_GEN_THS_ZH_G, 2, @z)
+        R:
+            tmp := 0
+            readreg(XLG, core#INT_GEN_THS_XH_G, 6, @tmp)
+            ' scale values up to output
+            '   data scale (micro-dps)
+            repeat axis from X_AXIS to Z_AXIS
+                tmp.word[axis] := ((tmp.word[axis] & core#INT_G_BITS) << 1) ~> 1
+            long[x] := ~~tmp.word[X_AXIS] * lsb
+            long[y] := ~~tmp.word[Y_AXIS] * lsb
+            long[z] := ~~tmp.word[Z_AXIS] * lsb
 
 PUB GyroLowPower(state): curr_state
 ' Enable low-power mode

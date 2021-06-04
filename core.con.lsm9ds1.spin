@@ -5,7 +5,7 @@
     Description: LSM9DS1 low-level constants
     Copyright (c) 2021
     Started Feb 9, 2019
-    Updated Jan 26, 2021
+    Updated Jun 4, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -250,12 +250,15 @@ CON
         FSS_BITS            = %111111
 
     INT_GEN_CFG_G           = $30
+
     INT_GEN_THS_XH_G        = $31
     INT_GEN_THS_XL_G        = $32
     INT_GEN_THS_YH_G        = $33
     INT_GEN_THS_YL_G        = $34
     INT_GEN_THS_ZH_G        = $35
     INT_GEN_THS_ZL_G        = $36
+    INT_G_BITS              = $7FFF
+
     INT_GEN_DUR_G           = $37
     OFFSET_X_REG_L_M        = $05
     OFFSET_X_REG_H_M        = $06
