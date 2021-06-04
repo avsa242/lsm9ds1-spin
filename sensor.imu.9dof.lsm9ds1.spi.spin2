@@ -588,53 +588,53 @@ PUB GyroHighPass(freq=-2): curr_freq
 '   Valid values: dependent on GyroDataRate(), see table below
 '   Any other value polls the chip and returns the current setting
     curr_freq := 0
-    readreg(XLG, core#CTRL_REG3_G, 1, @curr_freq)
+    readreg(XLG, core.CTRL_REG3_G, 1, @curr_freq)
     case gyrodatarate(-2)
         15:
             case freq
                 0_001, 0_002, 0_005, 0_010, 0_020, 0_050, 0_100, 0_200, 0_500, 1_000:
-                    freq := lookdownz(freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001) << core#HPCF_G
+                    freq := lookdownz(freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001) << core.HPCF_G
                 other:
-                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    curr_freq := (curr_freq >> core.HPCF_G) & core.HPCF_G_BITS
                     return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
         60:
             case freq
                 0_005, 0_010, 0_020, 0_050, 0_100, 0_200, 0_500, 1_000, 2_000, 4_000:
-                    freq := lookdownz(freq: 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005) << core#HPCF_G
+                    freq := lookdownz(freq: 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005) << core.HPCF_G
                 other:
-                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    curr_freq := (curr_freq >> core.HPCF_G) & core.HPCF_G_BITS
                     return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
         119:
             case freq
                 0_010, 0_020, 0_050, 0_100, 0_200, 0_500, 1_000, 2_000, 4_000, 8_000:
-                    freq := lookdownz(freq: 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010) << core#HPCF_G
+                    freq := lookdownz(freq: 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010) << core.HPCF_G
                 other:
-                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    curr_freq := (curr_freq >> core.HPCF_G) & core.HPCF_G_BITS
                     return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
         238:
             case freq
                 0_020, 0_050, 0_100, 0_200, 0_500, 1_000, 2_000, 4_000, 8_000, 15_000:
-                    freq := lookdownz(freq: 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020) << core#HPCF_G
+                    freq := lookdownz(freq: 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020) << core.HPCF_G
                 other:
-                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    curr_freq := (curr_freq >> core.HPCF_G) & core.HPCF_G_BITS
                     return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
         476:
             case freq
                 0_050, 0_100, 0_200, 0_500, 1_000, 2_000, 4_000, 8_000, 15_000, 30_000:
-                    freq := lookdownz(freq: 30_000, 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050) << core#HPCF_G
+                    freq := lookdownz(freq: 30_000, 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050) << core.HPCF_G
                 other:
-                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    curr_freq := (curr_freq >> core.HPCF_G) & core.HPCF_G_BITS
                     return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
         952:
             case freq
                 0_100, 0_200, 0_500, 1_000, 2_000, 4_000, 8_000, 15_000, 30_000, 57_000:
-                    freq := lookdownz(freq: 57_000, 30_000, 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100) << core#HPCF_G
+                    freq := lookdownz(freq: 57_000, 30_000, 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100) << core.HPCF_G
                 other:
-                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    curr_freq := (curr_freq >> core.HPCF_G) & core.HPCF_G_BITS
                     return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
 
-    freq := ((curr_freq & core#HPCF_G_MASK) | freq)
-    writereg(XLG, core#CTRL_REG3_G, 1, @freq)
+    freq := ((curr_freq & core.HPCF_G_MASK) | freq)
+    writereg(XLG, core.CTRL_REG3_G, 1, @freq)
 
 PUB GyroInactiveDur(duration=-2): curr_dur
 ' Set gyroscope inactivity timer (use GyroInactiveSleep() to define behavior on
@@ -674,11 +674,18 @@ PUB GyroInactiveSleep(state=-2): curr_state
     return booleanChoice(XLG, core.ACT_THS, core.SLP_ON_INACT, {
 }   core.SLP_ON_INACT_MASK, core.ACT_THS_MASK, state, 1)
 
-PUB GyroInt(): flag
-' Flag indicating gyroscope interrupt asserted
-'   Returns TRUE if interrupt asserted, FALSE if not
-    readreg(XLG, core.STATUS_REG, 1, @flag)
-    return (((flag >> core.IG_G) & 1) == 1)
+PUB GyroInt(): int_src
+' Read gyroscope interrupts
+'   Bit 6..0
+'       6: one or more interrupts have been generated
+'       5: Yaw/Z-axis high
+'       4: Yaw/Z-axis low
+'       3: Roll/Y-axis high
+'       2: Roll/Y-axis low
+'       1: Pitch/X-axis high
+'       0: Pitch/X-axis low
+    int_src := 0
+    readreg(XLG, core.INT_GEN_SRC_G, 1, @int_src)
 
 PUB GyroIntClear() | tmp, reg_nr
 ' Clear gyroscope interrupts and reset all gyroscope interrupt registers to
@@ -818,7 +825,7 @@ PUB MagBias(mxbias, mybias, mzbias, rw=0) | tmp[2]
 '       of respective variables to hold the returned calibration offset values
     case rw
         R:
-            readreg(MAG, core#OFFSET_X_REG_L_M, 6, @tmp)
+            readreg(MAG, core.OFFSET_X_REG_L_M, 6, @tmp)
             long[mxbias] := tmp.word[X_AXIS] signx 15
             long[mybias] := tmp.word[Y_AXIS] signx 15
             long[mzbias] := tmp.word[Z_AXIS] signx 15

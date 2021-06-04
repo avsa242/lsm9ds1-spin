@@ -672,11 +672,18 @@ PUB GyroInactiveSleep(state): curr_state
     return booleanChoice(XLG, core#ACT_THS, core#SLP_ON_INACT, {
 }   core#SLP_ON_INACT_MASK, core#ACT_THS_MASK, state, 1)
 
-PUB GyroInt{}: flag
-' Flag indicating gyroscope interrupt asserted
-'   Returns TRUE if interrupt asserted, FALSE if not
-    readreg(XLG, core#STATUS_REG, 1, @flag)
-    return (((flag >> core#IG_G) & 1) == 1)
+PUB GyroInt{}: int_src
+' Read gyroscope interrupts
+'   Bit 6..0
+'       6: one or more interrupts have been generated
+'       5: Yaw/Z-axis high
+'       4: Yaw/Z-axis low
+'       3: Roll/Y-axis high
+'       2: Roll/Y-axis low
+'       1: Pitch/X-axis high
+'       0: Pitch/X-axis low
+    int_src := 0
+    readreg(XLG, core#INT_GEN_SRC_G, 1, @int_src)
 
 PUB GyroIntClear{} | tmp, reg_nr
 ' Clear gyroscope interrupts and reset all gyroscope interrupt registers to
