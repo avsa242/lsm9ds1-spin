@@ -234,11 +234,18 @@ PUB AccelHighRes(state=-2): curr_state
     return booleanchoice(XLG, core.CTRL_REG7_XL, core.HR, core.HR, {
 }   core.CTRL_REG7_XL_MASK, state, 1)
 
-PUB AccelInt(): flag
-' Flag indicating accelerometer interrupt asserted
-'   Returns TRUE if interrupt asserted, FALSE if not
-    readreg(XLG, core.STATUS_REG, 1, @flag)
-    return (((flag >> core.IG_XL) & 1) == 1)
+PUB AccelInt(): int_src
+' Read accelerometer interrupts
+'   Bit 6..0
+'       6: one or more interrupts have been generated
+'       5: Z-axis high
+'       4: Z-axis low
+'       3: Y-axis high
+'       2: Y-axis low
+'       1: X-axis high
+'       0: X-axis low
+    int_src := 0
+    readreg(XLG, core.INT_GEN_SRC_XL, 1, @int_src)
 
 PUB AccelIntClear() | tmp, reg_nr
 ' Clears out any interrupts set up on the Accelerometer
