@@ -702,6 +702,19 @@ PUB GyroIntDataPath(mode=-2): curr_mode
     mode := ((curr_mode & core.INT_SEL_MASK) | mode)
     writereg(XLG, core.CTRL_REG2_G, 1, @mode)
 
+PUB GyroIntDur(samples=-2): curr_smp
+' Set number of samples gyroscope data must be past threshold to be
+'   considered an interrupt
+'   Valid values: 0..127
+'   Any other value polls the chip and returns the current setting
+    case samples
+        0..127:
+            writereg(XLG, core.INT_GEN_DUR_G, 1, @samples)
+        other:
+            curr_smp := 0
+            readreg(XLG, core.INT_GEN_DUR_G, 1, @curr_smp)
+            return
+
 PUB GyroIntThresh(x, y, z, rw=R) | gscl, lsb, tmp[2], axis
 ' Set gyroscope interrupt thresholds per axis, in micro-dps (signed)
 '   Valid values: +/- full-scale * 1_000_000
