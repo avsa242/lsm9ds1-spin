@@ -263,13 +263,32 @@ PUB AccelIntDur(samples): curr_smp
 '   considered an interrupt
 '   Valid values: 0..127
 '   Any other value polls the chip and returns the current setting
+    curr_smp := 0
+    readreg(XLG, core#INT_GEN_DUR_XL, 1, @curr_smp)
     case samples
         0..127:
-            writereg(XLG, core#INT_GEN_DUR_XL, 1, @samples)
         other:
-            curr_smp := 0
-            readreg(XLG, core#INT_GEN_DUR_XL, 1, @curr_smp)
-            return
+            return (curr_smp & core#SAMPLES_BITS)
+
+    samples := ((curr_smp & core#SAMPLES_MASK) | samples)
+    writereg(XLG, core#INT_GEN_DUR_XL, 1, @samples)
+
+PUB AccelIntHyst(state): curr_state
+' Enable accelerometer interrupt hysteresis
+'   Valid values: TRUE (-1 or 1), FALSE (0)
+'   Any other value polls the chip and returns the current setting
+'   NOTE: The hysteresis used is equivalent to/set by the interrupt
+'       duration time AccelIntDur()
+    curr_state := 0
+    readreg(XLG, core#INT_GEN_DUR_XL, 1, @curr_state)
+    case ||(state)
+        0, 1:
+            state := ||(state) << core#WAIT_XL
+        other:
+            return ((curr_state >> core#WAIT_XL) & 1) == 1
+
+    state := ((curr_state & core#WAIT_XL_MASK) | state)
+    writereg(XLG, core#INT_GEN_DUR_XL, 1, @state)
 
 PUB AccelIntMask(mask): curr_mask
 ' Set accelerometer interrupt mask

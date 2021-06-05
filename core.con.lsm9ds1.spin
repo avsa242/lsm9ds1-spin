@@ -34,7 +34,15 @@ CON
     INT_GEN_THS_X_XL        = $07
     INT_GEN_THS_Y_XL        = $08
     INT_GEN_THS_Z_XL        = $09
+
     INT_GEN_DUR_XL          = $0A
+    INT_GEN_DUR_XL_MASK     = $FF
+        WAIT_XL             = 7
+        SAMPLES             = 0
+        SAMPLES_BITS        = %1111111
+        WAIT_XL_MASK        = (1 << WAIT_XL) ^ INT_GEN_DUR_XL_MASK
+        SAMPLES_MASK        = SAMPLES ^ INT_GEN_DUR_XL_MASK
+
     REFERENCE_G             = $0B
 
     INT1_CTRL               = $0C
