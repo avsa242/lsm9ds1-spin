@@ -94,6 +94,25 @@ CON
     X_HIGH                  = 1 << 1
     X_LOW                   = 1
 
+' INT1 pin interrupts
+    INT1_IG_G               = 1 << 7
+    INT1_IG_XL              = 1 << 6
+    INT1_FSS5               = 1 << 5
+    INT1_OVR                = 1 << 4
+    INT1_FTH                = 1 << 3
+    INT1_BOOT               = 1 << 2
+    INT1_DRDY_G             = 1 << 1
+    INT1_DRDY_XL            = 1
+
+' INT2 pin interrupts
+    INT2_IG_G               = 1 << 7
+    INT2_FSS5               = 1 << 5
+    INT2_OVR                = 1 << 4
+    INT2_FTH                = 1 << 3
+    INT2_DRDY_TEMP          = 1 << 2
+    INT2_DRDY_G             = 1 << 1
+    INT2_DRDY_XL            = 1
+
 OBJ
 
     spi     : "com.spi.4w"
@@ -828,6 +847,43 @@ PUB GyroSleep(state): curr_state
     return booleanChoice(XLG, core#CTRL_REG9, core#SLP_G, core#SLP_G_MASK,{
 }   core#CTRL_REG9_MASK, state, 1)
 
+PUB Int1Mask(mask): curr_mask
+' Set interrupt enable mask on INT1 pin
+'   Bits: 7..0 (1=enable interrupt, 0=disable interrupt)
+'       7: gyroscope interrupt
+'       6: accelerometer interrupt
+'       5: FSS5 interrupt
+'       4: data overrun interrupt
+'       3: FIFO threshold interrupt
+'       2: boot status interrupt
+'       1: gyroscope data ready interrupt
+'       0: acceleromter data ready interrupt
+    case mask
+        %00000000..%11111111:
+            writereg(XLG, core#INT1_CTRL, 1, @mask)
+        other:
+            readreg(XLG, core#INT1_CTRL, 1, @curr_mask)
+            return
+
+PUB Int2Mask(mask): curr_mask
+' Set interrupt enable mask on INT2 pin
+'   Bits: 7..0 (1=enable interrupt, 0=disable interrupt)
+'       7: gyroscope interrupt
+'       6: - N/A -
+'       5: FSS5 interrupt
+'       4: data overrun interrupt
+'       3: FIFO threshold interrupt
+'       2: boot status interrupt
+'       1: gyroscope data ready interrupt
+'       0: acceleromter data ready interrupt
+    case mask
+        %00000000..%11111111:
+            mask &= core#INT2_CTRL_MASK         ' mask off bit 6 (unused)
+            writereg(XLG, core#INT2_CTRL, 1, @mask)
+        other:
+            readreg(XLG, core#INT2_CTRL, 1, @curr_mask)
+            return
+
 PUB Interrupt{}: flag
 ' Flag indicating one or more interrupts asserted
 '   Returns TRUE if one or more interrupts asserted, FALSE if not
@@ -885,9 +941,9 @@ PUB MagBias(mxbias, mybias, mzbias, rw) | tmp[2]
 PUB MagData(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Read the Magnetometer output registers
     readreg(MAG, core#OUT_X_L_M, 6, @tmp)
-    long[ptr_x] := ~~tmp.word[X_AXIS]              ' no offset correction
-    long[ptr_y] := ~~tmp.word[Y_AXIS]              ' because the mag has
-    long[ptr_z] := ~~tmp.word[Z_AXIS]              ' offset registers built-in
+    long[ptr_x] := ~~tmp.word[X_AXIS]           ' no offset correction
+    long[ptr_y] := ~~tmp.word[Y_AXIS]           ' because the mag has
+    long[ptr_z] := ~~tmp.word[Z_AXIS]           ' offset registers built-in
 
 PUB MagDataOverrun{}: status
 ' Magnetometer data overrun

@@ -47,24 +47,10 @@ CON
 
     INT1_CTRL               = $0C
     INT1_CTRL_MASK          = $FF
-        INT1_IG_G           = 7
-        INT1_IG_XL          = 6
-        INT1_FSS5           = 5
-        INT1_OVR            = 4
-        INT1_FTH            = 3
-        INT1_BOOT           = 2
-        INT1_DRDY_G         = 1
-        INT1_DRDY_XL        = 0
-        INT1_IG_G_MASK      = (1 << INT1_IG_G) ^ INT1_CTRL_MASK
-        INT1_IG_XL_MASK     = (1 << INT1_IG_XL) ^ INT1_CTRL_MASK
-        INT1_FSS5_MASK      = (1 << INT1_FSS5) ^ INT1_CTRL_MASK
-        INT1_OVR_MASK       = (1 << INT1_OVR) ^ INT1_CTRL_MASK
-        INT1_FTH_MASK       = (1 << INT1_FTH) ^ INT1_CTRL_MASK
-        INT1_BOOT_MASK      = (1 << INT1_BOOT) ^ INT1_CTRL_MASK
-        INT1_DRDY_G_MASK    = (1 << INT1_DRDY_G) ^ INT1_CTRL_MASK
-        INT1_DRDY_XL_MASK   = (1 << INT1_DRDY_XL) ^ INT1_CTRL_MASK
 
     INT2_CTRL               = $0D
+    INT2_CTRL_MASK          = $BF
+
     WHO_AM_I_XG             = $0F
 
     CTRL_REG1_G             = $10
@@ -271,7 +257,7 @@ CON
     INT_GEN_DUR_G           = $37
     INT_GEN_DUR_G_MASK      = $FF
         WAIT_G              = 7
-'       SAMPLES             = 0
+'       SAMPLES             = 0                 ' same as INT_GEN_DUR_XL def
 '       SAMPLES_BITS        = %1111111
         WAIT_G_MASK         = (1 << WAIT_XL) ^ INT_GEN_DUR_g_MASK
 '       SAMPLES_MASK        = SAMPLES ^ INT_GEN_DUR_g_MASK
