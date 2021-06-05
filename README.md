@@ -7,7 +7,7 @@ This is a P8X32A/Propeller, P2X8C4M64P/Propeller 2 driver object for the STMicro
 
 ## Salient Features
 
-* 3-Wire SPI connection at up to 1MHz (P1), _TBD_ (P2)
+* 3-Wire SPI connection at up to 1MHz (P1), 10MHz (P2)
 * Accelerometer data in raw or calculated output (micro-G's)
 * Gyroscope data in raw or calculated output (micro-degrees per second)
 * Magnetometer data in raw or calculated output (micro-Gauss)
@@ -21,7 +21,7 @@ This is a P8X32A/Propeller, P2X8C4M64P/Propeller 2 driver object for the STMicro
 
 P1/SPIN1:
 * spin-standard-library
-* P1/SPIN1: 1 additional core/cog for the PASM SPI driver
+* P1/SPIN1: 1 additional core/cog for the PASM SPI engine
 
 P2/SPIN2:
 * p2-spin-standard-library
@@ -29,22 +29,20 @@ P2/SPIN2:
 ## Compiler compatibility
 
 * P1/SPIN1: OpenSpin (tested with 1.00.81)
-* P2/SPIN2: FastSpin (tested with 4.1.10-beta)
+* P2/SPIN2: FlexSpin (tested with 5.5.0)
 * ~~BST~~ (incompatible - no preprocessor)
 * ~~Propeller Tool~~ (incompatible - no preprocessor)
 * ~~PNut~~ (incompatible - no preprocessor)
 
 ## Limitations
 
-* Very early in development - may malfunction, or outright fail to build
 * Magnetometer data low-confidence (I have no way to verify this type of sensor, currently)
-* Interrupt I/O pins not currently used in the driver (interrupt status can be read through API, however)
 
 ## TODO
 
 - [ ] Indicate default values in methods
-- [ ] Modify some methods to take scaled parameters, rather than raw register values
-- [ ] Add ability to set temperature scale
+- [x] Modify some methods to take scaled parameters, rather than raw register values
+- [x] Add ability to set temperature scale
 - [ ] Rename methods to the sensor.imu API - WIP
 - [x] Implement 3W SPI driver
 - [ ] Implement 4W SPI driver

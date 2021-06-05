@@ -857,7 +857,7 @@ PUB Int1Mask(mask): curr_mask
 '       3: FIFO threshold interrupt
 '       2: boot status interrupt
 '       1: gyroscope data ready interrupt
-'       0: acceleromter data ready interrupt
+'       0: accelerometer data ready interrupt
     case mask
         %00000000..%11111111:
             writereg(XLG, core#INT1_CTRL, 1, @mask)
@@ -875,7 +875,7 @@ PUB Int2Mask(mask): curr_mask
 '       3: FIFO threshold interrupt
 '       2: boot status interrupt
 '       1: gyroscope data ready interrupt
-'       0: acceleromter data ready interrupt
+'       0: accelerometer data ready interrupt
     case mask
         %00000000..%11111111:
             mask &= core#INT2_CTRL_MASK         ' mask off bit 6 (unused)
