@@ -1,6 +1,6 @@
 {
     --------------------------------------------
-    Filename: sensor.imu.9dof.lsm9ds1.3wspi.spin
+    Filename: sensor.imu.9dof.lsm9ds1.spi.spin
     Author: Jesse Burt
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2021
@@ -93,6 +93,7 @@ CON
     Y_LOW                   = 1 << 2
     X_HIGH                  = 1 << 1
     X_LOW                   = 1
+
 OBJ
 
     spi     : "com.spi.4w"
@@ -479,6 +480,15 @@ PUB FIFOMode(mode): curr_mode
 
     mode := ((curr_mode & core#FMODE_MASK) | mode)
     writereg(XLG, core#FIFO_CTRL, 1, @mode)
+
+PUB FIFODataOverrun{}: flag
+' Flag indicating FIFO has overrun
+'   Returns:
+'       TRUE (-1) if at least one sample has been overwritten
+'       FALSE (0) otherwise
+    flag := 0
+    readreg(XLG, core#FIFO_SRC, 1, @flag)
+    return ((flag >> core#OVRN) & 1) == 1
 
 PUB FIFOThreshold(level): curr_lvl
 ' Set FIFO threshold level

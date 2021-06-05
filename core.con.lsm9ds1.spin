@@ -5,7 +5,7 @@
     Description: LSM9DS1 low-level constants
     Copyright (c) 2021
     Started Feb 9, 2019
-    Updated Jun 4, 2021
+    Updated Jun 5, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -246,6 +246,7 @@ CON
 
     FIFO_SRC                = $2F
         FTH_STAT            = 7
+        OVRN                = 6
         FSS                 = 0
         FSS_BITS            = %111111
 

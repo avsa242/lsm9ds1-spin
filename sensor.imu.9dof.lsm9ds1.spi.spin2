@@ -93,6 +93,7 @@ CON
     Y_LOW                   = 1 << 2
     X_HIGH                  = 1 << 1
     X_LOW                   = 1
+
 OBJ
 
     spi     : "com.spi.bitbang-fast"
@@ -478,6 +479,15 @@ PUB FIFOMode(mode=-2): curr_mode
 
     mode := ((curr_mode & core.FMODE_MASK) | mode)
     writereg(XLG, core.FIFO_CTRL, 1, @mode)
+
+PUB FIFODataOverrun(): flag
+' Flag indicating FIFO has overrun
+'   Returns:
+'       TRUE (-1) if at least one sample has been overwritten
+'       FALSE (0) otherwise
+    flag := 0
+    readreg(XLG, core.FIFO_SRC, 1, @flag)
+    return ((flag >> core.OVRN) & 1) == 1
 
 PUB FIFOThreshold(level=-2): curr_lvl
 ' Set FIFO threshold level
