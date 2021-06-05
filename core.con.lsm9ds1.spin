@@ -269,6 +269,13 @@ CON
     INT_G_BITS              = $7FFF
 
     INT_GEN_DUR_G           = $37
+    INT_GEN_DUR_G_MASK      = $FF
+        WAIT_G              = 7
+'       SAMPLES             = 0
+'       SAMPLES_BITS        = %1111111
+        WAIT_G_MASK         = (1 << WAIT_XL) ^ INT_GEN_DUR_g_MASK
+'       SAMPLES_MASK        = SAMPLES ^ INT_GEN_DUR_g_MASK
+
     OFFSET_X_REG_L_M        = $05
     OFFSET_X_REG_H_M        = $06
     OFFSET_Y_REG_L_M        = $07
