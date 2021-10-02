@@ -18,11 +18,18 @@ CON
     LED         = cfg#LED1
     SER_BAUD    = 115_200
 
-    SPI_CS_AG   = 0                             ' SPI
-    SPI_CS_M    = 1                             ' SPI
-    SPI_SCL     = 2                             ' SPI, I2C
+' I2C configuration
+    I2C_SCL     = 28
+    I2C_SDA     = 29
+    I2C_HZ      = 400_000                       ' 400_000 max
+
+' SPI configuration
+
+    SPI_CS_AG   = 0
+    SPI_CS_M    = 1
+    SPI_SCL     = 2
     SPI_SDIO    = 3                             ' SPI (3-wire only)
-    SPI_SDA     = 3                             ' SPI, I2C
+    SPI_SDA     = 3
     SPI_SDO     = 4                             ' SPI (4-wire only)
 ' --
 
@@ -36,7 +43,7 @@ OBJ
     ser     : "com.serial.terminal.ansi"
     time    : "time"
     int     : "string.integer"
-    imu     : "sensor.imu.9dof.lsm9ds1.spi"
+    imu     : "sensor.imu.9dof.lsm9ds1.i2cspi"
 
 PUB Main{}
 
@@ -138,7 +145,10 @@ PUB Setup{}
     time.msleep(30)
     ser.clear{}
     ser.strln(string("Serial terminal started"))
-#ifdef LSM9DS1_SPI3W
+#ifdef LSM9DS1_I2C
+    if imu.startx(I2C_SCL, I2C_SDA, I2C_HZ)
+        ser.strln(string("LSM9DS1 driver started (I2C)"))
+#elseifdef LSM9DS1_SPI3W
     if imu.startx(SPI_CS_AG, SPI_CS_M, SPI_SCL, SPI_SDIO)
         ser.strln(string("LSM9DS1 driver started (SPI 3-wire)"))
 #elseifdef LSM9DS1_SPI4W

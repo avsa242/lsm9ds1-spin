@@ -11,11 +11,20 @@
 }
 
 CON
+' I2C Configuration
+    I2C_MAX_FREQ            = 400_000                   ' device max I2C bus freq
+    SLAVE_ADDR_XLG          = $6A << 1                  ' 7-bit format slave address
+    SLAVE_ADDR_MAG          = $1C << 1
+    T_POR                   = 1_000                     ' startup time (usecs)
+    MB_I2C                  = 1 << 7
+
 ' SPI Configuration
     SPI_MODE                = 3
     SPI_MAX_FREQ            = 10_000_000
 
     TPOR                    = 110_000           ' usec
+    MS_SPI                  = 1 << 6
+
     WHOAMI_AG_RESP          = $68
     WHOAMI_M_RESP           = $3D
     WHOAMI_BOTH_RESP        = (WHOAMI_AG_RESP << 8) | WHOAMI_M_RESP

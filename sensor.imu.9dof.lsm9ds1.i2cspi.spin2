@@ -1,6 +1,6 @@
 {
     --------------------------------------------
-    Filename: sensor.imu.9dof.lsm9ds1.spi.spin
+    Filename: sensor.imu.9dof.lsm9ds1.spi.spin2
     Author: Jesse Burt
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2021
@@ -15,6 +15,9 @@
 #define LSM9DS1_SPI
 #endif
 CON
+
+    DEF_HZ                  = 100_000
+    I2C_MAX_FREQ            = core.I2C_MAX_FREQ
 
 ' Indicate to user apps how many Degrees of Freedom each sub-sensor has
 '   (also imply whether or not it has a particular sensor)
@@ -60,11 +63,11 @@ CON
     ACTIVE_LOW              = 1
 
 ' FIFO settings
-    FIFO_OFF                = core#FIFO_OFF
-    FIFO_THS                = core#FIFO_THS
-    FIFO_CONT_TRIG          = core#FIFO_CONT_TRIG
-    FIFO_OFF_TRIG           = core#FIFO_OFF_TRIG
-    FIFO_CONT               = core#FIFO_CONT
+    FIFO_OFF                = core.FIFO_OFF
+    FIFO_THS                = core.FIFO_THS
+    FIFO_CONT_TRIG          = core.FIFO_CONT_TRIG
+    FIFO_OFF_TRIG           = core.FIFO_OFF_TRIG
+    FIFO_CONT               = core.FIFO_CONT
 
 ' Sensor-specific constants
     XLG                     = 0
@@ -119,9 +122,13 @@ CON
 
 OBJ
 
-    spi     : "com.spi.4w"
+#ifdef LSM9DS1_I2C
+    i2c     : "com.i2c"
+#elseifdef LSM9DS1_SPI
+    spi     : "com.spi.bitbang-fast"
+#error "One of LSM9DS1_I2C, LSM9DS1_SPI3W, or LSM9DS1_SPI4W must be defined"
+#endif
     core    : "core.con.lsm9ds1"
-    time    : "time"
 
 VAR
 
@@ -131,54 +138,70 @@ VAR
     long _CS_AG, _CS_M
     byte _temp_scale
 
-PUB Null{}
+PUB Null()
 ' This is not a top-level object
 
-#ifdef LSM9DS1_SPI3W
-PUB Startx(CS_AG_PIN, CS_M_PIN, SCL_PIN, SDIO_PIN): status
+#ifdef LSM9DS1_I2C
+PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): status
 ' Start using custom I/O pins
-    if lookdown(SCL_PIN: 0..31) and lookdown(SDIO_PIN: 0..31) and {
-}   lookdown(CS_AG_PIN: 0..31) and lookdown(CS_M_PIN: 0..31)
-        if (status := spi.init(SCL_PIN, SDIO_PIN, SDIO_PIN, core#SPI_MODE))
+    if lookdown(SCL_PIN: 0..63) and lookdown(SDA_PIN: 0..63) and {
+}   I2C_HZ <= core.I2C_MAX_FREQ
+        if (status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ))
+            waitus(core.TPOR)                   ' startup time
+
+            if deviceid{} == core.WHOAMI_BOTH_RESP
+                xlgsoftreset()                  ' reset/initialize to
+                magsoftreset()                  ' POR defaults
+                return status                   ' validate device
+    ' if this point is reached, something above failed
+    ' Double check I/O pin assignments, connections, power
+    ' Lastly - make sure you have at least one free core/cog
+    return FALSE
+#elseifdef LSM9DS1_SPI3W
+PUB Startx(CS_AG_PIN, CS_M_PIN, SCL_PIN, SDIO_PIN, SPI_HZ=1_000_000): status
+' Start using custom I/O pins
+    if lookdown(SCL_PIN: 0..63) and lookdown(SDIO_PIN: 0..63) and {
+}   lookdown(CS_AG_PIN: 0..63) and lookdown(CS_M_PIN: 0..63) and {
+}   SPI_HZ <= core.SPI_MAX_FREQ
+        if (status := spi.init(SCL_PIN, SDIO_PIN, SDIO_PIN, core.SPI_MODE, {
+}       SPI_HZ))
             longmove(@_CS_AG, @CS_AG_PIN, 2)
-            outa[_CS_AG] := 1                   ' make sure CS starts
-            outa[_CS_M] := 1                    '   high
-            dira[_CS_AG] := 1
-            dira[_CS_M] := 1
-            time.usleep(core#TPOR)              ' startup time
+
+            pinh(_CS_AG)                        ' make sure CS starts
+            pinh(_CS_M)                         '   high
+            waitus(core.TPOR)                   ' startup time
 
             spimode(3)
 
-            if deviceid{} == core#WHOAMI_BOTH_RESP
-                xlgsoftreset{}                  ' reset/initialize to
-                magsoftreset{}                  ' POR defaults
+            if deviceid() == core.WHOAMI_BOTH_RESP
+                xlgsoftreset()                  ' reset/initialize to
+                magsoftreset()                  ' POR defaults
                 return status                   ' validate device
     ' if this point is reached, something above failed
     ' Double check I/O pin assignments, connections, power
     ' Lastly - make sure you have at least one free core/cog
     return FALSE
 #elseifdef LSM9DS1_SPI4W
-PUB Startx(CS_AG_PIN, CS_M_PIN, SCL_PIN, SDA_PIN, SDO_PIN): status
+PUB Startx(CS_AG_PIN, CS_M_PIN, SCL_PIN, SDA_PIN, SDO_PIN, SPI_HZ=1_000_000): status
 ' Start using custom I/O pins
-    if lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) and {
-}   lookdown(CS_AG_PIN: 0..31) and lookdown(CS_M_PIN: 0..31) and {
-}   lookdown(SDO_PIN: 0..31)
-        if (status := spi.init(SCL_PIN, SDA_PIN, SDO_PIN, core#SPI_MODE))
+    if lookdown(SCL_PIN: 0..63) and lookdown(SDA_PIN: 0..63) and {
+}   lookdown(CS_AG_PIN: 0..63) and lookdown(CS_M_PIN: 0..63) and {
+}   lookdown(SDO_PIN: 0..63) and SPI_HZ <= core.SPI_MAX_FREQ
+        if (status := spi.init(SCL_PIN, SDA_PIN, SDO_PIN, core.SPI_MODE))
             longmove(@_CS_AG, @CS_AG_PIN, 2)
-            outa[_CS_AG] := 1                   ' make sure CS starts
-            outa[_CS_M] := 1                    '   high
-            dira[_CS_AG] := 1
-            dira[_CS_M] := 1
-            time.usleep(core#TPOR)              ' startup time
+
+            pinh(_CS_AG)                        ' make sure CS starts
+            pinh(_CS_M)                         '   high
+            waitus(core.TPOR)                   ' startup time
 
             spimode(4)
 
-            xlgsoftreset{}                      ' reset/initialize to
-            magsoftreset{}                      ' POR defaults
+            xlgsoftreset()                      ' reset/initialize to
+            magsoftreset()                      ' POR defaults
 
-            if deviceid{} == core#WHOAMI_BOTH_RESP
-                xlgsoftreset{}                  ' reset/initialize to
-                magsoftreset{}                  ' POR defaults
+            if deviceid() == core.WHOAMI_BOTH_RESP
+                xlgsoftreset()                  ' reset/initialize to
+                magsoftreset()                  ' POR defaults
                 return status                   ' validate device
     ' if this point is reached, something above failed
     ' Double check I/O pin assignments, connections, power
@@ -186,28 +209,34 @@ PUB Startx(CS_AG_PIN, CS_M_PIN, SCL_PIN, SDA_PIN, SDO_PIN): status
     return FALSE
 #endif
 
-PUB Stop{}
+PUB Stop()
 
-    spi.deinit{}
+#ifdef LSM9DS1_I2C
+    i2c.deinit()
+#elseifdef LSM9DS1_SPI
+    spi.deinit()
+#endif
 
-PUB Defaults{}
+PUB Defaults()
 ' Factory default settings
-    xlgsoftreset{}
-    magsoftreset{}
-    time.usleep(core#TPOR)
+    xlgsoftreset()
+    magsoftreset()
+    waitus(core.TPOR)
 
-PUB Preset_Active{}
+PUB Preset_Active()
 ' Like Defaults(), but
 '   * enables output data (XL/G: 59Hz, Mag: 40Hz)
-'   * sets SPI mode to 3-wire
-'   * disables magnetometer I2C interface
-    xlgsoftreset{}
-    magsoftreset{}
-    time.usleep(core#TPOR)
+    xlgsoftreset()
+    magsoftreset()
+    waitus(core.TPOR)
 
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
     addressautoinc(TRUE)
+#ifdef LSM9DS1_I2C
+    magi2c(FALSE)                               ' enable mag I2C interface
+#elseifdef LSM9DS1_SPI
     magi2c(FALSE)                               ' disable mag I2C interface
+#endif
     xlgdatablockupdate(TRUE)                    ' ensure MSB & LSB are from
     magblockupdate(TRUE)                        '   the same "frame" of data
     xlgdatarate(59)                             ' arbitrary
@@ -216,21 +245,21 @@ PUB Preset_Active{}
     accelscale(2)                               ' but still need to call these
     magscale(4)                                 ' to set scale factor hub vars
 
-PUB AccelAxisEnabled(mask): curr_mask
+PUB AccelAxisEnabled(mask=-2): curr_mask
 ' Enable data output for Accelerometer - per axis
 '   Valid values: FALSE (0) or TRUE (1 or -1), for each axis
 '   Any other value polls the chip and returns the current setting
-    readreg(XLG, core#CTRL_REG5_XL, 1, @curr_mask)
+    readreg(XLG, core.CTRL_REG5_XL, 1, @curr_mask)
     case mask
         %000..%111:
-            mask <<= core#XEN_XL
+            mask <<= core.XEN_XL
         other:
-            return ((curr_mask >> core#EN_XL) & core#EN_XL_BITS)
+            return ((curr_mask >> core.EN_XL) & core.EN_XL_BITS)
 
-    mask := ((curr_mask & core#EN_XL_MASK) | mask)
-    writereg(XLG, core#CTRL_REG5_XL, 1, @mask)
+    mask := ((curr_mask & core.EN_XL_MASK) | mask)
+    writereg(XLG, core.CTRL_REG5_XL, 1, @mask)
 
-PUB AccelBias(axbias, aybias, azbias, rw)
+PUB AccelBias(axbias, aybias, azbias, rw=0)
 ' Read or write/manually set accelerometer calibration offset values
 '   Valid values:
 '       rw:
@@ -260,26 +289,26 @@ PUB AccelBias(axbias, aybias, azbias, rw)
 
 PUB AccelData(ax, ay, az) | tmp[2]
 ' Reads the Accelerometer output registers
-    readreg(XLG, core#OUT_X_L_XL, 6, @tmp)
+    readreg(XLG, core.OUT_X_L_XL, 6, @tmp)
 
-    long[ax] := ~~tmp.word[X_AXIS] - _abiasraw[X_AXIS]
-    long[ay] := ~~tmp.word[Y_AXIS] - _abiasraw[Y_AXIS]
-    long[az] := ~~tmp.word[Z_AXIS] - _abiasraw[Z_AXIS]
+    long[ax] := (tmp.word[X_AXIS] signx 15) - _abiasraw[X_AXIS]
+    long[ay] := (tmp.word[Y_AXIS] signx 15) - _abiasraw[Y_AXIS]
+    long[az] := (tmp.word[Z_AXIS] signx 15) - _abiasraw[Z_AXIS]
 
-PUB AccelDataOverrun{}: flag
+PUB AccelDataOverrun(): flag
 ' Dummy method
 
-PUB AccelDataRate(rate): curr_rate
+PUB AccelDataRate(rate=-2): curr_rate
 ' Set accelerometer output data rate, in Hz
 '   NOTE: This is locked with the gyroscope output data rate
 '       (hardware limitation)
     return xlgdatarate(rate)
 
-PUB AccelDataReady{} | tmp
+PUB AccelDataReady() | tmp
 ' Accelerometer sensor new data available
 '   Returns TRUE or FALSE
-    readreg(XLG, core#STATUS_REG, 1, @tmp)
-    result := (((tmp >> core#XLDA) & 1) == 1)
+    readreg(XLG, core.STATUS_REG, 1, @tmp)
+    result := (((tmp >> core.XLDA) & 1) == 1)
 
 PUB AccelG(ax, ay, az) | tmpx, tmpy, tmpz
 ' Reads the Accelerometer output registers and scales the outputs to
@@ -289,14 +318,14 @@ PUB AccelG(ax, ay, az) | tmpx, tmpy, tmpz
     long[ay] := tmpy * _ares
     long[az] := tmpz * _ares
 
-PUB AccelHighRes(state): curr_state
+PUB AccelHighRes(state=-2): curr_state
 ' Enable high resolution mode for accelerometer
 '   Valid values: FALSE (0) or TRUE (1 or -1)
 '   Any other value polls the chip and returns the current setting
-    return booleanchoice(XLG, core#CTRL_REG7_XL, core#HR, core#HR, {
-}   core#CTRL_REG7_XL_MASK, state, 1)
+    return booleanchoice(XLG, core.CTRL_REG7_XL, core.HR, core.HR, {
+}   core.CTRL_REG7_XL_MASK, state, 1)
 
-PUB AccelInt{}: int_src
+PUB AccelInt(): int_src
 ' Read accelerometer interrupts
 '   Bit 6..0
 '       6: one or more interrupts have been generated
@@ -308,41 +337,41 @@ PUB AccelInt{}: int_src
 '       0: X-axis low
 '   NOTE: Calling this method will clear the interrupts
     int_src := 0
-    readreg(XLG, core#INT_GEN_SRC_XL, 1, @int_src)
+    readreg(XLG, core.INT_GEN_SRC_XL, 1, @int_src)
 
-PUB AccelIntDur(samples): curr_smp
+PUB AccelIntDur(samples=-2): curr_smp
 ' Set number of samples accelerometer data must be past threshold to be
 '   considered an interrupt
 '   Valid values: 0..127
 '   Any other value polls the chip and returns the current setting
     curr_smp := 0
-    readreg(XLG, core#INT_GEN_DUR_XL, 1, @curr_smp)
+    readreg(XLG, core.INT_GEN_DUR_XL, 1, @curr_smp)
     case samples
         0..127:
         other:
-            return (curr_smp & core#SAMPLES_BITS)
+            return (curr_smp & core.SAMPLES_BITS)
 
-    samples := ((curr_smp & core#SAMPLES_MASK) | samples)
-    writereg(XLG, core#INT_GEN_DUR_XL, 1, @samples)
+    samples := ((curr_smp & core.SAMPLES_MASK) | samples)
+    writereg(XLG, core.INT_GEN_DUR_XL, 1, @samples)
 
-PUB AccelIntHyst(state): curr_state
+PUB AccelIntHyst(state=-2): curr_state
 ' Enable accelerometer interrupt hysteresis
 '   Valid values: TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
 '   NOTE: The hysteresis used is equivalent to/set by the interrupt
 '       duration time AccelIntDur()
     curr_state := 0
-    readreg(XLG, core#INT_GEN_DUR_XL, 1, @curr_state)
-    case ||(state)
+    readreg(XLG, core.INT_GEN_DUR_XL, 1, @curr_state)
+    case abs(state)
         0, 1:
-            state := ||(state) << core#WAIT_XL
+            state := abs(state) << core.WAIT_XL
         other:
-            return ((curr_state >> core#WAIT_XL) & 1) == 1
+            return ((curr_state >> core.WAIT_XL) & 1) == 1
 
-    state := ((curr_state & core#WAIT_XL_MASK) | state)
-    writereg(XLG, core#INT_GEN_DUR_XL, 1, @state)
+    state := ((curr_state & core.WAIT_XL_MASK) | state)
+    writereg(XLG, core.INT_GEN_DUR_XL, 1, @state)
 
-PUB AccelIntMask(mask): curr_mask
+PUB AccelIntMask(mask=-2): curr_mask
 ' Set accelerometer interrupt mask
 '   Valid values:
 '       bits 7..0
@@ -357,19 +386,19 @@ PUB AccelIntMask(mask): curr_mask
 '   Any other value polls the chip and returns the current setting
     case mask
         %00000000..%11111111:
-            writereg(XLG, core#INT_GEN_CFG_XL, 1, @mask)
+            writereg(XLG, core.INT_GEN_CFG_XL, 1, @mask)
         other:
             curr_mask := 0
-            readreg(XLG, core#INT_GEN_CFG_XL, 1, @curr_mask)
+            readreg(XLG, core.INT_GEN_CFG_XL, 1, @curr_mask)
             return
 
-PUB AccelIntThresh(x, y, z, rw) | lsb, ascl, tmp
+PUB AccelIntThresh(x, y, z, rw=R) | lsb, ascl, tmp
 ' Set accelerometer interrupt thresholds per axis, in micro-g's (unsigned)
 '   Valid values: 0..(full-scale * 1_000_000)
 '   Any other value will be clamped to min/max limits
 '   NOTE: When rw == R (0), x, y, and z must be pointers to variables
 '       to hold values read from chip
-    ascl := accelscale(-2) * 1_000000
+    ascl := accelscale() * 1_000000
     lsb := ascl / 256                           ' calc LSB for the thresh reg
 
     case rw
@@ -380,40 +409,40 @@ PUB AccelIntThresh(x, y, z, rw) | lsb, ascl, tmp
             x /= lsb                            ' scale values down to reg's
             y /= lsb                            '   8-bit format
             z /= lsb
-            writereg(XLG, core#INT_GEN_THS_X_XL, 1, @x)
-            writereg(XLG, core#INT_GEN_THS_Y_XL, 1, @y)
-            writereg(XLG, core#INT_GEN_THS_Z_XL, 1, @z)
+            writereg(XLG, core.INT_GEN_THS_X_XL, 1, @x)
+            writereg(XLG, core.INT_GEN_THS_Y_XL, 1, @y)
+            writereg(XLG, core.INT_GEN_THS_Z_XL, 1, @z)
         R:
             tmp := 0
-            readreg(XLG, core#INT_GEN_THS_X_XL, 3, @tmp)
+            readreg(XLG, core.INT_GEN_THS_X_XL, 3, @tmp)
             long[x] := tmp.byte[X_AXIS] * lsb   ' scale values up to output
             long[y] := tmp.byte[Y_AXIS] * lsb   '   data scale (micro-g's)
             long[z] := tmp.byte[Z_AXIS] * lsb
 
-PUB AccelScale(scale): curr_scl
+PUB AccelScale(scale=-2): curr_scl
 ' Sets the full-scale range of the Accelerometer, in g's
 '   Valid values: 2, 4, 8, 16
 '   Any other value polls the chip and returns the current setting
-    readreg(XLG, core#CTRL_REG6_XL, 1, @curr_scl)
+    readreg(XLG, core.CTRL_REG6_XL, 1, @curr_scl)
     case scale
         2, 4, 8, 16:
             scale := lookdownz(scale: 2, 16, 4, 8)
             _ares := lookupz(scale: 0_000061, 0_000732, 0_000122, 0_000244)
-            scale <<= core#FS_XL
+            scale <<= core.FS_XL
         other:
-            curr_scl := ((curr_scl >> core#FS_XL) & core#FS_XL_BITS) + 1
+            curr_scl := ((curr_scl >> core.FS_XL) & core.FS_XL_BITS) + 1
             return lookup(curr_scl: 2, 16, 4, 8)
 
-    scale := ((curr_scl & core#FS_XL_MASK) | scale)
-    writereg(XLG, core#CTRL_REG6_XL, 1, @scale)
+    scale := ((curr_scl & core.FS_XL_MASK) | scale)
+    writereg(XLG, core.CTRL_REG6_XL, 1, @scale)
 
-PUB CalibrateAccel{} | axis, orig_res, orig_scl, orig_dr, tmp[ACCEL_DOF], tmpx, tmpy, tmpz, samples
+PUB CalibrateAccel() | axis, orig_res, orig_scl, orig_dr, tmp[ACCEL_DOF], tmpx, tmpy, tmpz, samples
 ' Calibrate the accelerometer
 '   NOTE: The accelerometer must be oriented with the package top facing up
 '       for this method to be successful
     longfill(@axis, 0, 11)                      ' initialize vars to 0
-    orig_scl := accelscale(-2)                  ' save user's current settings
-    orig_dr := acceldatarate(-2)
+    orig_scl := accelscale()                    ' save user's current settings
+    orig_dr := acceldatarate()
     accelbias(0, 0, 0, W)                       ' clear existing bias
 
     ' set sensor to CAL_XL_SCL range, CAL_XL_DR Hz data rate
@@ -423,7 +452,7 @@ PUB CalibrateAccel{} | axis, orig_res, orig_scl, orig_dr, tmp[ACCEL_DOF], tmpx, 
 
     ' accumulate and average approx. 1sec worth of samples
     repeat samples
-        repeat until acceldataready{}
+        repeat until acceldataready()
         acceldata(@tmpx, @tmpy, @tmpz)
         tmp[X_AXIS] += tmpx
         tmp[Y_AXIS] += tmpy
@@ -438,11 +467,11 @@ PUB CalibrateAccel{} | axis, orig_res, orig_scl, orig_dr, tmp[ACCEL_DOF], tmpx, 
     accelscale(orig_scl)                        ' restore user's settings
     acceldatarate(orig_dr)
 
-PUB CalibrateGyro{} | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[GYRO_DOF], samples
+PUB CalibrateGyro() | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[GYRO_DOF], samples
 ' Calibrate the gyroscope
     longfill(@axis, 0, 10)                      ' initialize vars to 0
-    orig_scl := gyroscale(-2)                   ' save user's current settings
-    orig_dr := gyrodatarate(-2)
+    orig_scl := gyroscale()                     ' save user's current settings
+    orig_dr := gyrodatarate()
     gyrobias(0, 0, 0, W)                        ' clear existing bias
 
     ' set sensor to CAL_G_SCL range, CAL_G_DR Hz data rate
@@ -452,7 +481,7 @@ PUB CalibrateGyro{} | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[GYRO_DOF], 
 
     ' accumulate and average approx. 1sec worth of samples
     repeat samples
-        repeat until gyrodataready{}
+        repeat until gyrodataready()
         gyrodata(@tmpx, @tmpy, @tmpz)
         tmp[X_AXIS] += tmpx
         tmp[Y_AXIS] += tmpy
@@ -467,11 +496,11 @@ PUB CalibrateGyro{} | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[GYRO_DOF], 
     gyroscale(orig_scl)                         ' restore user's settings
     gyrodatarate(orig_dr)
 
-PUB CalibrateMag{} | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[MAG_DOF], samples
+PUB CalibrateMag() | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[MAG_DOF], samples
 ' Calibrate the magnetometer
     longfill(@axis, 0, 11)                      ' initialize vars to 0
-    orig_scl := magscale(-2)                    ' save user's current settings
-    orig_dr := magdatarate(-2)
+    orig_scl := magscale()                      ' save user's current settings
+    orig_dr := magdatarate()
     magbias(0, 0, 0, W)                         ' clear existing bias
 
     ' set sensor to CAL_M_SCL range, CAL_M_DR Hz data rate
@@ -481,7 +510,7 @@ PUB CalibrateMag{} | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[MAG_DOF], sa
 
     ' accumulate and average approx. 1sec worth of samples
     repeat samples
-        repeat until magdataready{}
+        repeat until magdataready()
         magdata(@tmpx, @tmpy, @tmpz)
         tmp[X_AXIS] += tmpx
         tmp[Y_AXIS] += tmpy
@@ -496,41 +525,41 @@ PUB CalibrateMag{} | axis, orig_scl, orig_dr, tmpx, tmpy, tmpz, tmp[MAG_DOF], sa
     magscale(orig_scl)                          ' restore user's settings
     magdatarate(orig_dr)
 
-PUB DeviceID{}: id
+PUB DeviceID(): id
 ' Read device identification
 '   Returns: $683D
     id := 0
-    readreg(XLG, core#WHO_AM_I_XG, 1, @id.byte[1])
-    readreg(MAG, core#WHO_AM_I_M, 1, @id.byte[0])
+    readreg(XLG, core.WHO_AM_I_XG, 1, @id.byte[1])
+    readreg(MAG, core.WHO_AM_I_M, 1, @id.byte[0])
 
-PUB Endian(order): curr_order  'XXX rename to DataByteOrder()
+PUB Endian(order=-2): curr_order  'XXX rename to DataByteOrder()
 ' Choose byte order of acclerometer/gyroscope data
 '   Valid values: LITTLE (0) or BIG (1)
 '   Any other value polls the chip and returns the current setting
-    readreg(XLG, core#CTRL_REG8, 1, @curr_order)
+    readreg(XLG, core.CTRL_REG8, 1, @curr_order)
     case order
         LITTLE, BIG:
-            order := order << core#BLE
+            order := order << core.BLE
         other:
-            return ((curr_order >> core#BLE) & 1)
+            return ((curr_order >> core.BLE) & 1)
 
-    order := ((curr_order & core#BLE_MASK) | order)
-    writereg(XLG, core#CTRL_REG8, 1, @order)
+    order := ((curr_order & core.BLE_MASK) | order)
+    writereg(XLG, core.CTRL_REG8, 1, @order)
 
-PUB FIFOEnabled(state): curr_state
+PUB FIFOEnabled(state=-2): curr_state
 ' Enable FIFO memory
 '   Valid values: FALSE (0), TRUE(1 or -1)
 '   Any other value polls the chip and returns the current setting
-    return booleanchoice(XLG, core#CTRL_REG9, core#FIFO_EN, core#FIFO_EN,{
-}   core#CTRL_REG9_MASK, state, 1)
+    return booleanchoice(XLG, core.CTRL_REG9, core.FIFO_EN, core.FIFO_EN,{
+}   core.CTRL_REG9_MASK, state, 1)
 
-PUB FIFOFull{}: flag
+PUB FIFOFull(): flag
 ' FIFO Threshold status
 '   Returns: FALSE (0): lower than threshold level, TRUE(-1): at or higher than threshold level
-    readreg(XLG, core#FIFO_SRC, 1, @flag)
-    return (((flag >> core#FTH_STAT) & 1) == 1)
+    readreg(XLG, core.FIFO_SRC, 1, @flag)
+    return (((flag >> core.FTH_STAT) & 1) == 1)
 
-PUB FIFOMode(mode): curr_mode
+PUB FIFOMode(mode=-2): curr_mode
 ' Set FIFO behavior
 '   Valid values:
 '       FIFO_OFF        (%000) - Bypass mode - FIFO off
@@ -542,59 +571,59 @@ PUB FIFOMode(mode): curr_mode
 '       FIFO_CONT       (%110) - Continuous mode. If FIFO full, new sample
 '           overwrites older sample
 '   Any other value polls the chip and returns the current setting
-    readreg(XLG, core#FIFO_CTRL, 1, @curr_mode)
+    readreg(XLG, core.FIFO_CTRL, 1, @curr_mode)
     case mode
         FIFO_OFF, FIFO_THS, FIFO_CONT_TRIG, FIFO_OFF_TRIG, FIFO_CONT:
-            mode <<= core#FMODE
+            mode <<= core.FMODE
         other:
-            return (curr_mode >> core#FMODE) & core#FMODE_BITS
+            return (curr_mode >> core.FMODE) & core.FMODE_BITS
 
-    mode := ((curr_mode & core#FMODE_MASK) | mode)
-    writereg(XLG, core#FIFO_CTRL, 1, @mode)
+    mode := ((curr_mode & core.FMODE_MASK) | mode)
+    writereg(XLG, core.FIFO_CTRL, 1, @mode)
 
-PUB FIFODataOverrun{}: flag
+PUB FIFODataOverrun(): flag
 ' Flag indicating FIFO has overrun
 '   Returns:
 '       TRUE (-1) if at least one sample has been overwritten
 '       FALSE (0) otherwise
     flag := 0
-    readreg(XLG, core#FIFO_SRC, 1, @flag)
-    return ((flag >> core#OVRN) & 1) == 1
+    readreg(XLG, core.FIFO_SRC, 1, @flag)
+    return ((flag >> core.OVRN) & 1) == 1
 
-PUB FIFOThreshold(level): curr_lvl
+PUB FIFOThreshold(level=-2): curr_lvl
 ' Set FIFO threshold level
 '   Valid values: 0..31
 '   Any other value polls the chip and returns the current setting
-    readreg(XLG, core#FIFO_CTRL, 1, @curr_lvl)
+    readreg(XLG, core.FIFO_CTRL, 1, @curr_lvl)
     case level
         0..31:
         other:
-            return curr_lvl & core#FTH_BITS
+            return curr_lvl & core.FTH_BITS
 
-    level := ((curr_lvl & core#FTH_MASK) | level)
-    writereg(XLG, core#FIFO_CTRL, 1, @level)
+    level := ((curr_lvl & core.FTH_MASK) | level)
+    writereg(XLG, core.FIFO_CTRL, 1, @level)
 
-PUB FIFOUnreadSamples{}: nr_samples
+PUB FIFOUnreadSamples(): nr_samples
 ' Number of unread samples stored in FIFO
 '   Returns: 0 (empty) .. 32
-    readreg(XLG, core#FIFO_SRC, 1, @nr_samples)
-    return nr_samples & core#FSS_BITS
+    readreg(XLG, core.FIFO_SRC, 1, @nr_samples)
+    return nr_samples & core.FSS_BITS
 
-PUB GyroAxisEnabled(mask): curr_mask
+PUB GyroAxisEnabled(mask=-2): curr_mask
 ' Enable Gyroscope data output, per axis mask
 '   Valid values: 0 or 1, for each axis
 '   Any other value polls the chip and returns the current setting
-    readreg(XLG, core#CTRL_REG4, 1, @curr_mask)
+    readreg(XLG, core.CTRL_REG4, 1, @curr_mask)
     case mask
         %000..%111:
-            mask <<= core#XEN_G
+            mask <<= core.XEN_G
         other:
-            return (curr_mask >> core#XEN_G) & core#EN_G_BITS
+            return (curr_mask >> core.XEN_G) & core.EN_G_BITS
 
-    mask := ((curr_mask & core#EN_G_MASK) | mask)
-    writereg(XLG, core#CTRL_REG4, 1, @mask)
+    mask := ((curr_mask & core.EN_G_MASK) | mask)
+    writereg(XLG, core.CTRL_REG4, 1, @mask)
 
-PUB GyroBias(gxbias, gybias, gzbias, rw)
+PUB GyroBias(gxbias, gybias, gzbias, rw=0)
 ' Read or write/manually set Gyroscope calibration offset values
 '   Valid values:
 '       rw:
@@ -624,37 +653,37 @@ PUB GyroBias(gxbias, gybias, gzbias, rw)
 
 PUB GyroData(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Read gyroscope data
-    readreg(XLG, core#OUT_X_G_L, 6, @tmp)
-    long[ptr_x] := ~~tmp.word[X_AXIS] - _gbiasraw[X_AXIS]
-    long[ptr_y] := ~~tmp.word[Y_AXIS] - _gbiasraw[Y_AXIS]
-    long[ptr_z] := ~~tmp.word[Z_AXIS] - _gbiasraw[Z_AXIS]
+    readreg(XLG, core.OUT_X_G_L, 6, @tmp)
+    long[ptr_x] := (tmp.word[X_AXIS] signx 15) - _gbiasraw[X_AXIS]
+    long[ptr_y] := (tmp.word[Y_AXIS] signx 15) - _gbiasraw[Y_AXIS]
+    long[ptr_z] := (tmp.word[Z_AXIS] signx 15) - _gbiasraw[Z_AXIS]
 
-PUB GyroDataOverrun{}
+PUB GyroDataOverrun()
 ' dummy method
 
-PUB GyroDataRate(rate): curr_rate
+PUB GyroDataRate(rate=-2): curr_rate
 ' Set Gyroscope Output Data Rate, in Hz
 '   Valid values: 0, 15, 60, 119, 238, 476, 952
 '   Any other value polls the chip and returns the current setting
 '   NOTE: 0 powers down the Gyroscope
 '   NOTE: 15 and 60 are rounded up from the datasheet specifications of 14.9
 '       and 59.5, respectively
-    readreg(XLG, core#CTRL_REG1_G, 1, @curr_rate)
+    readreg(XLG, core.CTRL_REG1_G, 1, @curr_rate)
     case rate
         0, 15, 60, 119, 238, 476, 952:
-            rate := lookdownz(rate: 0, 15, 60, 119, 238, 476, 952) << core#ODR
+            rate := lookdownz(rate: 0, 15, 60, 119, 238, 476, 952) << core.ODR
         other:
-            curr_rate := ((curr_rate >> core#ODR) & core#ODR_BITS)
+            curr_rate := ((curr_rate >> core.ODR) & core.ODR_BITS)
             return lookupz(curr_rate: 0, 15, 60, 119, 238, 476, 952)
 
-    rate := ((curr_rate & core#ODR_MASK) | rate)
-    writereg(XLG, core#CTRL_REG1_G, 1, @rate)
+    rate := ((curr_rate & core.ODR_MASK) | rate)
+    writereg(XLG, core.CTRL_REG1_G, 1, @rate)
 
-PUB GyroDataReady{}: flag
+PUB GyroDataReady(): flag
 ' Flag indicating new gyroscope data available
 '   Returns TRUE or FALSE
-    readreg(XLG, core#STATUS_REG, 1, @flag)
-    return (((flag >> core#GDA) & 1) == 1)
+    readreg(XLG, core.STATUS_REG, 1, @flag)
+    return (((flag >> core.GDA) & 1) == 1)
 
 PUB GyroDPS(gx, gy, gz) | tmp[3]
 ' Read the Gyroscope output registers and scale the outputs to micro-degrees
@@ -664,98 +693,98 @@ PUB GyroDPS(gx, gy, gz) | tmp[3]
     long[gy] := tmp[Y_AXIS] * _gres
     long[gz] := tmp[Z_AXIS] * _gres
 
-PUB GyroHighPass(freq): curr_freq
+PUB GyroHighPass(freq=-2): curr_freq
 ' Set Gyroscope high-pass filter cutoff frequency
 '   Valid values: dependent on GyroDataRate(), see table below
 '   Any other value polls the chip and returns the current setting
     curr_freq := 0
-    readreg(XLG, core#CTRL_REG3_G, 1, @curr_freq)
+    readreg(XLG, core.CTRL_REG3_G, 1, @curr_freq)
     case gyrodatarate(-2)
         15:
             case freq
                 0_001, 0_002, 0_005, 0_010, 0_020, 0_050, 0_100, 0_200, 0_500, 1_000:
-                    freq := lookdownz(freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001) << core#HPCF_G
+                    freq := lookdownz(freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001) << core.HPCF_G
                 other:
-                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    curr_freq := (curr_freq >> core.HPCF_G) & core.HPCF_G_BITS
                     return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
         60:
             case freq
                 0_005, 0_010, 0_020, 0_050, 0_100, 0_200, 0_500, 1_000, 2_000, 4_000:
-                    freq := lookdownz(freq: 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005) << core#HPCF_G
+                    freq := lookdownz(freq: 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005) << core.HPCF_G
                 other:
-                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    curr_freq := (curr_freq >> core.HPCF_G) & core.HPCF_G_BITS
                     return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
         119:
             case freq
                 0_010, 0_020, 0_050, 0_100, 0_200, 0_500, 1_000, 2_000, 4_000, 8_000:
-                    freq := lookdownz(freq: 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010) << core#HPCF_G
+                    freq := lookdownz(freq: 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010) << core.HPCF_G
                 other:
-                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    curr_freq := (curr_freq >> core.HPCF_G) & core.HPCF_G_BITS
                     return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
         238:
             case freq
                 0_020, 0_050, 0_100, 0_200, 0_500, 1_000, 2_000, 4_000, 8_000, 15_000:
-                    freq := lookdownz(freq: 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020) << core#HPCF_G
+                    freq := lookdownz(freq: 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050, 0_020) << core.HPCF_G
                 other:
-                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    curr_freq := (curr_freq >> core.HPCF_G) & core.HPCF_G_BITS
                     return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
         476:
             case freq
                 0_050, 0_100, 0_200, 0_500, 1_000, 2_000, 4_000, 8_000, 15_000, 30_000:
-                    freq := lookdownz(freq: 30_000, 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050) << core#HPCF_G
+                    freq := lookdownz(freq: 30_000, 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100, 0_050) << core.HPCF_G
                 other:
-                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    curr_freq := (curr_freq >> core.HPCF_G) & core.HPCF_G_BITS
                     return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
         952:
             case freq
                 0_100, 0_200, 0_500, 1_000, 2_000, 4_000, 8_000, 15_000, 30_000, 57_000:
-                    freq := lookdownz(freq: 57_000, 30_000, 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100) << core#HPCF_G
+                    freq := lookdownz(freq: 57_000, 30_000, 15_000, 8_000, 4_000, 2_000, 1_000, 0_500, 0_200, 0_100) << core.HPCF_G
                 other:
-                    curr_freq := (curr_freq >> core#HPCF_G) & core#HPCF_G_BITS
+                    curr_freq := (curr_freq >> core.HPCF_G) & core.HPCF_G_BITS
                     return lookupz(curr_freq: 1_000, 0_500, 0_200, 0_100, 0_050, 0_020, 0_010, 0_005, 0_002, 0_001)
 
-    freq := ((curr_freq & core#HPCF_G_MASK) | freq)
-    writereg(XLG, core#CTRL_REG3_G, 1, @freq)
+    freq := ((curr_freq & core.HPCF_G_MASK) | freq)
+    writereg(XLG, core.CTRL_REG3_G, 1, @freq)
 
-PUB GyroInactiveDur(duration): curr_dur
+PUB GyroInactiveDur(duration=-2): curr_dur
 ' Set gyroscope inactivity timer (use GyroInactiveSleep() to define behavior on
 '   inactivity)
 '   Valid values: 0..255 (0 effectively disables the feature)
 '   Any other value polls the chip and returns the current setting
     curr_dur := 0
-    readreg(XLG, core#ACT_DUR, 1, @curr_dur)
+    readreg(XLG, core.ACT_DUR, 1, @curr_dur)
     case duration
         0..255:
         other:
             return curr_dur
 
-    writereg(XLG, core#ACT_DUR, 1, @duration)
+    writereg(XLG, core.ACT_DUR, 1, @duration)
 
-PUB GyroInactiveThr(thresh): curr_thr
+PUB GyroInactiveThr(thresh=-2): curr_thr
 ' Set gyroscope inactivity threshold (use GyroInactiveSleep() to define
 '   behavior on inactivity)
 '   Valid values: 0..127 (0 effectively disables the feature)
 '   Any other value polls the chip and returns the current setting
     curr_thr := 0
-    readreg(XLG, core#ACT_THS, 1, @curr_thr)
+    readreg(XLG, core.ACT_THS, 1, @curr_thr)
     case thresh
         0..127:
         other:
-            return curr_thr & core#ACT_THR_BITS
+            return curr_thr & core.ACT_THR_BITS
 
-    thresh := ((curr_thr & core#ACT_THR_MASK) | thresh)
-    writereg(XLG, core#ACT_THS, 1, @thresh)
+    thresh := ((curr_thr & core.ACT_THR_MASK) | thresh)
+    writereg(XLG, core.ACT_THS, 1, @thresh)
 
-PUB GyroInactiveSleep(state): curr_state
+PUB GyroInactiveSleep(state=-2): curr_state
 ' Enable gyroscope sleep mode when inactive (see GyroActivityThr())
 '   Valid values:
 '       FALSE (0): Gyroscope powers down
 '       TRUE (1 or -1) Gyroscope enters sleep mode
 '   Any other value polls the chip and returns the current setting
-    return booleanChoice(XLG, core#ACT_THS, core#SLP_ON_INACT, {
-}   core#SLP_ON_INACT_MASK, core#ACT_THS_MASK, state, 1)
+    return booleanChoice(XLG, core.ACT_THS, core.SLP_ON_INACT, {
+}   core.SLP_ON_INACT_MASK, core.ACT_THS_MASK, state, 1)
 
-PUB GyroInt{}: int_src
+PUB GyroInt(): int_src
 ' Read gyroscope interrupts
 '   Bit 6..0
 '       6: one or more interrupts have been generated
@@ -767,9 +796,9 @@ PUB GyroInt{}: int_src
 '       0: Pitch/X-axis low
 '   NOTE: Calling this method will clear the interrupts
     int_src := 0
-    readreg(XLG, core#INT_GEN_SRC_G, 1, @int_src)
+    readreg(XLG, core.INT_GEN_SRC_G, 1, @int_src)
 
-PUB GyroIntDataPath(mode): curr_mode
+PUB GyroIntDataPath(mode=-2): curr_mode
 ' Set gyroscope interrupt filter path
 '   Valid values:
 '       %00: interrupt generator uses data fed by LPF (low-pass filtered) only
@@ -778,30 +807,30 @@ PUB GyroIntDataPath(mode): curr_mode
 '       %10, %11: interrupt generator uses data fed by LPF->HPF->2nd LPF
 '   Any other value polls the chip and returns the current setting
     curr_mode := 0
-    readreg(XLG, core#CTRL_REG2_G, 1, @curr_mode)
+    readreg(XLG, core.CTRL_REG2_G, 1, @curr_mode)
     case mode
         %00..%11:
-            mode := mode << core#INT_SEL
+            mode := mode << core.INT_SEL
         other:
-            return (curr_mode >> core#INT_SEL) & core#INT_SEL_BITS
+            return (curr_mode >> core.INT_SEL) & core.INT_SEL_BITS
 
-    mode := ((curr_mode & core#INT_SEL_MASK) | mode)
-    writereg(XLG, core#CTRL_REG2_G, 1, @mode)
+    mode := ((curr_mode & core.INT_SEL_MASK) | mode)
+    writereg(XLG, core.CTRL_REG2_G, 1, @mode)
 
-PUB GyroIntDur(samples): curr_smp
+PUB GyroIntDur(samples=-2): curr_smp
 ' Set number of samples gyroscope data must be past threshold to be
 '   considered an interrupt
 '   Valid values: 0..127
 '   Any other value polls the chip and returns the current setting
     curr_smp := 0
-    readreg(XLG, core#INT_GEN_DUR_G, 1, @curr_smp)
+    readreg(XLG, core.INT_GEN_DUR_G, 1, @curr_smp)
     case samples
         0..127:
         other:
-            return curr_smp & core#SAMPLES_BITS
+            return curr_smp & core.SAMPLES_BITS
 
-    samples := ((curr_smp & core#SAMPLES_MASK) | samples)
-    writereg(XLG, core#INT_GEN_DUR_G, 1, @samples)
+    samples := ((curr_smp & core.SAMPLES_MASK) | samples)
+    writereg(XLG, core.INT_GEN_DUR_G, 1, @samples)
 
 PUB GyroIntHyst(state): curr_state
 ' Enable gyroscope interrupt hysteresis
@@ -810,23 +839,23 @@ PUB GyroIntHyst(state): curr_state
 '   NOTE: The hysteresis used is equivalent to/set by the interrupt
 '       duration time GyroIntDur()
     curr_state := 0
-    readreg(XLG, core#INT_GEN_DUR_G, 1, @curr_state)
-    case ||(state)
+    readreg(XLG, core.INT_GEN_DUR_G, 1, @curr_state)
+    case abs(state)
         0, 1:
-            state := ||(state) << core#WAIT_G
+            state := abs(state) << core.WAIT_G
         other:
-            return ((curr_state >> core#WAIT_G) & 1) == 1
+            return ((curr_state >> core.WAIT_G) & 1) == 1
 
-    state := ((curr_state & core#WAIT_G_MASK) | state)
-    writereg(XLG, core#INT_GEN_DUR_G, 1, @state)
+    state := ((curr_state & core.WAIT_G_MASK) | state)
+    writereg(XLG, core.INT_GEN_DUR_G, 1, @state)
 
-PUB GyroIntThresh(x, y, z, rw) | gscl, lsb, tmp[2], axis
+PUB GyroIntThresh(x, y, z, rw=R) | gscl, lsb, tmp[2], axis
 ' Set gyroscope interrupt thresholds per axis, in micro-dps (signed)
 '   Valid values: +/- full-scale * 1_000_000
 '   Any other value will be clamped to min/max limits
 '   NOTE: When rw == R (0), x, y, and z must be pointers to variables
 '       to hold values read from chip
-    gscl := gyroscale(-2) * 1_000000
+    gscl := gyroscale() * 1_000000
     lsb := gscl / 16384                         ' calc LSB for the thresh reg
     case rw
         W:
@@ -836,54 +865,54 @@ PUB GyroIntThresh(x, y, z, rw) | gscl, lsb, tmp[2], axis
             x /= lsb                            ' scale values down to reg's
             y /= lsb                            '   15-bit signed format
             z /= lsb
-            writereg(XLG, core#INT_GEN_THS_XH_G, 2, @x)
-            writereg(XLG, core#INT_GEN_THS_YH_G, 2, @y)
-            writereg(XLG, core#INT_GEN_THS_ZH_G, 2, @z)
+            writereg(XLG, core.INT_GEN_THS_XH_G, 2, @x)
+            writereg(XLG, core.INT_GEN_THS_YH_G, 2, @y)
+            writereg(XLG, core.INT_GEN_THS_ZH_G, 2, @z)
         R:
             tmp := 0
-            readreg(XLG, core#INT_GEN_THS_XH_G, 6, @tmp)
+            readreg(XLG, core.INT_GEN_THS_XH_G, 6, @tmp)
             ' scale values up to output
             '   data scale (micro-dps)
-            repeat axis from X_AXIS to Z_AXIS   'xxx review - much diff. than spin2
-                tmp.word[axis] := ((tmp.word[axis] & core#INT_G_BITS) << 1) ~> 1
-            long[x] := ~~tmp.word[X_AXIS] * lsb
-            long[y] := ~~tmp.word[Y_AXIS] * lsb
-            long[z] := ~~tmp.word[Z_AXIS] * lsb
+            repeat axis from X_AXIS to Z_AXIS
+                tmp.word[axis] &= core.INT_G_BITS
+            long[x] := (tmp.word[X_AXIS] signx 14) * lsb
+            long[y] := (tmp.word[Y_AXIS] signx 14) * lsb
+            long[z] := (tmp.word[Z_AXIS] signx 14) * lsb
 
-PUB GyroLowPower(state): curr_state
+PUB GyroLowPower(state=-2): curr_state
 ' Enable low-power mode
 '   Valid values: FALSE (0), TRUE (1 or -1)
 '   Any other value polls the chip and returns the current setting
-    return booleanChoice(XLG, core#CTRL_REG3_G, core#LP_MODE, {
-}   core#LP_MODE_MASK, core#CTRL_REG3_G_MASK, state, 1)
+    return booleanChoice(XLG, core.CTRL_REG3_G, core.LP_MODE, {
+}   core.LP_MODE_MASK, core.CTRL_REG3_G_MASK, state, 1)
 
-PUB GyroScale(scale): curr_scale
+PUB GyroScale(scale=-2): curr_scale
 ' Set full scale of gyroscope output, in degrees per second (dps)
 '   Valid values: 245, 500, 2000
 '   Any other value polls the chip and returns the current setting
     curr_scale := 0
-    readreg(XLG, core#CTRL_REG1_G, 1, @curr_scale)
+    readreg(XLG, core.CTRL_REG1_G, 1, @curr_scale)
     case scale
         245, 500, 2000:
             scale := lookdownz(scale: 245, 500, 0, 2000)
             _gres := lookupz(scale: 0_008750, 0_017500, 0, 0_070000)
-            scale <<= core#FS
+            scale <<= core.FS
         other:
-            curr_scale := ((curr_scale >> core#FS) & core#FS_BITS) + 1
+            curr_scale := ((curr_scale >> core.FS) & core.FS_BITS) + 1
             return lookup(curr_scale: 245, 500, 0, 2000)
 
-    scale := ((curr_scale & core#FS_MASK) | scale)
-    writereg(XLG, core#CTRL_REG1_G, 1, @scale)
+    scale := ((curr_scale & core.FS_MASK) | scale)
+    writereg(XLG, core.CTRL_REG1_G, 1, @scale)
 
-PUB GyroSleep(state): curr_state
+PUB GyroSleep(state=-2): curr_state
 ' Enable gyroscope sleep mode
 '   Valid values: FALSE (0), TRUE (1 or -1)
 '   Any other value polls the chip and returns the current setting
 '   NOTE: If state, the gyro output will contain the last measured values
-    return booleanChoice(XLG, core#CTRL_REG9, core#SLP_G, core#SLP_G_MASK,{
-}   core#CTRL_REG9_MASK, state, 1)
+    return booleanChoice(XLG, core.CTRL_REG9, core.SLP_G, core.SLP_G_MASK,{
+}   core.CTRL_REG9_MASK, state, 1)
 
-PUB Int1Mask(mask): curr_mask
+PUB Int1Mask(mask=-2): curr_mask
 ' Set interrupt enable mask on INT1 pin
 '   Bits: 7..0 (1=enable interrupt, 0=disable interrupt)
 '       7: gyroscope interrupt
@@ -896,12 +925,12 @@ PUB Int1Mask(mask): curr_mask
 '       0: accelerometer data ready interrupt
     case mask
         %00000000..%11111111:
-            writereg(XLG, core#INT1_CTRL, 1, @mask)
+            writereg(XLG, core.INT1_CTRL, 1, @mask)
         other:
-            readreg(XLG, core#INT1_CTRL, 1, @curr_mask)
+            readreg(XLG, core.INT1_CTRL, 1, @curr_mask)
             return
 
-PUB Int2Mask(mask): curr_mask
+PUB Int2Mask(mask=-2): curr_mask
 ' Set interrupt enable mask on INT2 pin
 '   Bits: 7..0 (1=enable interrupt, 0=disable interrupt)
 '       7: gyroscope interrupt
@@ -914,35 +943,35 @@ PUB Int2Mask(mask): curr_mask
 '       0: accelerometer data ready interrupt
     case mask
         %00000000..%11111111:
-            mask &= core#INT2_CTRL_MASK         ' mask off bit 6 (unused)
-            writereg(XLG, core#INT2_CTRL, 1, @mask)
+            mask &= core.INT2_CTRL_MASK         ' mask off bit 6 (unused)
+            writereg(XLG, core.INT2_CTRL, 1, @mask)
         other:
-            readreg(XLG, core#INT2_CTRL, 1, @curr_mask)
+            readreg(XLG, core.INT2_CTRL, 1, @curr_mask)
             return
 
-PUB Interrupt{}: flag
+PUB Interrupt(): flag
 ' Flag indicating one or more interrupts asserted
 '   Returns TRUE if one or more interrupts asserted, FALSE if not
-    readreg(XLG, core#INT_GEN_SRC_XL, 1, @flag)
-    return (((flag >> core#IA_XL) & 1) == 1)
+    readreg(XLG, core.INT_GEN_SRC_XL, 1, @flag)
+    return (((flag >> core.IA_XL) & 1) == 1)
 
-PUB IntInactivity{}: flag
+PUB IntInactivity(): flag
 ' Flag indicating inactivity interrupt asserted
 '   Returns TRUE if interrupt asserted, FALSE if not
-    readreg(XLG, core#STATUS_REG, 1, @flag)
-    return (((flag >> core#INACT) & 1) == 1)
+    readreg(XLG, core.STATUS_REG, 1, @flag)
+    return (((flag >> core.INACT) & 1) == 1)
 
-PUB MagBlockUpdate(state): curr_state
+PUB MagBlockUpdate(state=-2): curr_state
 ' Enable block update for magnetometer data
 '   Valid values:
 '       TRUE(-1 or 1): Output registers not updated until MSB and LSB have been
 '           read
 '       FALSE(0): Continuous update
 '   Any other value polls the chip and returns the current setting
-    return booleanChoice (MAG, core#CTRL_REG5_M, core#BDU_M, core#BDU_M_MASK,{
-}   core#CTRL_REG5_M_MASK, state, 1)
+    return booleanChoice (MAG, core.CTRL_REG5_M, core.BDU_M, core.BDU_M_MASK,{
+}   core.CTRL_REG5_M_MASK, state, 1)
 
-PUB MagBias(mxbias, mybias, mzbias, rw) | tmp[2]
+PUB MagBias(mxbias, mybias, mzbias, rw=0) | tmp[2]
 ' Read or write/manually set Magnetometer calibration offset values
 '   Valid values:
 '       rw:
@@ -953,10 +982,10 @@ PUB MagBias(mxbias, mybias, mzbias, rw) | tmp[2]
 '       of respective variables to hold the returned calibration offset values
     case rw
         R:
-            readreg(MAG, core#OFFSET_X_REG_L_M, 6, @tmp)
-            long[mxbias] := ~~tmp.word[X_AXIS]
-            long[mybias] := ~~tmp.word[Y_AXIS]
-            long[mzbias] := ~~tmp.word[Z_AXIS]
+            readreg(MAG, core.OFFSET_X_REG_L_M, 6, @tmp)
+            long[mxbias] := tmp.word[X_AXIS] signx 15
+            long[mybias] := tmp.word[Y_AXIS] signx 15
+            long[mzbias] := tmp.word[Z_AXIS] signx 15
         W:
             case mxbias
                 -32768..32767:
@@ -970,18 +999,18 @@ PUB MagBias(mxbias, mybias, mzbias, rw) | tmp[2]
                 -32768..32767:
                 other:
                     return
-            writereg(MAG, core#OFFSET_X_REG_L_M, 2, @mxbias)
-            writereg(MAG, core#OFFSET_Y_REG_L_M, 2, @mybias)
-            writereg(MAG, core#OFFSET_Z_REG_L_M, 2, @mzbias)
+            writereg(MAG, core.OFFSET_X_REG_L_M, 2, @mxbias)
+            writereg(MAG, core.OFFSET_Y_REG_L_M, 2, @mybias)
+            writereg(MAG, core.OFFSET_Z_REG_L_M, 2, @mzbias)
 
 PUB MagData(ptr_x, ptr_y, ptr_z) | tmp[2]
 ' Read the Magnetometer output registers
-    readreg(MAG, core#OUT_X_L_M, 6, @tmp)
-    long[ptr_x] := ~~tmp.word[X_AXIS]           ' no offset correction
-    long[ptr_y] := ~~tmp.word[Y_AXIS]           ' because the mag has
-    long[ptr_z] := ~~tmp.word[Z_AXIS]           ' offset registers built-in
+    readreg(MAG, core.OUT_X_L_M, 6, @tmp)
+    long[ptr_x] := tmp.word[X_AXIS] signx 15    ' no offset correction
+    long[ptr_y] := tmp.word[Y_AXIS] signx 15    ' because the mag has
+    long[ptr_z] := tmp.word[Z_AXIS] signx 15    ' offset registers built-in
 
-PUB MagDataOverrun{}: status
+PUB MagDataOverrun(): status
 ' Magnetometer data overrun
 '   Returns: Overrun flag as bitfield
 '       MSB   LSB
@@ -995,53 +1024,53 @@ PUB MagDataOverrun{}: status
 '       %1111: Indicates data has overrun on all axes
 '       %0010: Indicates Y-axis data has overrun
 '   NOTE: Overrun flag indicates new data for axis has overwritten the previous data.
-    readreg(MAG, core#STATUS_REG_M, 1, @status)
-    return ((status >> core#OVERRN) & core#OVERRN_BITS)
+    readreg(MAG, core.STATUS_REG_M, 1, @status)
+    return ((status >> core.OVERRN) & core.OVERRN_BITS)
 
-PUB MagDataRate(rate): curr_rate
+PUB MagDataRate(rate=-2): curr_rate
 ' Set Magnetometer Output Data Rate, in Hz
 '   Valid values: 0 (0.625), 1 (1.250), 2 (2.5), 5, *10, 20, 40, 80
 '   Any other value polls the chip and returns the current setting
     curr_rate := 0
-    readreg(MAG, core#CTRL_REG1_M, 1, @curr_rate)
+    readreg(MAG, core.CTRL_REG1_M, 1, @curr_rate)
     case rate
         0, 1, 2, 5, 10, 20, 40, 80:
-            rate := lookdownz(rate: 0, 1, 2, 5, 10, 20, 40, 80) << core#DO
+            rate := lookdownz(rate: 0, 1, 2, 5, 10, 20, 40, 80) << core.DO
         other:
-            curr_rate := ((curr_rate >> core#DO) & core#DO_BITS)
+            curr_rate := ((curr_rate >> core.DO) & core.DO_BITS)
             return lookupz(curr_rate: 0, 1, 2, 5, 10, 20, 40, 80)
 
-    rate := ((curr_rate & core#DO_MASK) | rate)
-    writereg(MAG, core#CTRL_REG1_M, 1, @rate)
+    rate := ((curr_rate & core.DO_MASK) | rate)
+    writereg(MAG, core.CTRL_REG1_M, 1, @rate)
 
-PUB MagDataReady{}: flag
+PUB MagDataReady(): flag
 ' Flag indicating new magnetometer data ready
 '   Returns: TRUE (-1) if data available, FALSE (0) otherwise
-    readreg(MAG, core#STATUS_REG_M, 1, @flag)
-    return (((flag >> core#ZYXDA) & 1) == 1)
+    readreg(MAG, core.STATUS_REG_M, 1, @flag)
+    return (((flag >> core.ZYXDA) & 1) == 1)
 
-PUB MagEndian(order): curr_order
+PUB MagEndian(order=-2): curr_order
 ' Choose byte order of magnetometer data
 '   Valid values: LITTLE (0) or BIG (1)
 '   Any other value polls the chip and returns the current setting
     curr_order := 0
-    readreg(MAG, core#CTRL_REG4_M, 1, @curr_order)
+    readreg(MAG, core.CTRL_REG4_M, 1, @curr_order)
     case order
         LITTLE, BIG:
-            order := order << core#BLE_M
+            order := order << core.BLE_M
         other:
-            return ((curr_order >> core#BLE_M) & 1)
+            return ((curr_order >> core.BLE_M) & 1)
 
-    order := ((curr_order & core#BLE_M_MASK) | order)
-    writereg(MAG, core#CTRL_REG4_M, 1, @order)
+    order := ((curr_order & core.BLE_M_MASK) | order)
+    writereg(MAG, core.CTRL_REG4_M, 1, @order)
 
-PUB MagFastRead(state): curr_state
+PUB MagFastRead(state=-2): curr_state
 ' Enable reading of only the MSB of data to increase reading efficiency, at
 '   the cost of precision and accuracy
 '   Valid values: TRUE(-1 or 1), FALSE(0)
 '   Any other value polls the chip and returns the current setting
-    return booleanChoice (MAG, core#CTRL_REG5_M, core#FAST_READ, {
-}   core#FAST_READ_MASK, core#CTRL_REG5_M_MASK, state, 1)
+    return booleanChoice (MAG, core.CTRL_REG5_M, core.FAST_READ, {
+}   core.FAST_READ_MASK, core.CTRL_REG5_M_MASK, state, 1)
 
 PUB MagGauss(ptr_x, ptr_y, ptr_z) | tmp[3]
 ' Read the Magnetometer output registers and scale the outputs to micro-Gauss
@@ -1051,7 +1080,7 @@ PUB MagGauss(ptr_x, ptr_y, ptr_z) | tmp[3]
     long[ptr_y] := tmp[Y_AXIS] * _mres
     long[ptr_z] := tmp[Z_AXIS] * _mres
 
-PUB MagInt{}: intsrc
+PUB MagInt(): intsrc
 ' Magnetometer interrupt source(s)
 '   Returns: Interrupts that are currently asserted, as a bitmask
 '   MSB    LSB
@@ -1065,30 +1094,30 @@ PUB MagInt{}: intsrc
 '   2: Z-axis exceeds threshold, negative side
 '   1: A measurement exceeded the magnetometer's measurement range (overflow)
 '   0: Interrupt asserted
-    readreg(MAG, core#INT_SRC_M, 1, @intsrc)
+    readreg(MAG, core.INT_SRC_M, 1, @intsrc)
 
-PUB MagIntActiveState(state): curr_state
+PUB MagIntActiveState(state=-2): curr_state
 ' Set active state of INT_MAG pin when magnetometer interrupt asserted
 '   Valid values: ACTIVE_LOW (0), ACTIVE_HIGH (1)
 '   Any other value polls the chip and returns the current setting
     curr_state := 0
-    readreg(MAG, core#INT_CFG_M, 1, @curr_state)
+    readreg(MAG, core.INT_CFG_M, 1, @curr_state)
     case state
         ACTIVE_LOW, ACTIVE_HIGH:
             state ^= 1                   ' This bit's polarity is
-            state <<= core#IEA           ' opposite that of the XLG
+            state <<= core.IEA           ' opposite that of the XLG
         other:
-            return (curr_state >> core#IEA) & 1
+            return (curr_state >> core.IEA) & 1
 
-    state := ((curr_state & core#IEA_MASK) | state)
-    writereg(MAG, core#INT_CFG_M, 1, @state)
+    state := ((curr_state & core.IEA_MASK) | state)
+    writereg(MAG, core.INT_CFG_M, 1, @state)
 
-PUB MagIntClear{}
+PUB MagIntClear()
 ' Clear magnetometer interrupts
 '   NOTE: This is only required if MagIntsLatched() is set to TRUE
-    magint{}
+    magint()
 
-PUB MagIntMask(mask): curr_mask
+PUB MagIntMask(mask=-2): curr_mask
 ' Enable magnetometer threshold interrupts, as a bitmask
 '   Valid values: %000..%111
 '     MSB   LSB
@@ -1103,25 +1132,25 @@ PUB MagIntMask(mask): curr_mask
 
 '   Any other value polls the chip and returns the current setting
     curr_mask := 0
-    readreg(MAG, core#INT_CFG_M, 1, @curr_mask)
+    readreg(MAG, core.INT_CFG_M, 1, @curr_mask)
     case mask
         %000..%111:
-            mask <<= core#XYZIEN
+            mask <<= core.XYZIEN
         other:
-            return (curr_mask >> core#XYZIEN) & core#XYZIEN_BITS
+            return (curr_mask >> core.XYZIEN) & core.XYZIEN_BITS
 
-    mask := ((curr_mask & core#XYZIEN_MASK) | mask)
-    writereg(MAG, core#INT_CFG_M, 1, @mask)
+    mask := ((curr_mask & core.XYZIEN_MASK) | mask)
+    writereg(MAG, core.INT_CFG_M, 1, @mask)
 
-PUB MagIntsLatched(state): curr_state
+PUB MagIntsLatched(state=-2): curr_state
 ' Latch interrupts asserted by the magnetometer
 '   Valid values: TRUE (-1 or 1) or FALSE
 '   Any other value polls the chip and returns the current setting
 '   NOTE: If enabled, interrupts must be explicitly cleared using MagClearInt()
-    return booleanchoice(MAG, core#INT_CFG_M, core#IEL, core#IEL_MASK,{
-}   core#INT_CFG_M, state, -1)
+    return booleanchoice(MAG, core.INT_CFG_M, core.IEL, core.IEL_MASK,{
+}   core.INT_CFG_M, state, -1)
 
-PUB MagIntThresh(thresh): curr_thr 'XXX rewrite to take gauss as a param
+PUB MagIntThresh(thresh=-2): curr_thr 'XXX rewrite to take gauss as a param
 ' Set magnetometer interrupt threshold
 '   Valid values: 0..32767
 '   Any other value polls the chip and returns the current setting
@@ -1129,43 +1158,43 @@ PUB MagIntThresh(thresh): curr_thr 'XXX rewrite to take gauss as a param
 '       negative measurements alike
     case thresh
         0..32767:
-            writereg(MAG, core#INT_THS_L_M, 2, @thresh)
+            writereg(MAG, core.INT_THS_L_M, 2, @thresh)
         other:
             curr_thr := 0
-            readreg(MAG, core#INT_THS_L_M, 2, @curr_thr)
+            readreg(MAG, core.INT_THS_L_M, 2, @curr_thr)
             return
 
-PUB MagLowPower(state): curr_state
+PUB MagLowPower(state=-2): curr_state
 ' Enable magnetometer low-power mode
 '   Valid values: TRUE (-1 or 1) or FALSE
 '   Any other value polls the chip and returns the current setting
-    return booleanchoice(MAG, core#CTRL_REG3_M, core#LP, core#LP_MASK, {
-}   core#CTRL_REG3_M_MASK, state, 1)
+    return booleanchoice(MAG, core.CTRL_REG3_M, core.LP, core.LP_MASK, {
+}   core.CTRL_REG3_M_MASK, state, 1)
 
-PUB MagOpMode(mode): curr_mode
+PUB MagOpMode(mode=-2): curr_mode
 ' Set magnetometer operating mode
 '   Valid values:
 '       MAG_OPMODE_CONT (0): Continuous conversion
 '       MAG_OPMODE_SINGLE (1): Single conversion
 '       MAG_OPMODE_POWERDOWN (2): Power down
     curr_mode := 0
-    readreg(MAG, core#CTRL_REG3_M, 1, @curr_mode)
+    readreg(MAG, core.CTRL_REG3_M, 1, @curr_mode)
     case mode
         MAG_OPMODE_CONT, MAG_OPMODE_SINGLE, MAG_OPMODE_POWERDOWN:
         other:
-            return (curr_mode & core#MD_BITS)
+            return (curr_mode & core.MD_BITS)
 
-    mode := ((curr_mode & core#MD_MASK) | mode)
-    writereg(MAG, core#CTRL_REG3_M, 1, @mode)
+    mode := ((curr_mode & core.MD_MASK) | mode)
+    writereg(MAG, core.CTRL_REG3_M, 1, @mode)
 
-PUB MagOverflow{}: flag
+PUB MagOverflow(): flag
 ' Flag indicating magnetometer measurement has overflowed
 '   Returns:
 '       TRUE (-1) if measurement overflows sensor's internal range
 '       FALSE (0) otherwise
-    return (((magint{} >> core#MROI) & 1) == 1)
+    return (((magint() >> core.MROI) & 1) == 1)
 
-PUB MagPerf(mode): curr_mode
+PUB MagPerf(mode=-2): curr_mode
 ' Set magnetometer performance mode
 '   Valid values:
 '       MAG_PERF_LOW (0)
@@ -1173,23 +1202,23 @@ PUB MagPerf(mode): curr_mode
 '       MAG_PERF_HIGH (2)
 '       MAG_PERF_ULTRA (3)
 '   Any other value polls the chip and returns the current setting
-    readreg(MAG, core#CTRL_REG1_M, 1, @curr_mode.byte[0])
-    readreg(MAG, core#CTRL_REG4_M, 1, @curr_mode.byte[1])
+    readreg(MAG, core.CTRL_REG1_M, 1, @curr_mode.byte[0])
+    readreg(MAG, core.CTRL_REG4_M, 1, @curr_mode.byte[1])
 
     case mode
         MAG_PERF_LOW, MAG_PERF_MED, MAG_PERF_HIGH, MAG_PERF_ULTRA:
         other:
-            return (curr_mode.byte[0] >> core#OM) & core#OM_BITS
+            return (curr_mode.byte[0] >> core.OM) & core.OM_BITS
 
-    curr_mode.byte[0] &= core#OM_MASK
-    curr_mode.byte[0] := (curr_mode.byte[0] | (mode << core#OM))
-    curr_mode.byte[1] &= core#OMZ_MASK
-    curr_mode.byte[1] := (curr_mode.byte[1] | (mode << core#OMZ))
+    curr_mode.byte[0] &= core.OM_MASK
+    curr_mode.byte[0] := (curr_mode.byte[0] | (mode << core.OM))
+    curr_mode.byte[1] &= core.OMZ_MASK
+    curr_mode.byte[1] := (curr_mode.byte[1] | (mode << core.OMZ))
 
-    writereg(MAG, core#CTRL_REG1_M, 1, @curr_mode.byte[0])
-    writereg(MAG, core#CTRL_REG4_M, 1, @curr_mode.byte[1])
+    writereg(MAG, core.CTRL_REG1_M, 1, @curr_mode.byte[0])
+    writereg(MAG, core.CTRL_REG4_M, 1, @curr_mode.byte[1])
 
-PUB MagScale(scale): curr_scl
+PUB MagScale(scale=-2): curr_scl
 ' Set full scale of Magnetometer, in Gauss
 '   Valid values: 4, 8, 12, 16
 '   Any other value polls the chip and returns the current setting
@@ -1197,61 +1226,61 @@ PUB MagScale(scale): curr_scl
         4, 8, 12, 16:
             scale := lookdownz(scale: 4, 8, 12, 16)
             _mres := lookupz(scale: 0_000140, 0_000290, 0_000430, 0_000580)
-            scale <<= core#FS_M
-            writereg(MAG, core#CTRL_REG2_M, 1, @scale)
+            scale <<= core.FS_M
+            writereg(MAG, core.CTRL_REG2_M, 1, @scale)
         other:
             curr_scl := 0
-            readreg(MAG, core#CTRL_REG2_M, 1, @curr_scl)
-            curr_scl := (curr_scl >> core#FS_M) & core#FS_M_BITS
+            readreg(MAG, core.CTRL_REG2_M, 1, @curr_scl)
+            curr_scl := (curr_scl >> core.FS_M) & core.FS_M_BITS
             return lookupz(curr_scl: 4, 8, 12, 16)
 
-PUB MagSelfTest(state): curr_state
+PUB MagSelfTest(state=-2): curr_state
 ' Enable on-chip magnetometer self-test
 '   Valid values: TRUE (-1 or 1) or FALSE
 '   Any other value polls the chip and returns the current setting
-    return booleanchoice(MAG, core#CTRL_REG1_M, core#ST, core#ST_MASK, {
-}   core#CTRL_REG1_M_MASK, state, 1)
+    return booleanchoice(MAG, core.CTRL_REG1_M, core.ST, core.ST_MASK, {
+}   core.CTRL_REG1_M_MASK, state, 1)
 
-PUB MagSoftreset{} | tmp
+PUB MagSoftreset() | tmp
 ' Perform soft-test of magnetometer
-    tmp := (1 << core#RE_BOOT) | (1 << core#SOFT_RST)
-    tmp &= core#CTRL_REG2_M_MASK
-    writereg(MAG, core#CTRL_REG2_M, 1, @tmp)
-    time.msleep(10)
+    tmp := (1 << core.RE_BOOT) | (1 << core.SOFT_RST)
+    tmp &= core.CTRL_REG2_M_MASK
+    writereg(MAG, core.CTRL_REG2_M, 1, @tmp)
+    waitms(10)
 
     tmp := 0                                    ' clear reset bit manually
-    writereg(MAG, core#CTRL_REG2_M, 1, @tmp)    ' to come out of reset
+    writereg(MAG, core.CTRL_REG2_M, 1, @tmp)    ' to come out of reset
 #ifdef LSM9DS1_SPI3W
     spimode(3)
 #elseifdef LSM9DS1_SPI4W
     spimode(4)
 #endif
 
-PUB Temperature{}: temp
+PUB Temperature(): temp
 ' Get temperature from chip
 '   Returns: Temperature in hundredths of a degree in chosen scale
-    return adc2temp(tempdata{})
+    return adc2temp(tempdata())
 
-PUB TempCompensation(enable): curr_setting
+PUB TempCompensation(enable=-2): curr_setting
 ' Enable on-chip temperature compensation for magnetometer readings
 '   Valid values: TRUE (-1 or 1) or FALSE
 '   Any other value polls the chip and returns the current setting
-    return booleanchoice(MAG, core#CTRL_REG1_M, core#TEMP_COMP, {
-}   core#TEMP_COMP_MASK, core#CTRL_REG1_M, enable, 1)
+    return booleanchoice(MAG, core.CTRL_REG1_M, core.TEMP_COMP, {
+}   core.TEMP_COMP_MASK, core.CTRL_REG1_M, enable, 1)
 
-PUB TempData{}: temp_adc
+PUB TempData(): temp_adc
 ' Temperature ADC data
     temp_adc := 0
-    readreg(XLG, core#OUT_TEMP_L, 2, @temp_adc)
-    return ~~temp_adc
+    readreg(XLG, core.OUT_TEMP_L, 2, @temp_adc)
+    return (temp_adc signx 15)
 
-PUB TempDataReady{}: flag
+PUB TempDataReady(): flag
 ' Temperature sensor new data available
 '   Returns TRUE or FALSE
-    readreg(XLG, core#STATUS_REG, 1, @flag)
-    return (((flag >> core#TDA) & 1) == 1)
+    readreg(XLG, core.STATUS_REG, 1, @flag)
+    return (((flag >> core.TDA) & 1) == 1)
 
-PUB TempScale(scale): curr_scl
+PUB TempScale(scale=-2): curr_scl
 ' Set temperature scale used by Temperature method
 '   Valid values:
 '      *C (0): Celsius
@@ -1263,51 +1292,51 @@ PUB TempScale(scale): curr_scl
         other:
             return _temp_scale
 
-PRI XLGDataBlockUpdate(state): curr_state
+PRI XLGDataBlockUpdate(state=-2): curr_state
 ' Wait until both MSB and LSB of output registers are read before updating
 '   Valid values:
 '       FALSE (0): Continuous update
 '       TRUE (1 or -1): Do not update until both MSB and LSB are read
 '   Any other value polls the chip and returns the current setting
-    return booleanchoice(XLG, core#CTRL_REG8, core#BDU, core#BDU_MASK,{
-}   core#CTRL_REG8_MASK, state, 1)
+    return booleanchoice(XLG, core.CTRL_REG8, core.BDU, core.BDU_MASK,{
+}   core.CTRL_REG8_MASK, state, 1)
 
-PUB XLGDataRate(rate): curr_rate
+PUB XLGDataRate(rate=-2): curr_rate
 ' Set output data rate of accelerometer and gyroscope, in Hz
 '   Valid values: 0 (power down), 14, 59, 119, 238, 476, 952
 '   Any other value polls the chip and returns the current setting
     curr_rate := 0
-    readreg(XLG, core#CTRL_REG1_G, 1, @curr_rate)
+    readreg(XLG, core.CTRL_REG1_G, 1, @curr_rate)
     case rate := lookdown(rate: 0, 14{.9}, 59{.5}, 119, 238, 476, 952)
         1..7:
-            rate := (rate - 1) << core#ODR
+            rate := (rate - 1) << core.ODR
         other:
-            curr_rate := ((curr_rate >> core#ODR) & core#ODR_BITS) + 1
+            curr_rate := ((curr_rate >> core.ODR) & core.ODR_BITS) + 1
             return lookup(curr_rate: 0, 14{.9}, 59{.5}, 119, 238, 476, 952)
 
-    rate := ((curr_rate & core#ODR_MASK) | rate)
-    writereg(XLG, core#CTRL_REG1_G, 1, @rate)
+    rate := ((curr_rate & core.ODR_MASK) | rate)
+    writereg(XLG, core.CTRL_REG1_G, 1, @rate)
 
-PUB XLGIntActiveState(state): curr_state
+PUB XLGIntActiveState(state=-2): curr_state
 ' Set active state for interrupts from Accelerometer and Gyroscope
 '   Valid values: ACTIVE_HIGH (0) - active high, ACTIVE_LOW (1) - active low
 '   Any other value polls the chip and returns the current setting
     curr_state := 0
-    readreg(XLG, core#CTRL_REG8, 1, @curr_state)
+    readreg(XLG, core.CTRL_REG8, 1, @curr_state)
     case state
         ACTIVE_HIGH, ACTIVE_LOW:
-            state := state << core#H_LACTIVE
+            state := state << core.H_LACTIVE
         other:
-            return ((curr_state >> core#H_LACTIVE) & 1)
+            return ((curr_state >> core.H_LACTIVE) & 1)
 
-    state := ((curr_state & core#H_LACTIVE_MASK) | state)
-    writereg(XLG, core#CTRL_REG8, 1, @state)
+    state := ((curr_state & core.H_LACTIVE_MASK) | state)
+    writereg(XLG, core.CTRL_REG8, 1, @state)
 
-PUB XLGSoftreset{} | tmp
+PUB XLGSoftreset() | tmp
 ' Perform soft-reset of accelerometer/gyroscope
-    tmp := core#XLG_SW_RESET | (1 << core#BOOT)
-    writereg(XLG, core#CTRL_REG8, 1, @tmp)
-    time.msleep(10)
+    tmp := core.XLG_SW_RESET | (1 << core.BOOT)
+    writereg(XLG, core.CTRL_REG8, 1, @tmp)
+    waitms(10)
 
 PRI adc2temp(temp_word): temp_cal
 ' Calculate temperature, using temperature word
@@ -1326,36 +1355,36 @@ PRI addressAutoInc(state): curr_state
 '   Valid values: TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
     curr_state := 0
-    readreg(XLG, core#CTRL_REG8, 1, @curr_state)
-    case ||(state)
+    readreg(XLG, core.CTRL_REG8, 1, @curr_state)
+    case abs(state)
         0, 1:
-            state := (||(state)) << core#IF_ADD_INC
+            state := (abs(state)) << core.IF_ADD_INC
         other:
-            return (((curr_state >> core#IF_ADD_INC) & 1) == 1)
+            return (((curr_state >> core.IF_ADD_INC) & 1) == 1)
 
-    state := ((curr_state & core#IF_ADD_INC_MASK) | state)
-    writereg(XLG, core#CTRL_REG8, 1, @state)
+    state := ((curr_state & core.IF_ADD_INC_MASK) | state)
+    writereg(XLG, core.CTRL_REG8, 1, @state)
 
 PRI MagI2C(state): curr_state
 ' Enable Magnetometer I2C interface
 '   Valid values: *TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
-    return booleanchoice(MAG, core#CTRL_REG3_M, core#M_I2C_DIS, {
-}   core#M_I2C_DIS_MASK, core#CTRL_REG3_M_MASK, state, -1)
+    return booleanchoice(MAG, core.CTRL_REG3_M, core.M_I2C_DIS, {
+}   core.M_I2C_DIS_MASK, core.CTRL_REG3_M_MASK, state, -1)
 
 PRI SPIMode(mode)
 ' Set SPI interface mode
     case mode
         3:
-            mode := core#XLG_3WSPI              ' set the SIM bit
-            writereg(XLG, core#CTRL_REG8, 1, @mode)
-            mode := core#M_3WSPI
-            writereg(MAG, core#CTRL_REG3_M, 1, @mode)
+            mode := core.XLG_3WSPI              ' set the SIM bit
+            writereg(XLG, core.CTRL_REG8, 1, @mode)
+            mode := core.M_3WSPI
+            writereg(MAG, core.CTRL_REG3_M, 1, @mode)
         4:
             mode := 0                           ' clear all bits
-            writereg(XLG, core#CTRL_REG8, 1, @mode)
+            writereg(XLG, core.CTRL_REG8, 1, @mode)
             mode := 0
-            writereg(MAG, core#CTRL_REG3_M, 1, @mode)
+            writereg(MAG, core.CTRL_REG3_M, 1, @mode)
         other:
             return
 
@@ -1370,9 +1399,9 @@ PRI booleanChoice(device, reg_nr, field, fieldmask, regmask, choice, invertchoic
 '   invertchoice: whether to invert the boolean logic (1 for normal, -1 for inverted)
     bool := 0
     readreg(device, reg_nr, 1, @bool)
-    case ||(choice)
+    case abs(choice)
         0, 1:
-            choice := ||(choice * invertchoice) << field
+            choice := abs(choice * invertchoice) << field
         other:
             return ((((bool >> field) & 1) == 1) * invertchoice)
 
@@ -1381,7 +1410,7 @@ PRI booleanChoice(device, reg_nr, field, fieldmask, regmask, choice, invertchoic
     choice := ((bool & fieldmask) | choice) & regmask
     writereg(device, reg_nr, 1, @choice)
 
-PRI readReg(device, reg_nr, nr_bytes, ptr_buff) | tmp
+PRI readReg(device, reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Read from device
 ' Validate register - allow only registers that are
 '   not 'reserved' (ST states reading should only be performed on registers listed in
@@ -1393,25 +1422,51 @@ PRI readReg(device, reg_nr, nr_bytes, ptr_buff) | tmp
                 $04..$0D, $0F..$14, $1E..$24, $26, $27, $2E..$37:
                 other:
                     return
-            outa[_CS_AG] := 0
+#ifdef LSM9DS1_I2C
+            cmd_pkt.byte[0] := core.SLAVE_ADDR_XLG
+            cmd_pkt.byte[1] := reg_nr
+            i2c.start{}
+            i2c.wrblock_lsbf(@cmd_pkt, 2)
+            i2c.start{}
+            i2c.write(core.SLAVE_ADDR_XLG | 1)
+            i2c.rdblock_lsbf(ptr_buff, nr_bytes, i2c.NAK)
+            i2c.stop{}
+#elseifdef LSM9DS1_SPI
+            pinl(_CS_AG)
             spi.wr_byte(reg_nr | READ)
             spi.rdblock_lsbf(ptr_buff, nr_bytes)
-            outa[_CS_AG] := 1
+            pinh(_CS_AG)
+#endif
         MAG:
             case reg_nr
-                $05, $07, $09, $28, $2A, $2C:
-                    reg_nr |= MS
+                $05, $07, $09, $28, $2A, $2C:   ' multi-byte regs
+#ifdef LSM9DS1_I2C
+                    reg_nr |= core.MB_I2C       ' multi-byte trans. enabled
+#elseifdef LSM9DS1_SPI
+                    reg_nr |= core.MS_SPI       ' multi-byte trans. enabled
+#endif
                 $0F, $20..$24, $27, $30..$33:
                 other:
                     return
-            outa[_CS_M] := 0
+#ifdef LSM9DS1_I2C
+            cmd_pkt.byte[0] := core.SLAVE_ADDR_MAG
+            cmd_pkt.byte[1] := reg_nr
+            i2c.start{}
+            i2c.wrblock_lsbf(@cmd_pkt, 2)
+            i2c.start{}
+            i2c.write(core.SLAVE_ADDR_MAG | 1)
+            i2c.rdblock_lsbf(ptr_buff, nr_bytes, i2c.NAK)
+            i2c.stop{}
+#elseifdef LSM9DS1_SPI
+            pinl(_CS_M)
             spi.wr_byte(reg_nr | READ)
             spi.rdblock_lsbf(ptr_buff, nr_bytes)
-            outa[_CS_M] := 1
+            pinh(_CS_M)
+#endif
         other:
             return
 
-PRI writeReg(device, reg_nr, nr_bytes, ptr_buff) | tmp
+PRI writeReg(device, reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 ' Write byte to device
 '   Validate register - allow only registers that are
 '       writeable, and not 'reserved' (ST claims writing to these can
@@ -1419,45 +1474,67 @@ PRI writeReg(device, reg_nr, nr_bytes, ptr_buff) | tmp
     case device
         XLG:
             case reg_nr
+#ifdef LSM9DS1_I2C
+                $04..$0D, $10..$13, $1E..$24, $2E, $30..$37:
+                    cmd_pkt.byte[0] := core.SLAVE_ADDR_XLG
+                    cmd_pkt.byte[1] := reg_nr
+                    i2c.start{}
+                    i2c.wrblock_lsbf(@cmd_pkt, 2)
+                    i2c.wrblock_lsbf(ptr_buff, nr_bytes)
+                    i2c.stop{}
+                    return
+#elseifdef LSM9DS1_SPI
                 $04..$0D, $10..$13, $1E..$21, $23, $24, $2E, $30..$37:
-                    outa[_CS_AG] := 0
+                    pinl(_CS_AG)
                     spi.wr_byte(reg_nr)
                     spi.wrblock_lsbf(ptr_buff, nr_bytes)
-                    outa[_CS_AG] := 1
-                core#CTRL_REG8:
-                    outa[_CS_AG] := 0
+                    pinh(_CS_AG)
+                core.CTRL_REG8:
+                    pinl(_CS_AG)
                     spi.wr_byte(reg_nr)
 #ifdef LSM9DS1_SPI3W
                     ' enforce 3-wire SPI mode
-                    byte[ptr_buff][0] := byte[ptr_buff][0] | (1 << core#SIM)
+                    byte[ptr_buff][0] := byte[ptr_buff][0] | (1 << core.SIM)
 #endif
                     spi.wrblock_lsbf(ptr_buff, nr_bytes)
-                    outa[_CS_AG] := 1
+                    pinh(_CS_AG)
+#endif
                 other:
                     return
         MAG:
             case reg_nr
+#ifdef LSM9DS1_I2C
+                $05..$0A, $0F, $20, $21..$24, $27..$2D, $30..$33:
+                    cmd_pkt.byte[0] := core.SLAVE_ADDR_MAG
+                    cmd_pkt.byte[1] := reg_nr | core.MB_I2C
+                    i2c.start{}
+                    i2c.wrblock_lsbf(@cmd_pkt, 2)
+                    i2c.wrblock_lsbf(ptr_buff, nr_bytes)
+                    i2c.stop
+#elseifdef LSM9DS1_SPI
                 $05..$0A, $0F, $20, $21, $23, $24, $27..$2D, $30..$33:
                     reg_nr |= WRITE
                     reg_nr |= MS
-                    outa[_CS_M] := 0
+                    pinl(_CS_M)
                     spi.wr_byte(reg_nr)
                     spi.wrblock_lsbf(ptr_buff, nr_bytes)
-                    outa[_CS_M] := 1
-                core#CTRL_REG3_M:
+                    pinh(_CS_M)
+                core.CTRL_REG3_M:
                     reg_nr |= WRITE
-                    outa[_CS_M] := 0
+                    pinl(_CS_M)
                     spi.wr_byte(reg_nr)
 #ifdef LSM9DS1_SPI3W
                     ' enforce 3-wire SPI mode
-                    byte[ptr_buff][0] := byte[ptr_buff][0] | (1 << core#M_SIM)
+                    byte[ptr_buff][0] := byte[ptr_buff][0] | (1 << core.M_SIM)
 #endif
                     spi.wrblock_lsbf(ptr_buff, nr_bytes)
-                    outa[_CS_M] := 1
+                    pinh(_CS_M)
+#endif
                 other:
                     return
         other:
             return
+
 DAT
 {
     --------------------------------------------------------------------------------------------------------
