@@ -5,11 +5,15 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2021
     Started Aug 12, 2017
-    Updated Jun 5, 2021
+    Updated Oct 2, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
-
+#ifdef LSM9DS1_SPI3W
+#define LSM9DS1_SPI
+#elseifdef LSM9DS1_SPI4W
+#define LSM9DS1_SPI
+#endif
 CON
 
 ' Indicate to user apps how many Degrees of Freedom each sub-sensor has
@@ -130,6 +134,7 @@ VAR
 PUB Null{}
 ' This is not a top-level object
 
+#ifdef LSM9DS1_SPI3W
 PUB Startx(CS_AG_PIN, CS_M_PIN, SCL_PIN, SDIO_PIN): status
 ' Start using custom I/O pins
     if lookdown(SCL_PIN: 0..31) and lookdown(SDIO_PIN: 0..31) and {
@@ -142,15 +147,44 @@ PUB Startx(CS_AG_PIN, CS_M_PIN, SCL_PIN, SDIO_PIN): status
             dira[_CS_M] := 1
             time.usleep(core#TPOR)              ' startup time
 
-            xlgsoftreset{}                      ' reset/initialize to
-            magsoftreset{}                      ' POR defaults
+            spimode(3)
 
             if deviceid{} == core#WHOAMI_BOTH_RESP
+                xlgsoftreset{}                  ' reset/initialize to
+                magsoftreset{}                  ' POR defaults
                 return status                   ' validate device
     ' if this point is reached, something above failed
     ' Double check I/O pin assignments, connections, power
     ' Lastly - make sure you have at least one free core/cog
     return FALSE
+#elseifdef LSM9DS1_SPI4W
+PUB Startx(CS_AG_PIN, CS_M_PIN, SCL_PIN, SDA_PIN, SDO_PIN): status
+' Start using custom I/O pins
+    if lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) and {
+}   lookdown(CS_AG_PIN: 0..31) and lookdown(CS_M_PIN: 0..31) and {
+}   lookdown(SDO_PIN: 0..31)
+        if (status := spi.init(SCL_PIN, SDA_PIN, SDO_PIN, core#SPI_MODE))
+            longmove(@_CS_AG, @CS_AG_PIN, 2)
+            outa[_CS_AG] := 1                   ' make sure CS starts
+            outa[_CS_M] := 1                    '   high
+            dira[_CS_AG] := 1
+            dira[_CS_M] := 1
+            time.usleep(core#TPOR)              ' startup time
+
+            spimode(4)
+
+            xlgsoftreset{}                      ' reset/initialize to
+            magsoftreset{}                      ' POR defaults
+
+            if deviceid{} == core#WHOAMI_BOTH_RESP
+                xlgsoftreset{}                  ' reset/initialize to
+                magsoftreset{}                  ' POR defaults
+                return status                   ' validate device
+    ' if this point is reached, something above failed
+    ' Double check I/O pin assignments, connections, power
+    ' Lastly - make sure you have at least one free core/cog
+    return FALSE
+#endif
 
 PUB Stop{}
 
@@ -162,7 +196,7 @@ PUB Defaults{}
     magsoftreset{}
     time.usleep(core#TPOR)
 
-PUB Preset_XL_G_M_3WSPI{}
+PUB Preset_Active{}
 ' Like Defaults(), but
 '   * enables output data (XL/G: 59Hz, Mag: 40Hz)
 '   * sets SPI mode to 3-wire
@@ -172,13 +206,12 @@ PUB Preset_XL_G_M_3WSPI{}
     time.usleep(core#TPOR)
 
 ' Set both the Accel/Gyro and Mag to 3-wire SPI mode
-    setspi3wiremode{}
     addressautoinc(TRUE)
     magi2c(FALSE)                               ' disable mag I2C interface
     xlgdatablockupdate(TRUE)                    ' ensure MSB & LSB are from
     magblockupdate(TRUE)                        '   the same "frame" of data
     xlgdatarate(59)                             ' arbitrary
-    magdatarate(40_000)                         '
+    magdatarate(40)                             '
     gyroscale(245)                              ' already the POR defaults,
     accelscale(2)                               ' but still need to call these
     magscale(4)                                 ' to set scale factor hub vars
@@ -596,6 +629,9 @@ PUB GyroData(ptr_x, ptr_y, ptr_z) | tmp[2]
     long[ptr_y] := ~~tmp.word[Y_AXIS] - _gbiasraw[Y_AXIS]
     long[ptr_z] := ~~tmp.word[Z_AXIS] - _gbiasraw[Z_AXIS]
 
+PUB GyroDataOverrun{}
+' dummy method
+
 PUB GyroDataRate(rate): curr_rate
 ' Set Gyroscope Output Data Rate, in Hz
 '   Valid values: 0, 15, 60, 119, 238, 476, 952
@@ -808,7 +844,7 @@ PUB GyroIntThresh(x, y, z, rw) | gscl, lsb, tmp[2], axis
             readreg(XLG, core#INT_GEN_THS_XH_G, 6, @tmp)
             ' scale values up to output
             '   data scale (micro-dps)
-            repeat axis from X_AXIS to Z_AXIS
+            repeat axis from X_AXIS to Z_AXIS   'xxx review - much diff. than spin2
                 tmp.word[axis] := ((tmp.word[axis] & core#INT_G_BITS) << 1) ~> 1
             long[x] := ~~tmp.word[X_AXIS] * lsb
             long[y] := ~~tmp.word[Y_AXIS] * lsb
@@ -964,7 +1000,7 @@ PUB MagDataOverrun{}: status
 
 PUB MagDataRate(rate): curr_rate
 ' Set Magnetometer Output Data Rate, in Hz
-'   Valid values: 0 (0.625Hz), 1 (1.250), 2 (2.5), 5, *10, 20, 40, 80
+'   Valid values: 0 (0.625), 1 (1.250), 2 (2.5), 5, *10, 20, 40, 80
 '   Any other value polls the chip and returns the current setting
     curr_rate := 0
     readreg(MAG, core#CTRL_REG1_M, 1, @curr_rate)
@@ -1185,7 +1221,11 @@ PUB MagSoftreset{} | tmp
 
     tmp := 0                                    ' clear reset bit manually
     writereg(MAG, core#CTRL_REG2_M, 1, @tmp)    ' to come out of reset
-    setspi3wiremode{}
+#ifdef LSM9DS1_SPI3W
+    spimode(3)
+#elseifdef LSM9DS1_SPI4W
+    spimode(4)
+#endif
 
 PUB Temperature{}: temp
 ' Get temperature from chip
@@ -1265,7 +1305,7 @@ PUB XLGIntActiveState(state): curr_state
 
 PUB XLGSoftreset{} | tmp
 ' Perform soft-reset of accelerometer/gyroscope
-    tmp := core#XLG_SW_RESET
+    tmp := core#XLG_SW_RESET | (1 << core#BOOT)
     writereg(XLG, core#CTRL_REG8, 1, @tmp)
     time.msleep(10)
 
@@ -1293,7 +1333,7 @@ PRI addressAutoInc(state): curr_state
         other:
             return (((curr_state >> core#IF_ADD_INC) & 1) == 1)
 
-    state := ((curr_state & core#IF_ADD_INC) | state)
+    state := ((curr_state & core#IF_ADD_INC_MASK) | state)
     writereg(XLG, core#CTRL_REG8, 1, @state)
 
 PRI MagI2C(state): curr_state
@@ -1303,12 +1343,21 @@ PRI MagI2C(state): curr_state
     return booleanchoice(MAG, core#CTRL_REG3_M, core#M_I2C_DIS, {
 }   core#M_I2C_DIS_MASK, core#CTRL_REG3_M_MASK, state, -1)
 
-PRI setSPI3WireMode{} | tmp
-' Set SPI interface to 3-wire mode
-    tmp := core#XLG_3WSPI
-    writereg(XLG, core#CTRL_REG8, 1, @tmp)
-    tmp := core#M_3WSPI
-    writereg(MAG, core#CTRL_REG3_M, 1, @tmp)
+PRI SPIMode(mode)
+' Set SPI interface mode
+    case mode
+        3:
+            mode := core#XLG_3WSPI              ' set the SIM bit
+            writereg(XLG, core#CTRL_REG8, 1, @mode)
+            mode := core#M_3WSPI
+            writereg(MAG, core#CTRL_REG3_M, 1, @mode)
+        4:
+            mode := 0                           ' clear all bits
+            writereg(XLG, core#CTRL_REG8, 1, @mode)
+            mode := 0
+            writereg(MAG, core#CTRL_REG3_M, 1, @mode)
+        other:
+            return
 
 PRI booleanChoice(device, reg_nr, field, fieldmask, regmask, choice, invertchoice): bool
 ' Reusable method for writing a field that is of a boolean or on-off type
@@ -1340,25 +1389,25 @@ PRI readReg(device, reg_nr, nr_bytes, ptr_buff) | tmp
     case device
         XLG:
             case reg_nr
-                $04..$0D, $0F..$24, $26..$37:
-                    outa[_CS_AG] := 0
-                    spi.wr_byte(reg_nr | READ)
-                    spi.rdblock_lsbf(ptr_buff, nr_bytes)
-                    outa[_CS_AG] := 1
+                $15, $16, $17, $18, $1A, $1C, $28, $2A, $2C:
+                $04..$0D, $0F..$14, $1E..$24, $26, $27, $2E..$37:
                 other:
                     return
+            outa[_CS_AG] := 0
+            spi.wr_byte(reg_nr | READ)
+            spi.rdblock_lsbf(ptr_buff, nr_bytes)
+            outa[_CS_AG] := 1
         MAG:
             case reg_nr
-                $05..$0A, $0F, $20..$24, $27..$2D, $30..$33:
-                    reg_nr |= READ
+                $05, $07, $09, $28, $2A, $2C:
                     reg_nr |= MS
-                    outa[_CS_M] := 0
-                    spi.wr_byte(reg_nr)
-                    spi.rdblock_lsbf(ptr_buff, nr_bytes)
-                    outa[_CS_M] := 1
+                $0F, $20..$24, $27, $30..$33:
                 other:
                     return
-
+            outa[_CS_M] := 0
+            spi.wr_byte(reg_nr | READ)
+            spi.rdblock_lsbf(ptr_buff, nr_bytes)
+            outa[_CS_M] := 1
         other:
             return
 
@@ -1378,8 +1427,10 @@ PRI writeReg(device, reg_nr, nr_bytes, ptr_buff) | tmp
                 core#CTRL_REG8:
                     outa[_CS_AG] := 0
                     spi.wr_byte(reg_nr)
+#ifdef LSM9DS1_SPI3W
                     ' enforce 3-wire SPI mode
                     byte[ptr_buff][0] := byte[ptr_buff][0] | (1 << core#SIM)
+#endif
                     spi.wrblock_lsbf(ptr_buff, nr_bytes)
                     outa[_CS_AG] := 1
                 other:
@@ -1397,8 +1448,10 @@ PRI writeReg(device, reg_nr, nr_bytes, ptr_buff) | tmp
                     reg_nr |= WRITE
                     outa[_CS_M] := 0
                     spi.wr_byte(reg_nr)
+#ifdef LSM9DS1_SPI3W
                     ' enforce 3-wire SPI mode
                     byte[ptr_buff][0] := byte[ptr_buff][0] | (1 << core#M_SIM)
+#endif
                     spi.wrblock_lsbf(ptr_buff, nr_bytes)
                     outa[_CS_M] := 1
                 other:
