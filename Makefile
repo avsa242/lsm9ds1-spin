@@ -9,7 +9,7 @@ P1BAUD=115200
 P2BAUD=2000000
 
 # P1, P2 compilers
-P1BUILD=openspin
+P1BUILD=openspin -u
 #P1BUILD=flexspin
 P2BUILD=flexspin
 
@@ -25,8 +25,8 @@ SPIN2_LIB_PATH=-L ../p2-spin-standard-library/library
 
 
 # -- Internal --
-SPIN1_DRIVER_FN=sensor.imu.9dof.lsm9ds1.spi.spin
-SPIN2_DRIVER_FN=sensor.imu.9dof.lsm9ds1.spi.spin2
+SPIN1_DRIVER_FN=sensor.imu.9dof.lsm9ds1.i2cspi.spin
+SPIN2_DRIVER_FN=sensor.imu.9dof.lsm9ds1.i2cspi.spin2
 CORE_FN=core.con.lsm9ds1.spin
 # --
 

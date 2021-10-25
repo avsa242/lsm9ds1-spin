@@ -30,7 +30,7 @@ P2/SPIN2:
 ## Compiler compatibility
 
 * P1/SPIN1: OpenSpin (tested with 1.00.81)
-* P2/SPIN2: FlexSpin (tested with 6.0.0-beta)
+* P2/SPIN2: FlexSpin (tested with 5.9.3-beta)
 * ~~BST~~ (incompatible - no preprocessor)
 * ~~Propeller Tool~~ (incompatible - no preprocessor)
 * ~~PNut~~ (incompatible - no preprocessor)
@@ -39,12 +39,3 @@ P2/SPIN2:
 
 * TBD
 
-## TODO
-
-- [ ] Indicate default values in methods
-- [x] Modify some methods to take scaled parameters, rather than raw register values
-- [x] Add ability to set temperature scale
-- [ ] Rename methods to the sensor.imu API - WIP
-- [x] Implement 3W SPI driver
-- [x] Implement 4W SPI driver
-- [x] Implement I2C driver

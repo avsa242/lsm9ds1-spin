@@ -5,7 +5,7 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2021
     Started Aug 12, 2017
-    Updated Oct 2, 2021
+    Updated Oct 25, 2021
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -240,13 +240,13 @@ PUB Preset_Active{}
 #elseifdef LSM9DS1_SPI
     magi2c(FALSE)                               ' disable mag I2C interface
 #endif
-    xlgdatablockupdate(TRUE)                    ' ensure MSB & LSB are from
-    magblockupdate(TRUE)                        '   the same "frame" of data
+    blockupdate{}
     xlgdatarate(59)                             ' arbitrary
     magdatarate(40)                             '
     gyroscale(245)                              ' already the POR defaults,
     accelscale(2)                               ' but still need to call these
     magscale(4)                                 ' to set scale factor hub vars
+    magopmode(MAG_OPMODE_CONT)
 
 PUB AccelAxisEnabled(mask): curr_mask
 ' Enable data output for Accelerometer - per axis
@@ -964,16 +964,6 @@ PUB IntInactivity{}: flag
     readreg(XLG, core#STATUS_REG, 1, @flag)
     return (((flag >> core#INACT) & 1) == 1)
 
-PUB MagBlockUpdate(state): curr_state
-' Enable block update for magnetometer data
-'   Valid values:
-'       TRUE(-1 or 1): Output registers not updated until MSB and LSB have been
-'           read
-'       FALSE(0): Continuous update
-'   Any other value polls the chip and returns the current setting
-    return booleanChoice (MAG, core#CTRL_REG5_M, core#BDU_M, core#BDU_M_MASK,{
-}   core#CTRL_REG5_M_MASK, state, 1)
-
 PUB MagBias(mxbias, mybias, mzbias, rw) | tmp[2]
 ' Read or write/manually set Magnetometer calibration offset values
 '   Valid values:
@@ -1295,15 +1285,6 @@ PUB TempScale(scale): curr_scl
         other:
             return _temp_scale
 
-PRI XLGDataBlockUpdate(state): curr_state
-' Wait until both MSB and LSB of output registers are read before updating
-'   Valid values:
-'       FALSE (0): Continuous update
-'       TRUE (1 or -1): Do not update until both MSB and LSB are read
-'   Any other value polls the chip and returns the current setting
-    return booleanchoice(XLG, core#CTRL_REG8, core#BDU, core#BDU_MASK,{
-}   core#CTRL_REG8_MASK, state, 1)
-
 PUB XLGDataRate(rate): curr_rate
 ' Set output data rate of accelerometer and gyroscope, in Hz
 '   Valid values: 0 (power down), 14, 59, 119, 238, 476, 952
@@ -1368,12 +1349,35 @@ PRI addressAutoInc(state): curr_state
     state := ((curr_state & core#IF_ADD_INC_MASK) | state)
     writereg(XLG, core#CTRL_REG8, 1, @state)
 
+PRI blockUpdate{} | tmp
+' Wait to update the output data registers until both the MSB and LSB
+'   are updated internally
+    tmp := 0
+    readreg(XLG, core#CTRL_REG8, 1, @tmp)
+    tmp |= (1 << core#BDU)
+    writereg(XLG, core#CTRL_REG8, 1, @tmp)
+
+    tmp := 0
+    readreg(MAG, core#CTRL_REG5_M, 1, @tmp)
+    tmp |= (1 << core#BDU_M)
+    writereg(MAG, core#CTRL_REG5_M, 1, @tmp)
+
 PRI MagI2C(state): curr_state
 ' Enable Magnetometer I2C interface
 '   Valid values: *TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
-    return booleanchoice(MAG, core#CTRL_REG3_M, core#M_I2C_DIS, {
-}   core#M_I2C_DIS_MASK, core#CTRL_REG3_M_MASK, state, -1)
+    curr_state := 0
+    readreg(MAG, core#CTRL_REG3_M, 1, @curr_state)
+    case ||(state)
+        0, 1:
+            ' setting the M_I2C_DIS bit _disables_ I2C, so invert
+            '   the value passed to this method
+            state := (||(state) ^ 1) << core#M_I2C_DIS
+        other:
+            return ((((curr_state >> core#M_I2C_DIS) & 1) ^ 1) == 1)
+
+    state := ((curr_state & core#M_I2C_DIS_MASK) | state)
+    writereg(MAG, core#CTRL_REG3_M, 1, @state)
 
 PRI SPIMode(mode)
 ' Set SPI interface mode
