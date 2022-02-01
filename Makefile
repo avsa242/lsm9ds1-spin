@@ -1,6 +1,6 @@
 # lsm9ds1-spin Makefile - requires GNU Make, or compatible
 # Variables below can be overridden on the command line
-#	e.g. IFACE=LSM9DS1_SPI3W make
+#	e.g. make IFACE=LSM9DS1_SPI
 
 # P1, P2 device nodes and baudrates
 #P1DEV=
@@ -25,8 +25,8 @@ SPIN2_LIB_PATH=-L ../p2-spin-standard-library/library
 
 
 # -- Internal --
-SPIN1_DRIVER_FN=sensor.imu.9dof.lsm9ds1.i2cspi.spin
-SPIN2_DRIVER_FN=sensor.imu.9dof.lsm9ds1.i2cspi.spin2
+SPIN1_DRIVER_FN=sensor.imu.9dof.lsm9ds1.spin
+SPIN2_DRIVER_FN=sensor.imu.9dof.lsm9ds1.spin2
 CORE_FN=core.con.lsm9ds1.spin
 # --
 
