@@ -9,9 +9,8 @@ P1BAUD=115200
 P2BAUD=2000000
 
 # P1, P2 compilers
-P1BUILD=openspin -u
-#P1BUILD=flexspin
-P2BUILD=flexspin
+P1BUILD=flexspin --interp=rom
+P2BUILD=flexspin -2
 
 # LSM9DS1 interface: I2C, SPI-3wire or SPI-4wire
 #IFACE=LSM9DS1_I2C
