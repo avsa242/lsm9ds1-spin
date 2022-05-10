@@ -5,7 +5,7 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2022
     Started Aug 12, 2017
-    Updated Apr 20, 2022
+    Updated May 10, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -140,7 +140,7 @@ VAR
 
     long _gres, _gbiasraw[GYRO_DOF]
     long _ares, _abiasraw[ACCEL_DOF]
-    long _mres
+    long _mres[MAG_DOF]
     long _CS_AG, _CS_M
     byte _temp_scale
 
@@ -1127,7 +1127,7 @@ PUB MagScale(scale): curr_scl
     case(scale)
         4, 8, 12, 16:
             scale := lookdownz(scale: 4, 8, 12, 16)
-            _mres := lookupz(scale: 0_000140, 0_000290, 0_000430, 0_000580)
+            longfill(@_mres, lookupz(scale: 0_000140, 0_000290, 0_000430, 0_000580), MAG_DOF)
             scale <<= core#FS_M
             writereg(MAG, core#CTRL_REG2_M, 1, @scale)
         other:
@@ -1158,13 +1158,29 @@ PUB MagSoftreset{} | tmp
     spimode(4)
 #endif
 
-PUB MagWord2Gauss(mag_word): mag_gauss
-' Convert magnetometer ADC word to Gauss
-    return (mag_word * _mres)
+PUB MagXWord2Gauss(mag_word): mag_gauss
+' Convert magnetometer X-axis ADC word to Gauss
+    return (mag_word * _mres[X_AXIS])
 
-PUB MagWord2Tesla(mag_word): mag_tesla
-' Convert magnetometer ADC word to Teslas
-    return (mag_word *_mres) / 10_000
+PUB MagYWord2Gauss(mag_word): mag_gauss
+' Convert magnetometer Y-axis ADC word to Gauss
+    return (mag_word * _mres[Y_AXIS])
+
+PUB MagZWord2Gauss(mag_word): mag_gauss
+' Convert magnetometer Z-axis ADC word to Gauss
+    return (mag_word * _mres[Z_AXIS])
+
+PUB MagXWord2Tesla(mag_word): mag_tesla
+' Convert magnetometer X-axis ADC word to Teslas
+    return (mag_word * _mres[X_AXIS]) / 10_000
+
+PUB MagYWord2Tesla(mag_word): mag_tesla
+' Convert magnetometer Y-axis ADC word to Teslas
+    return (mag_word * _mres[Y_AXIS]) / 10_000
+
+PUB MagZWord2Tesla(mag_word): mag_tesla
+' Convert magnetometer Z-axis ADC word to Teslas
+    return (mag_word * _mres[Z_AXIS]) / 10_000
 
 PUB Temperature{}: temp
 ' Get temperature from chip
