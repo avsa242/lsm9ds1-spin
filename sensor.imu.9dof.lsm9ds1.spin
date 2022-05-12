@@ -5,7 +5,7 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2022
     Started Aug 12, 2017
-    Updated May 10, 2022
+    Updated May 12, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -451,10 +451,6 @@ PUB AccelScale(scale): curr_scl
     scale := ((curr_scl & core#FS_XL_MASK) | scale)
     writereg(XLG, core#CTRL_REG6_XL, 1, @scale)
 
-PUB AccelWord2G(accel_word): accel_g
-' Convert accelerometer ADC word to g's
-    return (accel_word * _ares)
-
 PUB DeviceID{}: id
 ' Read device identification
 '   Returns: $683D
@@ -828,10 +824,6 @@ PUB GyroSleep(state): curr_state
     return booleanChoice(XLG, core#CTRL_REG9, core#SLP_G, core#SLP_G_MASK,{
 }   core#CTRL_REG9_MASK, state, 1)
 
-PUB GyroWord2DPS(gyro_word): gyro_dps
-' Convert gyroscope ADC word to degrees per second
-    return (gyro_word * _gres)
-
 PUB Int1Mask(mask): curr_mask
 ' Set interrupt enable mask on INT1 pin
 '   Bits: 7..0 (1=enable interrupt, 0=disable interrupt)
@@ -1157,30 +1149,6 @@ PUB MagSoftreset{} | tmp
 #elseifdef LSM9DS1_SPI4W
     spimode(4)
 #endif
-
-PUB MagXWord2Gauss(mag_word): mag_gauss
-' Convert magnetometer X-axis ADC word to Gauss
-    return (mag_word * _mres[X_AXIS])
-
-PUB MagYWord2Gauss(mag_word): mag_gauss
-' Convert magnetometer Y-axis ADC word to Gauss
-    return (mag_word * _mres[Y_AXIS])
-
-PUB MagZWord2Gauss(mag_word): mag_gauss
-' Convert magnetometer Z-axis ADC word to Gauss
-    return (mag_word * _mres[Z_AXIS])
-
-PUB MagXWord2Tesla(mag_word): mag_tesla
-' Convert magnetometer X-axis ADC word to Teslas
-    return (mag_word * _mres[X_AXIS]) / 10_000
-
-PUB MagYWord2Tesla(mag_word): mag_tesla
-' Convert magnetometer Y-axis ADC word to Teslas
-    return (mag_word * _mres[Y_AXIS]) / 10_000
-
-PUB MagZWord2Tesla(mag_word): mag_tesla
-' Convert magnetometer Z-axis ADC word to Teslas
-    return (mag_word * _mres[Z_AXIS]) / 10_000
 
 PUB Temperature{}: temp
 ' Get temperature from chip
