@@ -12,10 +12,9 @@ P2BAUD=2000000
 P1BUILD=flexspin --interp=rom
 P2BUILD=flexspin -2
 
-# LSM9DS1 interface: I2C, SPI-3wire or SPI-4wire
-#IFACE=LSM9DS1_I2C
-#IFACE=LSM9DS1_SPI3W
-#IFACE=LSM9DS1_SPI4W
+# LSM9DS1 interface: I2C or SPI
+IFACE=LSM9DS1_I2C
+#IFACE=LSM9DS1_SPI
 
 # Paths to spin-standard-library, and p2-spin-standard-library,
 #  if not specified externally
