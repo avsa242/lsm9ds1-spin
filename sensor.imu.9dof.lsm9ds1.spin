@@ -121,12 +121,24 @@ CON
 
 OBJ
 
-#ifdef LSM9DS1_I2C
-    i2c     : "com.i2c"
-#elseifdef LSM9DS1_SPI
-    spi     : "com.spi.4w"
+{ SPI? }
+#ifdef LSM9DS1_SPI
+{ decide: Bytecode SPI engine, or PASM? Default is PASM if BC isn't specified }
+#ifdef LSM9DS1_SPI_BC
+    spi : "com.spi.nocog"                       ' BC SPI engine
 #else
-#error "One of LSM9DS1_I2C or LSM9DS1_SPI must be defined"
+    spi : "com.spi.4w"                          ' PASM SPI engine
+#endif
+#else
+{ no, not SPI - default to I2C }
+#define LSM9DS1_I2C
+{ decide: Bytecode I2C engine, or PASM? Default is PASM if BC isn't specified }
+#ifdef LSM9DS1_I2C_BC
+    i2c : "com.i2c.nocog"                       ' BC I2C engine
+#else
+    i2c : "com.i2c"                             ' PASM I2C engine
+#endif
+
 #endif
     core    : "core.con.lsm9ds1"
     time    : "time"
