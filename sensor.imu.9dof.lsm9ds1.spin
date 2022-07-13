@@ -1344,12 +1344,12 @@ PRI readReg(device, reg_nr, nr_bytes, ptr_buff) | cmd_pkt
                 other:
                     return
 #ifdef LSM9DS1_I2C
-            cmd_pkt.byte[0] := (core#SLAVE_ADDR_MAG | _addr_bits)
+            cmd_pkt.byte[0] := (core#SLAVE_ADDR_MAG | (_addr_bits << 1))
             cmd_pkt.byte[1] := reg_nr
             i2c.start{}
             i2c.wrblock_lsbf(@cmd_pkt, 2)
             i2c.start{}
-            i2c.write(core#SLAVE_ADDR_MAG | _addr_bits | 1)
+            i2c.write(core#SLAVE_ADDR_MAG | (_addr_bits << 1) | 1)
             i2c.rdblock_lsbf(ptr_buff, nr_bytes, i2c#NAK)
             i2c.stop{}
 #elseifdef LSM9DS1_SPI
@@ -1400,7 +1400,7 @@ PRI writeReg(device, reg_nr, nr_bytes, ptr_buff) | cmd_pkt
             case reg_nr
 #ifdef LSM9DS1_I2C
                 $05..$0A, $0F, $20, $21..$24, $27..$2D, $30..$33:
-                    cmd_pkt.byte[0] := (core#SLAVE_ADDR_MAG | _addr_bits)
+                    cmd_pkt.byte[0] := (core#SLAVE_ADDR_MAG | (_addr_bits << 1))
                     cmd_pkt.byte[1] := reg_nr | core#MB_I2C
                     i2c.start{}
                     i2c.wrblock_lsbf(@cmd_pkt, 2)

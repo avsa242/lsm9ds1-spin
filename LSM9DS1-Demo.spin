@@ -28,6 +28,7 @@ CON
     SCL_PIN     = 28
     SDA_PIN     = 29
     I2C_FREQ    = 400_000
+    ADDR_BITS   = 0
 
     { SPI configuration }
     CS_PIN      = 0
@@ -53,7 +54,7 @@ PUB Setup{}
 #ifdef LSM9DS1_SPI
     if (imu.startx(CS_PIN, SCK_PIN, MOSI_PIN, MISO_PIN))
 #else
-    if (imu.startx(SCL_PIN, SDA_PIN, I2C_FREQ))
+    if (imu.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
 #endif
         ser.strln(string("LSM9DS1 driver started"))
     else
