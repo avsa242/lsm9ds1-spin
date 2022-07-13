@@ -156,13 +156,13 @@ PUB Null{}
 ' This is not a top-level object
 
 #ifdef LSM9DS1_I2C
-PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ): status
+PUB Startx(SCL_PIN, SDA_PIN, I2C_HZ, ADDR_BITS): status
 ' Start using custom I/O pins
     if lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) and {
 }   I2C_HZ =< core#I2C_MAX_FREQ
         if (status := i2c.init(SCL_PIN, SDA_PIN, I2C_HZ))
             time.usleep(core#TPOR)              ' startup time
-
+            _addr_bits := (ADDR_BITS << 1)
             if deviceid{} == core#WHOAMI_BOTH_RESP
                 xlgsoftreset{}                  ' reset/initialize to
                 magsoftreset{}                  ' POR defaults
@@ -1321,12 +1321,12 @@ PRI readReg(device, reg_nr, nr_bytes, ptr_buff) | cmd_pkt
                 other:
                     return
 #ifdef LSM9DS1_I2C
-            cmd_pkt.byte[0] := core#SLAVE_ADDR_XLG
+            cmd_pkt.byte[0] := (core#SLAVE_ADDR_XLG | _addr_bits)
             cmd_pkt.byte[1] := reg_nr
             i2c.start{}
             i2c.wrblock_lsbf(@cmd_pkt, 2)
             i2c.start{}
-            i2c.write(core#SLAVE_ADDR_XLG | 1)
+            i2c.write(core#SLAVE_ADDR_XLG | _addr_bits | 1)
             i2c.rdblock_lsbf(ptr_buff, nr_bytes, i2c#NAK)
             i2c.stop{}
 #elseifdef LSM9DS1_SPI
@@ -1347,12 +1347,12 @@ PRI readReg(device, reg_nr, nr_bytes, ptr_buff) | cmd_pkt
                 other:
                     return
 #ifdef LSM9DS1_I2C
-            cmd_pkt.byte[0] := core#SLAVE_ADDR_MAG
+            cmd_pkt.byte[0] := (core#SLAVE_ADDR_MAG | _addr_bits)
             cmd_pkt.byte[1] := reg_nr
             i2c.start{}
             i2c.wrblock_lsbf(@cmd_pkt, 2)
             i2c.start{}
-            i2c.write(core#SLAVE_ADDR_MAG | 1)
+            i2c.write(core#SLAVE_ADDR_MAG | _addr_bits | 1)
             i2c.rdblock_lsbf(ptr_buff, nr_bytes, i2c#NAK)
             i2c.stop{}
 #elseifdef LSM9DS1_SPI
@@ -1374,7 +1374,7 @@ PRI writeReg(device, reg_nr, nr_bytes, ptr_buff) | cmd_pkt
             case reg_nr
 #ifdef LSM9DS1_I2C
                 $04..$0D, $10..$13, $1E..$24, $2E, $30..$37:
-                    cmd_pkt.byte[0] := core#SLAVE_ADDR_XLG
+                    cmd_pkt.byte[0] := (core#SLAVE_ADDR_XLG | _addr_bits)
                     cmd_pkt.byte[1] := reg_nr
                     i2c.start{}
                     i2c.wrblock_lsbf(@cmd_pkt, 2)
@@ -1403,7 +1403,7 @@ PRI writeReg(device, reg_nr, nr_bytes, ptr_buff) | cmd_pkt
             case reg_nr
 #ifdef LSM9DS1_I2C
                 $05..$0A, $0F, $20, $21..$24, $27..$2D, $30..$33:
-                    cmd_pkt.byte[0] := core#SLAVE_ADDR_MAG
+                    cmd_pkt.byte[0] := (core#SLAVE_ADDR_MAG | _addr_bits)
                     cmd_pkt.byte[1] := reg_nr | core#MB_I2C
                     i2c.start{}
                     i2c.wrblock_lsbf(@cmd_pkt, 2)

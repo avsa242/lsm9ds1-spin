@@ -44,5 +44,6 @@ P2/SPIN2:
 
 ## Limitations
 
-* TBD
+* Alternate I2C address bits of Accel/Gyro module and Mag module are currently linked (i.e., if address bit 1 is set on driver startup, both modules use that alternate address bit)
+
 
