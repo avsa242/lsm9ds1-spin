@@ -6,11 +6,11 @@
         * 9DoF data output
     Copyright (c) 2022
     Started Aug 12, 2017
-    Updated Jul 12, 2022
+    Updated Jul 13, 2022
     See end of file for terms of use.
     --------------------------------------------
 
-    Build-time symbols supported:
+    Build-time symbols supported by driver:
         -DLSM9DS1_SPI
         -DLSM9DS1_SPI_BC
         -DLSM9DS1_I2C (default if none specified)
@@ -43,19 +43,6 @@ OBJ
     ser: "com.serial.terminal.ansi"
     time: "time"
 
-PUB Main{}
-
-    setup{}
-    imu.preset_active{}
-
-    repeat
-        ser.position(0, 3)
-        acceldata{}
-        gyrodata{}
-        magdata{}
-        if (ser.rxcheck{} == "c")
-            calibrate{}
-
 PUB Setup{}
 
     ser.start(SER_BAUD)
@@ -73,8 +60,11 @@ PUB Setup{}
         ser.strln(string("LSM9DS1 driver failed to start - halting"))
         repeat
 
+    imu.preset_active{}
 
-#include "imudemo-common.spinh"
+    demo{}
+
+#include "imudemo-common.spinh"                 ' code common to all IMU demos
 
 DAT
 {
