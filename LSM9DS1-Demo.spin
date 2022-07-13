@@ -31,10 +31,11 @@ CON
     ADDR_BITS   = 0
 
     { SPI configuration }
-    CS_PIN      = 0
-    SCK_PIN     = 1
-    MOSI_PIN    = 2
-    MISO_PIN    = 3
+    CS_AG_PIN   = 0
+    CS_M_PIN    = 1
+    SCK_PIN     = 2
+    MOSI_PIN    = 3                             ' SDA
+    MISO_PIN    = 4                             ' SDOAG + SDOM
 ' --
 
 OBJ
@@ -52,7 +53,7 @@ PUB Setup{}
     ser.strln(string("Serial terminal started"))
 
 #ifdef LSM9DS1_SPI
-    if (imu.startx(CS_PIN, SCK_PIN, MOSI_PIN, MISO_PIN))
+    if (imu.startx(CS_AG_PIN, CS_M_PIN, SCK_PIN, MOSI_PIN, MISO_PIN))
 #else
     if (imu.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
 #endif

@@ -14,6 +14,8 @@
         -DLSM9DS1_SPI
         -DLSM9DS1_I2C (default if none specified)
 }
+'#include "core.con.click.spin2"
+
 CON
 
     _clkfreq    = cfg._clkfreq_def
@@ -22,17 +24,25 @@ CON
 ' -- User-modifiable constants
     SER_BAUD    = 2_000_000
 
+    CLICK_BASE  = 16
+
     { I2C configuration }
-    SCL_PIN     = 0
-    SDA_PIN     = 1
-    I2C_FREQ    = 400_000
-    ADDR_BITS   = 0
+    { custom I/O pin definitions - uncomment the below, and comment out the #include
+        line above to use }
+'    SCL_PIN     = 0
+'    SDA_PIN     = 1
+    I2C_FREQ    = 400_000                       ' max is 400_000
+    ADDR_BITS   = 0                             ' 0, 1
 
     { SPI configuration }
-    CS_PIN      = 0
-    SCK_PIN     = 1
-    MOSI_PIN    = 2
-    MISO_PIN    = 3
+    { custom I/O pin definitions - uncomment the below, and comment out the #include
+        line above to use }
+    CS_AG_PIN   = 0
+    CS_M_PIN    = 1
+    SCK_PIN     = 2
+    MOSI_PIN    = 3                             ' SDA
+    MISO_PIN    = 4                             ' SDOAG + SDOM
+    SPI_FREQ    = 10_000_000
 ' --
 
 OBJ
@@ -49,7 +59,7 @@ PUB Setup()
     ser.strln(@"Serial terminal started")
 
 #ifdef LSM9DS1_SPI
-    if (imu.startx(CS_PIN, SCK_PIN, MOSI_PIN, MISO_PIN))
+    if (imu.startx(CS_AG_PIN, CS_M_PIN, SCK_PIN, MOSI_PIN, MISO_PIN, SPI_FREQ))
 #else
     if (imu.startx(SCL_PIN, SDA_PIN, I2C_FREQ, ADDR_BITS))
 #endif
