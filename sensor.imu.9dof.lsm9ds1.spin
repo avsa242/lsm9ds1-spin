@@ -5,7 +5,7 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2022
     Started Aug 12, 2017
-    Updated Oct 2, 2022
+    Updated Oct 16, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -121,9 +121,9 @@ OBJ
 #ifdef LSM9DS1_SPI
 { decide: Bytecode SPI engine, or PASM? Default is PASM if BC isn't specified }
 #ifdef LSM9DS1_SPI_BC
-    spi : "com.spi.nocog"                       ' BC SPI engine
+    spi : "com.spi.25khz.nocog"                       ' BC SPI engine
 #else
-    spi : "com.spi.4w"                          ' PASM SPI engine
+    spi : "com.spi.1mhz"                          ' PASM SPI engine
 #endif
 #else
 { no, not SPI - default to I2C }
@@ -225,7 +225,7 @@ PUB preset_active{}
 #ifdef LSM9DS1_I2C
     mag_i2c_ena(TRUE)                           ' enable mag I2C interface
 #elseifdef LSM9DS1_SPI
-    mag_i2c(FALSE)                              ' disable mag I2C interface
+    mag_i2c_ena(FALSE)                          ' disable mag I2C interface
 #endif
     blk_updt_ena{}
     xlg_data_rate(59)                           ' arbitrary

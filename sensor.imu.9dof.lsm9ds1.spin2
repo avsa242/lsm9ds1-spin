@@ -5,7 +5,7 @@
     Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Copyright (c) 2022
     Started Aug 12, 2017
-    Updated Oct 2, 2022
+    Updated Oct 16, 2022
     See end of file for terms of use.
     --------------------------------------------
 }
@@ -117,7 +117,7 @@ OBJ
 
 { SPI? }
 #ifdef LSM9DS1_SPI
-    spi : "com.spi.bitbang"                     ' bitbanged SPI engine
+    spi : "com.spi.10mhz"                     ' bitbanged SPI engine
 #else
 { no, not SPI - default to I2C }
 #define LSM9DS1_I2C
@@ -210,7 +210,7 @@ PUB preset_active()
 #ifdef LSM9DS1_I2C
     mag_i2c_ena(TRUE)                           ' enable mag I2C interface
 #elseifdef LSM9DS1_SPI
-    mag_i2c(FALSE)                              ' disable mag I2C interface
+    mag_i2c_ena(FALSE)                          ' disable mag I2C interface
 #endif
     blk_updt_ena()
     xlg_data_rate(59)                           ' arbitrary
@@ -446,12 +446,14 @@ PUB accel_scale(scale=-2): curr_scl
     scale := ((curr_scl & core.FS_XL_MASK) | scale)
     writereg(XLG, core.CTRL_REG6_XL, 1, @scale)
 
-PUB dev_id(): id
+PUB dev_id(): id | byte tmp[2]
 ' Read device identification
 '   Returns: $683D
     id := 0
-    readreg(XLG, core.WHO_AM_I_XG, 1, @id.byte[1])
-    readreg(MAG, core.WHO_AM_I_M, 1, @id.byte[0])
+    readreg(XLG, core.WHO_AM_I_XG, 1, @tmp[1])
+    readreg(MAG, core.WHO_AM_I_M, 1, @tmp[0])
+    id.byte[1] := tmp[1]
+    id.byte[0] := tmp[0]
 
 PUB fifo_ena(state=-2): curr_state
 ' Enable FIFO memory
