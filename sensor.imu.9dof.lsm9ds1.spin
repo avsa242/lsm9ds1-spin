@@ -261,9 +261,9 @@ PUB accel_set_bias(x, y, z)
 ' Write accelerometer calibration offset values
 '   Valid values:
 '       -32768..32767 (clamped to range)
-    _abias[X_AXIS] := -32768 #> axbias <# 32767
-    _abias[Y_AXIS] := -32768 #> aybias <# 32767
-    _abias[Z_AXIS] := -32768 #> azbias <# 32767
+    _abias[X_AXIS] := -32768 #> x <# 32767
+    _abias[Y_AXIS] := -32768 #> y <# 32767
+    _abias[Z_AXIS] := -32768 #> z <# 32767
 
 PUB accel_data(ax, ay, az) | tmp[2]
 ' Reads the Accelerometer output registers
