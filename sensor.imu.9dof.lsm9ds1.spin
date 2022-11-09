@@ -322,7 +322,7 @@ PUB accel_int{}: int_src
     int_src := 0
     readreg(XLG, core#INT_GEN_SRC_XL, 1, @int_src)
 
-PUB accel_int_dur(samples): curr_smp
+PUB accel_int_duration(samples): curr_smp
 ' Set number of samples accelerometer data must be past threshold to be
 '   considered an interrupt
 '   Valid values: 0..127
@@ -726,7 +726,7 @@ PUB gyro_int_data_filt(mode): curr_mode
     mode := ((curr_mode & core#INT_SEL_MASK) | mode)
     writereg(XLG, core#CTRL_REG2_G, 1, @mode)
 
-PUB gyro_int_dur(samples): curr_smp
+PUB gyro_int_duration(samples): curr_smp
 ' Set number of samples gyroscope data must be past threshold to be considered an interrupt
 '   Valid values: 0..127
 '   Any other value polls the chip and returns the current setting
@@ -745,7 +745,7 @@ PUB gyro_int_hyst_ena(state): curr_state
 '   Valid values: TRUE (-1 or 1), FALSE (0)
 '   Any other value polls the chip and returns the current setting
 '   NOTE: The hysteresis used is equivalent to/set by the interrupt
-'       duration time gyro_int_dur()
+'       duration time gyro_int_duration()
     curr_state := 0
     readreg(XLG, core#INT_GEN_DUR_G, 1, @curr_state)
     case ||(state)
