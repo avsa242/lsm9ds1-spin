@@ -15,6 +15,22 @@
 
 CON
 
+    { default I/O configuration - these can be overridden by the parent object }
+    { /// I2C /// }
+    SCL                     = 28
+    SDA                     = 29
+    I2C_FREQ                = 100_000
+    I2C_ADDR                = 0
+
+    { /// SPI /// }
+    CS_AG                   = 0
+    CS_M                    = 1
+    SCK                     = 2
+    MOSI                    = 3
+    MISO                    = 4
+    SPI_FREQ                = 1_000_000
+
+
     DEF_SCL                 = 28
     DEF_SDA                 = 29
     DEF_HZ                  = 100_000
@@ -144,6 +160,11 @@ PUB null{}
 ' This is not a top-level object
 
 #ifdef LSM9DS1_I2C
+PUB start(): status
+' Start the driver using default settings
+    return startx(SCL, SDA, I2C_FREQ, I2C_ADDR)
+
+
 PUB startx(SCL_PIN, SDA_PIN, I2C_HZ, ADDR_BITS): status
 ' Start using custom I/O pins
     if lookdown(SCL_PIN: 0..31) and lookdown(SDA_PIN: 0..31) and {
@@ -161,6 +182,11 @@ PUB startx(SCL_PIN, SDA_PIN, I2C_HZ, ADDR_BITS): status
     return FALSE
 
 #elseifdef LSM9DS1_SPI
+
+PUB start(): status
+' Start the driver using default settings
+    return startx(CS_AG, CS_M, SCK, MOSI, MISO)
+
 
 PUB startx(CS_AG_PIN, CS_M_PIN, SCL_PIN, SDA_PIN, SDO_PIN): status
 ' Start using custom I/O pins
