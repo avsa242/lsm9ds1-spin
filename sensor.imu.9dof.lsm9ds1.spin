@@ -1,13 +1,12 @@
 {
-    --------------------------------------------
-    Filename: sensor.imu.9dof.lsm9ds1.spin
-    Author: Jesse Burt
-    Description: Driver for the ST LSM9DS1 9DoF/3-axis IMU
-    Copyright (c) 2022
-    Started Aug 12, 2017
-    Updated Nov 13, 2022
-    See end of file for terms of use.
-    --------------------------------------------
+----------------------------------------------------------------------------------------------------
+    Filename:       sensor.imu.9dof.lsm9ds1.spin
+    Description:    Driver for the ST LSM9DS1 9DoF/3-axis IMU
+    Author:         Jesse Burt
+    Started:        Aug 12, 2017
+    Updated:        Jan 21, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+---------------------------------------------------------------------------------------------------
 }
 #include "sensor.accel.common.spinh"
 #include "sensor.gyroscope.common.spinh"
@@ -294,12 +293,12 @@ PUB accel_data_rate(rate): curr_rate
 '       (hardware limitation)
     return xlg_data_rate(rate)
 
-PUB accel_data_rdy{} | tmp
+PUB accel_data_rdy{}: f | tmp
 ' Flag indicating new accelerometer data available
 '   Returns TRUE or FALSE
     tmp := 0
     readreg(XLG, core#STATUS_REG, 1, @tmp)
-    result := (((tmp >> core#XLDA) & 1) == 1)
+    return (((tmp >> core#XLDA) & 1) == 1)
 
 PUB accel_high_res_ena(state): curr_state
 ' Enable high resolution mode for accelerometer
@@ -1461,9 +1460,11 @@ PRI writereg(device, reg_nr, nr_bytes, ptr_buff) | cmd_pkt
                     return
         other:
             return
+
+
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
