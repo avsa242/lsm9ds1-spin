@@ -1,39 +1,43 @@
 {
----------------------------------------------------------------------------------------------------
+----------------------------------------------------------------------------------------------------
     Filename:       LSM9DS1-Demo.spin
-    Description:    LSM9DS1 driver demo
+    Description:    Demo of the LSM9DS1 driver
+        * 9DoF data output
     Author:         Jesse Burt
     Started:        Aug 12, 2017
     Updated:        Jan 21, 2024
     Copyright (c) 2024 - See end of file for terms of use.
----------------------------------------------------------------------------------------------------
-
-    Build-time symbols supported by driver:
-        -DLSM9DS1_SPI
-        -DLSM9DS1_SPI_BC
-        -DLSM9DS1_I2C (default if none specified)
-        -DLSM9DS1_I2C_BC
+----------------------------------------------------------------------------------------------------
 }
 
-' uncomment the two lines below to use SPI
-#define LSM9DS1_SPI
-#pragma exportdef(LSM9DS1_SPI)
+' Uncomment the two lines below to use the driver in SPI mode
+'#define LSM9DS1_SPI
+'#pragma exportdef(LSM9DS1_SPI)
+
+' Uncomment the two lines below to use the driver with a bytecode-based SPI engine
+'#define LSM9DS1_SPI_BC
+'#pragma exportdef(LSM9DS1_SPI_BC)
+
+' Uncomment these two use the driver with a bytecode-based I2C engine
+'#define LSM9DS1_I2C_BC
+'#pragma exportdef(LSM9DS1_I2C_BC)
+
 
 CON
 
-    _clkmode    = cfg#_clkmode
-    _xinfreq    = cfg#_xinfreq
+    _clkmode    = cfg._clkmode
+    _xinfreq    = cfg._xinfreq
 
 
 OBJ
 
     cfg:    "boardcfg.flip"
+    time:   "time"
+    ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
 
     { to use 3-wire SPI, set MOSI and MISO to the same pin }
-    sensor: "sensor.imu.9dof.lsm9ds1" | {I2C}SCL=28, SDA=29, I2C_FREQ=400_000, I2C_ADDR=0, ...
-                                        {SPI}CS_AG=2, CS_M=3, SCK=0, MOSI=1, MISO=1
-    ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
-    time:   "time"
+    sensor: "sensor.imu.9dof.lsm9ds1" | {I2C}SCL=2, SDA=4, I2C_FREQ=400_000, I2C_ADDR=0, ...
+                                        {SPI}CS_AG=0, CS_M=1, SCK=2, MOSI=3, MISO=3
 
 
 PUB setup()
@@ -56,14 +60,16 @@ PUB setup()
         show_accel_data()
         show_gyro_data()
         show_mag_data()
-        if ( ser.rx_check() == "c" )
+        if ( ser.getchar_noblock() == "c" )
             cal_accel()
             cal_gyro()
             cal_mag()
 
-#include "acceldemo.common.spinh"
-#include "gyrodemo.common.spinh"
-#include "magdemo.common.spinh"
+
+#include "acceldemo.common.spinh"               ' use code common to all accelerometer,
+#include "gyrodemo.common.spinh"                '   gyroscope,
+#include "magdemo.common.spinh"                 '   and magnetometer demos.
+
 
 DAT
 {

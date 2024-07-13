@@ -1,13 +1,12 @@
 {
-    --------------------------------------------
-    Filename: core.con.lsm9ds1.spin
-    Author: Jesse Burt
-    Description: LSM9DS1-specific constants
-    Copyright (c) 2021
-    Started Feb 9, 2019
-    Updated Oct 2, 2021
-    See end of file for terms of use.
-    --------------------------------------------
+----------------------------------------------------------------------------------------------------
+    Filename:       core.con.lsm9ds1.spin
+    Description:    LSM9DS1-specific constants
+    Author:         Jesse Burt
+    Started:        Feb 9, 2019
+    Updated:        Jul 13, 2024
+    Copyright (c) 2024 - See end of file for terms of use.
+----------------------------------------------------------------------------------------------------
 }
 
 CON
@@ -388,12 +387,14 @@ CON
     FIFO_OFF_TRIG           = 4
     FIFO_CONT               = 6
 
-PUB null{}
+
+PUB null()
 ' This is not a top-level object
+
 
 DAT
 {
-Copyright 2022 Jesse Burt
+Copyright 2024 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
