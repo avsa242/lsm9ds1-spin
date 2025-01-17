@@ -4,8 +4,8 @@
     Description:    Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Author:         Jesse Burt
     Started:        Aug 12, 2017
-    Updated:        Jul 13, 2024
-    Copyright (c) 2024 - See end of file for terms of use.
+    Updated:        Jan 17, 2025
+    Copyright (c) 2025 - See end of file for terms of use.
 ----------------------------------------------------------------------------------------------------
 }
 #include "sensor.accel.common.spinh"
@@ -143,7 +143,7 @@ OBJ
 # ifdef LSM9DS1_SPI_BC
     spi:    "com.spi.25khz.nocog"               ' BC SPI engine
 # else
-    spi:    "com.spi.1mhz"                      ' PASM SPI engine
+    spi:    "com.spi.4mhz"                      ' PASM SPI engine
 # endif
 #else
 { no, not SPI - default to I2C }
@@ -1579,7 +1579,7 @@ PRI writereg(device, reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 
 DAT
 {
-Copyright 2024 Jesse Burt
+Copyright 2025 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,

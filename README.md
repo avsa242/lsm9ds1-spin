@@ -7,7 +7,7 @@ This is a P8X32A/Propeller, P2X8C4M64P/Propeller 2 driver object for the STMicro
 
 ## Salient Features
 
-* 3-Wire or 4-wire SPI connection at 1MHz (P1), up to 10MHz (P2)
+* 3-Wire or 4-wire SPI connection at 4MHz (P1), up to 10MHz (P2)
 * I2C connection at up to 400kHz
 * Accelerometer data in raw or calculated output (micro-G's)
 * Gyroscope data in raw or calculated output (micro-degrees per second)

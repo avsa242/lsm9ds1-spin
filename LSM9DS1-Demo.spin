@@ -11,8 +11,8 @@
 }
 
 ' Uncomment the two lines below to use the driver in SPI mode
-'#define LSM9DS1_SPI
-'#pragma exportdef(LSM9DS1_SPI)
+#define LSM9DS1_SPI
+#pragma exportdef(LSM9DS1_SPI)
 
 ' Uncomment the two lines below to use the driver with a bytecode-based SPI engine
 '#define LSM9DS1_SPI_BC
@@ -36,7 +36,7 @@ OBJ
     ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
 
     { to use 3-wire SPI, set MOSI and MISO to the same pin }
-    sensor: "sensor.imu.9dof.lsm9ds1" | {I2C}SCL=2, SDA=4, I2C_FREQ=400_000, I2C_ADDR=0, ...
+    sensor: "sensor.imu.9dof.lsm9ds1" | {I2C}SCL=28, SDA=29, I2C_FREQ=400_000, I2C_ADDR=1, ...
                                         {SPI}CS_AG=0, CS_M=1, SCK=2, MOSI=3, MISO=3
 
 
