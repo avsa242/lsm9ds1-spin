@@ -5,6 +5,7 @@ This is a P8X32A/Propeller, P2X8C4M64P/Propeller 2 driver object for the STMicro
 
 **IMPORTANT**: This software is meant to be used with the [spin-standard-library](https://github.com/avsa242/spin-standard-library) (P8X32A) or [p2-spin-standard-library](https://github.com/avsa242/p2-spin-standard-library) (P2X8C4M64P). Please install the applicable library first before attempting to use this code, otherwise you will be missing several files required to build the project.
 
+
 ## Salient Features
 
 * 3-Wire or 4-wire SPI connection at 4MHz (P1), up to 10MHz (P2)
@@ -17,6 +18,7 @@ This is a P8X32A/Propeller, P2X8C4M64P/Propeller 2 driver object for the STMicro
 * Additional Accelerometer functionality: Set high-resolution mode
 * Additional Gyroscope functionality: Set data output high-pass filter cut-off freq, set inactivity: duration, threshold, sleep on/off, low-power mode, sleep mode
 * Additional Magnetometer functionality: Built-in self-test, performance mode, flag indicating measurement overflow/saturation
+
 
 ## Requirements
 
@@ -34,6 +36,7 @@ P2/SPIN2:
 * sensor.gyroscope.common.spin2h (provided by p2-spin-standard-library)
 * sensor.magnetometer.common.spin2h (provided by p2-spin-standard-library)
 * sensor.temp.common.spin2h (provided by p2-spin-standard-library)
+
 
 ## Compiler Compatibility
 

@@ -4,29 +4,39 @@
     Description:    LSM9DS1-specific constants
     Author:         Jesse Burt
     Started:        Feb 9, 2019
-    Updated:        Jul 13, 2024
-    Copyright (c) 2024 - See end of file for terms of use.
+    Updated:        Jan 18, 2025
+    Copyright (c) 2025 - See end of file for terms of use.
 ----------------------------------------------------------------------------------------------------
 }
 
 CON
+
+    T_POR                   = 1_000             ' startup time (usecs)
+    T_RISE                  = 100_000
+    T_WAIT                  = 10_000
+    TPOR                    = 110_000           ' usec
+
+
 ' I2C Configuration
-    I2C_MAX_FREQ            = 400_000                   ' device max I2C bus freq
-    SLAVE_ADDR_XLG          = $6A << 1                  ' 7-bit format slave address
-    SLAVE_ADDR_MAG          = $1C << 1
-    T_POR                   = 1_000                     ' startup time (usecs)
-    MB_I2C                  = 1 << 7
+    I2C_MAX_FREQ            = 400_000           ' device max I2C bus freq
+    SLAVE_ADDR_XLG          = $6A << 1          ' accel/gyro slave address (write)
+    SLAVE_ADDR_XLG_R        = SLAVE_ADDR_XLG | 1'   (read)
+    SLAVE_ADDR_MAG          = $1C << 1          ' mag slave address (write)
+    SLAVE_ADDR_MAG_R        = SLAVE_ADDR_MAG | 1'   (read)
+    MB_I2C                  = 1 << 7            ' multi-byte transfer flag (I2C)
 
 ' SPI Configuration
-    SPI_MODE                = 3
-    SPI_MAX_FREQ            = 10_000_000
-
-    TPOR                    = 110_000           ' usec
-    MS_SPI                  = 1 << 6
+    SPI_MODE                = 3                 ' seems to operate with mode 0 as well
+    SPI_MAX_FREQ            = 10_000_000        ' max SPI bus freq
+    READ_SPI                = 1 << 7
+    MS_SPI                  = 1 << 6            ' multi-byte transfer flag (SPI)
+    READ_MULTI_SPI          = READ_SPI | MS_SPI
 
     WHOAMI_AG_RESP          = $68
     WHOAMI_M_RESP           = $3D
     WHOAMI_BOTH_RESP        = (WHOAMI_AG_RESP << 8) | WHOAMI_M_RESP
+    DEVID_RESP              = WHOAMI_BOTH_RESP
+
 
 ' LSM9DS1 Register map
     ACT_THS                 = $04
@@ -39,6 +49,8 @@ CON
 
     ACT_DUR                 = $05
     INT_GEN_CFG_XL          = $06
+    INT_GEN_CFG_XL_MASK     = $ff
+
     INT_GEN_THS_X_XL        = $07
     INT_GEN_THS_Y_XL        = $08
     INT_GEN_THS_Z_XL        = $09
@@ -195,6 +207,8 @@ CON
         SW_RESET_MASK       = (1 << SW_RESET) ^ CTRL_REG8_MASK
         XLG_SW_RESET        = 1
         XLG_3WSPI           = 1 << SIM
+        XLG_BOOT            = 1 << BOOT
+        BDU_ENABLED         = 1 << BDU
 
     CTRL_REG9               = $23
     CTRL_REG9_MASK          = $5F
@@ -305,6 +319,8 @@ CON
         FS_M_MASK           = (FS_M_BITS << FS_M) ^ CTRL_REG2_M_MASK
         RE_BOOT_MASK        = (RE_BOOT_BITS << RE_BOOT) ^ CTRL_REG2_M_MASK
         SOFT_RST_MASK       = (SOFT_RST_BITS << SOFT_RST) ^ CTRL_REG2_M_MASK
+        DO_REBOOT           = 1 << RE_BOOT
+        DO_SOFT_RST         = 1 << SOFT_RST
 
     CTRL_REG3_M             = $22
     CTRL_REG3_M_MASK        = $A7
@@ -333,6 +349,7 @@ CON
         BDU_M               = 6
         FAST_READ_MASK      = (1 << FAST_READ) ^ CTRL_REG5_M_MASK
         BDU_M_MASK          = (1 << BDU_M) ^ CTRL_REG5_M_MASK
+        BDU_M_ENABLED       = 1 << BDU_M
 
     STATUS_REG_M            = $27
     STATUS_REG_M_MASK       = $FF
@@ -394,7 +411,7 @@ PUB null()
 
 DAT
 {
-Copyright 2024 Jesse Burt
+Copyright 2025 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
