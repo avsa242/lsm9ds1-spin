@@ -1186,15 +1186,16 @@ PUB mag_int_thresh(): thresh
 ' Get magnetometer interrupt threshold
     thresh := 0
     readreg(MAG, core.INT_THS_L_M, 2, @thresh)
+    return (thresh * _mres)
 
 
 PUB mag_int_set_thresh(thresh)
 ' Set magnetometer interrupt threshold
-'   Valid values: 0..32767 (clamped to range)
+'   Valid values: 0..mag_scale() * 1_000_000
 '   Any other value polls the chip and returns the current setting
-'   NOTE: The set thresh is an absolute value and is compared to positive and
+'   NOTE: The set threshold is an absolute value and is compared to positive and
 '       negative measurements alike
-    thresh := 0 #> thresh <# 32767
+    thresh := 0 #> (thresh / _mres) <# mag_scale()
     writereg(MAG, core.INT_THS_L_M, 2, @thresh)
 
 
