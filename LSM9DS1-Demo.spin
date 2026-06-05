@@ -5,14 +5,14 @@
         * 9DoF data output
     Author:         Jesse Burt
     Started:        Aug 12, 2017
-    Updated:        Jan 21, 2024
-    Copyright (c) 2024 - See end of file for terms of use.
+    Updated:        Jun 5, 2026
+    Copyright (c) 2026 - See end of file for terms of use.
 ----------------------------------------------------------------------------------------------------
 }
 
 ' Uncomment the two lines below to use the driver in SPI mode
-#define LSM9DS1_SPI
-#pragma exportdef(LSM9DS1_SPI)
+'#define LSM9DS1_SPI
+'#pragma exportdef(LSM9DS1_SPI)
 
 ' Uncomment the two lines below to use the driver with a bytecode-based SPI engine
 '#define LSM9DS1_SPI_BC
@@ -25,19 +25,98 @@
 
 CON
 
-    _clkmode    = cfg._clkmode
-    _xinfreq    = cfg._xinfreq
+    _clkmode    = xtal1+pll16x
+    _xinfreq    = 5_000_000
 
 
 OBJ
 
-    cfg:    "boardcfg.flip"
-    time:   "time"
     ser:    "com.serial.terminal.ansi" | SER_BAUD=115_200
 
     { to use 3-wire SPI, set MOSI and MISO to the same pin }
     sensor: "sensor.imu.9dof.lsm9ds1" | {I2C}SCL=28, SDA=29, I2C_FREQ=400_000, I2C_ADDR=1, ...
                                         {SPI}CS_AG=0, CS_M=1, SCK=2, MOSI=3, MISO=3
+    time:   "time"
+
+
+PUB main() | a[3], g[3], m[3]
+
+    setup()
+    sensor.preset_active()
+
+    repeat
+        repeat
+        until sensor.accel_data_rdy()             ' wait for new accel/gyro data
+
+        ' copy accelerometer data (micro-g's) to an array here
+        sensor.accel_g(@a[sensor.X_AXIS], @a[sensor.Y_AXIS], @a[sensor.Z_AXIS])
+
+        repeat
+        until sensor.gyro_data_rdy()
+
+        ' copy gyroscope data (micro-deg/sec) to an array here
+        sensor.gyro_dps(@g[sensor.X_AXIS], @g[sensor.Y_AXIS], @g[sensor.Z_AXIS])
+
+        repeat
+        until sensor.mag_data_rdy()             ' wait for new mag data
+
+        ' copy magnetometer data (micro-Gauss) to an array here
+        sensor.mag_gauss(@m[sensor.X_AXIS], @m[sensor.Y_AXIS], @m[sensor.Z_AXIS])
+
+        ser.pos_xy(0, 3)
+        show_data(@"Accel (g):  ", a[sensor.X_AXIS], a[sensor.Y_AXIS], a[sensor.Z_AXIS])
+        show_data(@"Gyro (dps):  ", g[sensor.X_AXIS], g[sensor.Y_AXIS], g[sensor.Z_AXIS])
+        show_data(@"Mag (Gs):  ", m[sensor.X_AXIS], m[sensor.Y_AXIS], m[sensor.Z_AXIS])
+
+        if ( ser.getchar_noblock() == "c" )     ' press "c" to calibrate/zero the sensors
+            cal_accel()
+            cal_gyro()
+            cal_mag()
+
+
+PUB show_data(p_str, x, y, z) | axis, tmp[3], sign
+
+    longmove(@tmp, @x, 3)
+
+    ser.str(p_str)
+    repeat axis from 0 to 2
+        ' The sign is normally taken from the whole part and just displayed.
+        ' Because we're showing values divided by 1_000_000, it won't show negative until the value
+        '   reaches -1_000_000 or less, so values like -0_800_000 will display without the '-',
+        '   so process the sign display separately here
+        if ( tmp[axis] < 0 )
+            sign := "-"
+        else
+            sign := " "
+        ser.printf(@"%c%d.%06.6d     ", sign, ...
+                                        abs(tmp[axis] / 1_000_000), ...
+                                        abs(tmp[axis] // 1_000_000) )
+    ser.newline()
+
+
+PUB cal_accel()
+' Calibrate the accelerometer
+    ser.pos_xy(0, 3)
+    ser.str(@"Calibrating accelerometer...")
+    sensor.calibrate_accel()
+    ser.pos_xy(0, 3)
+    ser.clear_ln()
+
+PUB cal_gyro()
+' Calibrate the gyroscope
+    ser.pos_xy(0, 4)
+    ser.str(@"Calibrating gyroscope...")
+    sensor.calibrate_gyro()
+    ser.pos_xy(0, 4)
+    ser.clear_ln()
+
+PUB cal_mag()
+' Calibrate the magnetometer
+    ser.pos_xy(0, 5)
+    ser.str(@"Calibrating magnetometer...")
+    sensor.calibrate_mag()
+    ser.pos_xy(0, 5)
+    ser.clear_ln()
 
 
 PUB setup()
@@ -53,27 +132,10 @@ PUB setup()
         ser.strln(@"LSM9DS1 driver failed to start - halting")
         repeat
 
-    sensor.preset_active()
-
-    repeat
-        ser.pos_xy(0, 3)
-        show_accel_data()
-        show_gyro_data()
-        show_mag_data()
-        if ( ser.getchar_noblock() == "c" )
-            cal_accel()
-            cal_gyro()
-            cal_mag()
-
-
-#include "acceldemo.common.spinh"               ' use code common to all accelerometer,
-#include "gyrodemo.common.spinh"                '   gyroscope,
-#include "magdemo.common.spinh"                 '   and magnetometer demos.
-
 
 DAT
 {
-Copyright 2024 Jesse Burt
+Copyright 2026 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
