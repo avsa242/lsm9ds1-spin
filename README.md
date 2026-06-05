@@ -9,9 +9,22 @@ This is a P8X32A/Propeller, P2X8C4M64P/Propeller 2 driver object for the STMicro
 
 * 3-Wire or 4-wire SPI connection at 4MHz (P1), up to 10MHz (P2)
 * I2C connection at up to 400kHz
-* Accelerometer data in raw or calculated output (micro-G's)
-* Gyroscope data in raw or calculated output (micro-degrees per second)
-* Magnetometer data in raw or calculated output (micro-Gauss)
+* Read accelerometer data:
+    * raw ADC words
+    * micro-g's (integer)
+    * micro-meters per second squared (integer)
+    * pitch, roll in hundredths of a degree (integer)
+* Read gyroscope data:
+    * raw ADC words
+    * micro-degrees per second (integer)
+    * micro-radians per second (integer)
+    * degrees per second (float; spin2 only)
+    * radians per second (float; spin2 only)
+* Read magnetometer data:
+    * raw ADC words
+    * micro-Gauss (integer)
+    * Teslas (integer)
+    * yaw/heading in hundredths of a degree (integer)
 * Temperature data in calculated output (centi-degrees C)
 * Common functions for all three sensors: Full-scale, Output data rate, Per-axis Output enable, Flag indicating new data available, perform on-chip calibration, or write manually derived values, data endianness, soft-reset, read interrupts state
 * Additional Accelerometer functionality: Set high-resolution mode
@@ -39,10 +52,10 @@ P2/SPIN2:
 
 | Processor | Language | Compiler               | Backend      | Status                |
 |-----------|----------|------------------------|--------------|-----------------------|
-| P1        | SPIN1    | FlexSpin (6.9.4)       | Bytecode     | OK                    |
-| P1        | SPIN1    | FlexSpin (6.9.4)       | Native/PASM  | OK                    |
-| P2        | SPIN2    | FlexSpin (6.9.4)       | NuCode       | Build: OK Runtime: Bad|
-| P2        | SPIN2    | FlexSpin (6.9.4)       | Native/PASM2 | OK                    |
+| P1        | SPIN1    | FlexSpin (7.6.5)       | Bytecode     | OK                    |
+| P1        | SPIN1    | FlexSpin (7.6.5)       | Native/PASM  | OK                    |
+| P2        | SPIN2    | FlexSpin (7.6.5)       | NuCode       | Build: OK Runtime: Bad|
+| P2        | SPIN2    | FlexSpin (7.6.5)       | Native/PASM2 | OK                    |
 
 (other versions or toolchains not listed are __not supported__, and _may or may not_ work)
 

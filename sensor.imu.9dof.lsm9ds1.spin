@@ -4,8 +4,8 @@
     Description:    Driver for the ST LSM9DS1 9DoF/3-axis IMU
     Author:         Jesse Burt
     Started:        Aug 12, 2017
-    Updated:        Jan 17, 2025
-    Copyright (c) 2025 - See end of file for terms of use.
+    Updated:        Jun 5, 2026
+    Copyright (c) 2026 - See end of file for terms of use.
 ----------------------------------------------------------------------------------------------------
 }
 #include "sensor.accel.common.spinh"
@@ -38,11 +38,6 @@ CON
     MISO                    = 4
     SPI_FREQ                = 1_000_000
 
-
-    DEF_SCL                 = 28
-    DEF_SDA                 = 29
-    DEF_HZ                  = 100_000
-    I2C_MAX_FREQ            = core.I2C_MAX_FREQ
 
 ' Indicate to user apps how many Degrees of Freedom each sub-sensor has
 '   (also imply whether or not it has a particular sensor)
@@ -390,9 +385,9 @@ PUB accel_int_hyst(state=-2): curr_state
 '       duration time accel_int_duration()
     curr_state := 0
     readreg(XLG, core.INT_GEN_DUR_XL, 1, @curr_state)
-    case ||(state)
+    case abs(state)
         0, 1:
-            state := ||(state) << core.WAIT_XL
+            state := abs(state) << core.WAIT_XL
             state := ((curr_state & core.WAIT_XL_MASK) | state)
             writereg(XLG, core.INT_GEN_DUR_XL, 1, @state)
         other:
@@ -827,9 +822,9 @@ PUB gyro_int_hyst_ena(state=-2): curr_state
 '       duration time gyro_int_duration()
     curr_state := 0
     readreg(XLG, core.INT_GEN_DUR_G, 1, @curr_state)
-    case ||(state)
+    case abs(state)
         0, 1:
-            state := ||(state) << core.WAIT_G
+            state := abs(state) << core.WAIT_G
             state := ((curr_state & core.WAIT_G_MASK) | state)
             writereg(XLG, core.INT_GEN_DUR_G, 1, @state)
         other:
@@ -917,6 +912,9 @@ PUB gyro_scale(scale=-2): curr_scale
         245, 500, 2000:
             scale := lookdownz(scale: 245, 500, 0, 2000)
             _gres := lookupz(scale: 0_008750, 0_017500, 0, 0_070000)
+            _gres_rads_sec := lookupz(scale: 0_000152, 0_000305, 0, 0_001221)
+            '_gres_dps_f := lookupz(scale: 0.00875, 0.0175, 0.0, 0.07)
+            '_gres_rads_sec_f := lookupz(scale: 0.000152716, 0.000305432, 0.0, 0.001221730)
             scale <<= core.FS
             scale := ((curr_scale & core.FS_MASK) | scale)
             writereg(XLG, core.CTRL_REG1_G, 1, @scale)
@@ -1372,9 +1370,9 @@ PRI addr_auto_inc_ena(state): curr_state
 '   Any other value polls the chip and returns the current setting
     curr_state := 0
     readreg(XLG, core.CTRL_REG8, 1, @curr_state)
-    case ||(state)
+    case abs(state)
         0, 1:
-            state := (||(state)) << core.IF_ADD_INC
+            state := (abs(state)) << core.IF_ADD_INC
             state := ((curr_state & core.IF_ADD_INC_MASK) | state)
             writereg(XLG, core.CTRL_REG8, 1, @state)
         other:
@@ -1400,11 +1398,11 @@ PRI mag_i2c_ena(state): curr_state
 '   Any other value polls the chip and returns the current setting
     curr_state := 0
     readreg(MAG, core.CTRL_REG3_M, 1, @curr_state)
-    case ||(state)
+    case abs(state)
         0, 1:
             ' setting the M_I2C_DIS bit _disables_ I2C, so invert
             '   the value passed to this method
-            state := (||(state) ^ 1) << core.M_I2C_DIS
+            state := (abs(state) ^ 1) << core.M_I2C_DIS
             state := ((curr_state & core.M_I2C_DIS_MASK) | state)
             writereg(MAG, core.CTRL_REG3_M, 1, @state)
         other:
@@ -1441,9 +1439,9 @@ PRI bool_choice(device, reg_nr, rfield, fieldmask, regmask, choice, invertchoice
 '   invertchoice:   whether to invert the boolean logic (1 for normal, -1 for inverted)
     bool := 0
     readreg(device, reg_nr, 1, @bool)
-    case ||(choice)
+    case abs(choice)
         0, 1:
-            choice := ||(choice * invertchoice) << rfield
+            choice := abs(choice * invertchoice) << rfield
             bool &= fieldmask
             bool := (bool | choice) & regmask
             choice := ((bool & fieldmask) | choice) & regmask
@@ -1580,7 +1578,7 @@ PRI writereg(device, reg_nr, nr_bytes, ptr_buff) | cmd_pkt
 
 DAT
 {
-Copyright 2025 Jesse Burt
+Copyright 2026 Jesse Burt
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and
 associated documentation files (the "Software"), to deal in the Software without restriction,
